@@ -16,6 +16,7 @@ import pyroomacoustics as pra
 from scipy.signal import fftconvolve
 
 from nesd.data.samplers import DistributedSamplerWrapper
+from nesd.utils import Microphone, sph2cart, norm, normalize, Source, int16_to_float32, get_cos, calculate_microphone_gain, fractional_delay
 # from nesd.utils import int16_to_float32, Microphone, sph2cart, cart2sph, SphereSource, calculate_microphone_gain, get_ir_filter, conv_signals, DirectionSampler, Ray, Rotator3D, get_cos
 
 # GOLDEN_RATIO = (math.sqrt(5) - 1) / 2
@@ -69,6 +70,29 @@ class DataModule(LightningDataModule):
         return train_loader
 
 
+def get_ambisonic_microphone(mic_meta):
+
+    x, y, z = sph2cart(
+        r=mic_meta['radius'], 
+        azimuth=mic_meta['azimuth'], 
+        zenith=mic_meta['zenith']
+    )
+
+    position = np.array([x, y, z])
+    direction = np.array([x, y, z])
+
+    # target = np.array([2 * x, 2 * y, 2 * z])
+    # up = np.array([0, 1, 0])
+
+    # mic = Microphone(directivity=mic_meta['directivity'])
+
+    # mic = Microphone(position=position, direction=direction, directivity=mic_meta['directivity'])
+
+    # mic.look_at(position=mic_position, target=target, up=up)
+
+    return mic
+
+
 class Dataset:
     def __init__(
         self,
@@ -108,7 +132,15 @@ class Dataset:
             mic = get_ambisonic_microphone(mic_meta)
             self.mics.append(mic)
         '''
-        pass
+        self.speed_of_sound = 343.
+        self.sample_rate = 24000
+        mic_yaml = "ambisonic.yaml"
+
+        with open(mic_yaml, 'r') as f:
+            self.mics_meta = yaml.load(f, Loader=yaml.FullLoader)
+
+        self.hdf5s_dir = "/home/tiger/workspaces/nesd2/hdf5s/vctk/sr=24000/train"
+        self.hdf5_names = sorted(os.listdir(self.hdf5s_dir))
 
     def __getitem__(self, meta: Dict) -> Dict:
         r"""Return data according to a meta. E.g., an input meta looks like: {
@@ -138,11 +170,92 @@ class Dataset:
 
         # Calculate mic signal 
         # - Normal: calculate all rays and convolve with mic IR
+        # - Fast: free-field use sparsity
 
         # Calculate target signal, hard sample
+        # - Normal: calculate all signals at all directions
+        # - Fast: Hard example directions
 
+        random_seed = meta['random_seed']
+        random_state = np.random.RandomState(random_seed)
 
-        from IPython import embed; embed(using=False); os._exit(0)
+        # -------- Mic
+        new_position = np.array([4, 4, 2])
+
+        mic_center_position = np.array([4, 4, 2])
+        
+        mics = []
+
+        for mic_meta in self.mics_meta:
+
+            x = np.array(sph2cart(
+                r=mic_meta['radius'], 
+                azimuth=mic_meta['azimuth'], 
+                colatitude=mic_meta['colatitude']
+            ))
+
+            mic_position = mic_center_position + x
+            mic_look_direction = normalize(x)
+
+            mic = Microphone(
+                position=mic_position,
+                look_direction=mic_look_direction,
+                directivity=mic_meta['directivity'],
+            )
+            mics.append(mic)
+
+        # --------- Source
+        sources_num = 2
+        sources = []
+
+        for i in range(sources_num):
+        
+            source_position = np.array((
+                random_state.uniform(low=0, high=8),
+                random_state.uniform(low=0, high=8),
+                random_state.uniform(low=0, high=4),
+            ))
+            
+            h5s_num = len(self.hdf5_names)
+            h5_index = random_state.randint(h5s_num)
+            hdf5_path = os.path.join(self.hdf5s_dir, self.hdf5_names[h5_index])
+
+            with h5py.File(hdf5_path, 'r') as hf:
+                waveform = int16_to_float32(hf['waveform'][:])
+
+            source = Source(
+                position=source_position,
+                radius=0.1,
+                waveform=waveform,
+            )
+            sources.append(source)
+
+        # --------- 
+
+        # Microphone signals
+        for mic in mics:
+
+            # total = 0
+            for source in sources:
+
+                src_to_mic = mic.position - source.position
+                delayed_seconds = norm(src_to_mic) / self.speed_of_sound
+                delayed_samples = self.sample_rate * delayed_seconds
+                
+                cos = get_cos(mic.look_direction, -src_to_mic)
+                gain = calculate_microphone_gain(cos=cos, directivity=mic.directivity)
+
+                t1 = time.time()
+                y = fractional_delay(x=source.waveform, delayed_samples=delayed_samples)
+                y *= gain
+                print(time.time() - t1)
+
+                mic.waveform += y
+
+            # mic.set_waveform(waveform=total)
+
+            soundfile.write(file='_zz.wav', data=mic.waveform, samplerate=24000)
+            from IPython import embed; embed(using=False); os._exit(0)
     
         random_seed = meta['random_seed']
         random_state = np.random.RandomState(random_seed)
@@ -154,67 +267,7 @@ class Dataset:
             random_state=random_state,
         )
 
-        sources_num = 2
-
-        # Sources
-        sphere_sources = []
-
-        for i in range(sources_num):
         
-            sphere_source = SphereSource(
-                position=random_state.uniform(low=-3, high=3, size=3), 
-                radius=0.1,
-            )
-
-            hdf5_name = random_state.choice(self.hdf5_names)
-            hdf5_path = os.path.join(self.hdf5s_dir, hdf5_name)
-
-            with h5py.File(hdf5_path, 'r') as hf:
-                source = int16_to_float32(hf['waveform'][:])
-                
-            sphere_source.set_waveform(waveform=source)
-            sphere_sources.append(sphere_source)
-
-        # Microphone signals
-        for mic in self.mics:
-
-            total = 0
-            for sphere_source in sphere_sources:
-
-                delayed_samples_list = []
-                gain_list = []
-
-                # Direct sound
-                if True:
-                    mic_to_src = sphere_source.position - mic.position
-
-                    distance = np.linalg.norm(x=mic_to_src, ord=2)
-                    delayed_seconds = distance / self.speed_of_sound
-                    delayed_samples = self.sample_rate * delayed_seconds
-
-                    cos = get_cos(mic.direction, mic_to_src)
-                    gain = calculate_microphone_gain(cos=cos, directivity=mic.directivity)
-
-                    delayed_samples_list.append(delayed_samples)
-                    gain_list.append(gain)
-
-                # if ray tracing add here
-                # importance monte carlo
-                
-                filt = get_ir_filter(
-                    filter_len=self.filter_len, 
-                    gain_list=gain_list, 
-                    delayed_samples_list=delayed_samples_list,
-                )
-
-                # t1 = time.time()
-                y = conv_signals(source=sphere_source.waveform, filt=filt)
-                # print(time.time() - t1)
-                # print(y.shape)
-            
-                total += y
-
-            mic.set_waveform(waveform=total)
 
         # field
         ray_origin = np.array([0, 0, 0])

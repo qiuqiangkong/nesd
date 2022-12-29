@@ -132,10 +132,10 @@ class DirectionSampler:
         return azimuth, zenith
 
 
-def sph2cart(r, azimuth, zenith):
-    x = r * np.cos(azimuth) * np.sin(zenith)
-    y = r * np.sin(azimuth) * np.sin(zenith)
-    z = r * np.cos(zenith)
+def sph2cart(r, azimuth, colatitude):
+    x = r * np.cos(azimuth) * np.sin(colatitude)
+    y = r * np.sin(azimuth) * np.sin(colatitude)
+    z = r * np.cos(colatitude)
     return x, y, z
 
 
@@ -160,15 +160,20 @@ class Microphone:
 
 
 class Microphone:
-    def __init__(self, position, direction, directivity, directivity_object=None):
+    def __init__(self, position, look_direction, directivity, directivity_object=None):
 
         self.position = position
-        self.direction = direction / np.linalg.norm(direction)
+        # self.look_direction = look_direction / np.linalg.norm(look_direction)
+        self.look_direction = look_direction
+        self.up_direction = None
         self.directivity = directivity
         self.directivity_object = directivity_object
+        self.waveform = 0.
 
-    def set_waveform(self, waveform):
-        self.waveform = waveform
+        assert np.linalg.norm(look_direction) == 1.
+
+    # def set_waveform(self, waveform):
+    #     self.waveform = waveform
         
 
         # z = target - position
@@ -201,13 +206,13 @@ class SphereSource:
         self.waveform = waveform
 '''
 
-class SphereSource:
-    def __init__(self, position, radius):
-        self.position = position
-        self.radius = radius
+def normalize(x):
+    return x / np.linalg.norm(x)
 
-    def set_waveform(self, waveform):
-        self.waveform = waveform 
+
+def norm(x):
+    return np.linalg.norm(x)
+
 
 def get_cos(a, b):
     cos = np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b))
@@ -227,6 +232,13 @@ def calculate_microphone_gain(cos, directivity):
 
     return gain
 
+
+class Source:
+    def __init__(self, position, radius, waveform):
+        self.position = position
+        self.radius = radius
+        self.waveform = waveform
+
 '''
 def get_ir_filter(filter_len, gain, delayed_samples):
 
@@ -238,25 +250,37 @@ def get_ir_filter(filter_len, gain, delayed_samples):
     return filt
 '''
 
-def get_ir_filter(filter_len, gain_list, delayed_samples_list):
+ 
+def fractional_delay(x, delayed_samples):
+    r"""Fractional delay with Whittaker–Shannon interpolation formula. 
+    Ref: https://tomroelandts.com/articles/how-to-create-a-fractional-delay-filter
 
-    filt = np.zeros(filter_len)
+    Args:
+        x: np.array (1D), input signal
+        delay_samples: float >= 0., e.g., 3.3
 
-    for gain, delayed_samples in zip(gain_list, delayed_samples_list):
+    Outputs:
+        y: np.array (1D), delayed signal
+    """
+    integer = int(delayed_samples)
+    fraction = delayed_samples % 1
 
-        if delayed_samples is not None:
-            alpha = delayed_samples - int(delayed_samples)
-            filt[int(delayed_samples)] += (1 - alpha) * gain
-            filt[int(delayed_samples) + 1] += alpha * gain
-        
-    return filt
+    x = np.concatenate((np.zeros(integer), x), axis=0)[0 : len(x)]
 
+    N = 21     # Filter length.
+    n = np.arange(N)
 
-def conv_signals(source, filt):
-    len_source = len(source)
-    source = np.concatenate((np.zeros(len(filt) - 1), source))
-    y = fftconvolve(in1=source, in2=filt, mode='valid')
-    y = y[0 : len_source]
+    # Compute sinc filter.
+    h = np.sinc(n - (N - 1) / 2 - fraction)
+     
+    # Multiply sinc filter by window
+    h *= np.blackman(N)
+     
+    # Normalize to get unity gain.
+    h /= np.sum(h)
+    
+    y = np.convolve(x, h, mode='same')
+
     return y
 
 
