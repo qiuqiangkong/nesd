@@ -57,16 +57,6 @@ class LitModel(pl.LightningModule):
         # Forward.
         self.model.train()
 
-        '''
-        input_dict = {
-            'mic_waveform': batch_data_dict['mic_waveform'],
-        }
-
-        target_dict = {
-            'framewise_class': batch_data_dict['framewise_class'],
-        }
-        '''
-
         input_dict = batch_data_dict
         target_dict = batch_data_dict
 
@@ -83,17 +73,7 @@ class LitModel(pl.LightningModule):
     def configure_optimizers(self) -> Any:
         r"""Configure optimizer."""
 
-        if self.optimizer_type == "Adam":
-            optimizer = optim.Adam(
-                self.model.parameters(),
-                lr=self.learning_rate,
-                betas=(0.9, 0.999),
-                eps=1e-08,
-                weight_decay=0.0,
-                amsgrad=True,
-            )
-
-        elif self.optimizer_type == "AdamW":
+        if self.optimizer_type == "AdamW":
             optimizer = optim.AdamW(
                 self.model.parameters(),
                 lr=self.learning_rate,

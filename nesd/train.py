@@ -20,24 +20,13 @@ import torch
 import torch.nn.functional as F
 
 from nesd.utils import read_yaml, create_logging
-from nesd.data.samplers import SegmentSampler
+from nesd.data.samplers import Sampler
 from nesd.data.data_modules import DataModule, Dataset
 from nesd.models.models01 import *
 from nesd.models.lightning_modules import LitModel
 from nesd.optimizers.lr_schedulers import get_lr_lambda
-
-# from nesd.data.data_modules import DatasetBaseline, DatasetPyRoomAcoustics, DatasetPyRoomAcousticsFramewise, DataModule, DatasetDcaseRir, DatasetDcaseRirNoise
-# from nesd.data.data_modules_official_datagen import DatasetOfficialDatagen
-# from nesd.data.data_modules_pre_calculate import DatasetPreCalculate
-# from nesd.models.models import LitModel, Model_01g_dnn
-# from nesd.models.models import *
-# from nesd.models.models03 import *
-# from nesd.models.models04 import *
-# from nesd.models.models04b import *
-# from nesd.losses import get_loss_function
-
-# from nesd.callbacks.callback import get_callback
-# from nesd.models.models05a_24k import *
+from nesd.losses import *
+from nesd.callbacks.callback import get_callback
 
 
 def get_dirs(
@@ -131,6 +120,7 @@ def get_data_module(
     """
 
     configs = read_yaml(config_yaml)
+
     # sample_rate = configs['train']['sample_rate']
     # segment_seconds = configs['train']['segment_seconds']
     
@@ -145,17 +135,23 @@ def get_data_module(
     # split = "train"
     # classes_num = configs['train']['classes_num']
 
+    train_hdf5s_dir = os.path.join(workspace, configs['sources']['train_hdf5s_dir'])
+    test_hdf5s_dir = os.path.join(workspace, configs['sources']['test_hdf5s_dir'])
     batch_size = configs['train']['batch_size']
     steps_per_epoch = configs['train']['steps_per_epoch']
     
     # sampler
-    train_sampler = SegmentSampler(
+    train_sampler = Sampler(
         batch_size=batch_size,
         steps_per_epoch=steps_per_epoch,
         random_seed=1234,
     )
 
-    train_dataset = Dataset()
+    # hdf5s_dir = "/home/tiger/workspaces/nesd2/hdf5s/vctk/sr=24000/train"
+
+    train_dataset = Dataset(
+        hdf5s_dir=train_hdf5s_dir,
+    )
 
     # data module
     data_module = DataModule(
@@ -229,13 +225,13 @@ def train(args) -> NoReturn:
     config_yaml = args.config_yaml
     filename = args.filename
 
-    num_workers = 0
+    num_workers = 8
     distributed = True if gpus > 1 else False
     evaluate_device = "cuda" if gpus > 0 else "cpu"
 
     configs = read_yaml(config_yaml)
     model_type = configs['train']['model_type']
-    # loss_type = configs['train']['loss_type']
+    loss_type = configs['train']['loss_type']
     optimizer_type = configs['train']['optimizer_type']
     learning_rate = float(configs['train']['learning_rate'])
     warm_up_steps = int(configs['train']['warm_up_steps'])
@@ -261,24 +257,12 @@ def train(args) -> NoReturn:
 
     # model
     # Model = get_model_class(model_type=model_type)
-    classes_num = 15
+    classes_num = 1
     Model = eval(model_type)
     model = Model(microphones_num=4, classes_num=classes_num)
 
-    # loss function
-    # loss_function = get_loss_function(loss_type)
-    # loss_function = get_loss_function(loss_type=loss_type, max_sep_rays=max_sep_rays)
+    loss_function = eval(loss_type)
     
-    '''
-    loss_function = get_loss_function(
-        loss_type=loss_type, 
-        max_sep_rays=target_configs['max_sep_rays'],
-        depth_rays=target_configs['depth_rays'],
-    )
-    '''
-    loss_function = None
-    
-    '''
     # callbacks
     callbacks = get_callback(
         config_yaml=config_yaml,
@@ -290,8 +274,7 @@ def train(args) -> NoReturn:
         loss_function=loss_function,
         evaluate_device=evaluate_device,
     )
-    '''
-    callbacks = []
+    # callbacks = []
 
     # learning rate reduce function
     lr_lambda = partial(
@@ -344,10 +327,7 @@ if __name__ == "__main__":
         required=True,
         help="Path of config file for training.",
     )
-    # parser_train.add_argument(
-    #     "--model_type", type=str,
-    # )
-
+    
     args = parser.parse_args()
     args.filename = pathlib.Path(__file__).stem 
 

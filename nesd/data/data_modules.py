@@ -16,10 +16,7 @@ import pyroomacoustics as pra
 from scipy.signal import fftconvolve
 
 from nesd.data.samplers import DistributedSamplerWrapper
-from nesd.utils import Microphone, sph2cart, norm, normalize, Source, int16_to_float32, get_cos, calculate_microphone_gain, fractional_delay
-# from nesd.utils import int16_to_float32, Microphone, sph2cart, cart2sph, SphereSource, calculate_microphone_gain, get_ir_filter, conv_signals, DirectionSampler, Ray, Rotator3D, get_cos
-
-# GOLDEN_RATIO = (math.sqrt(5) - 1) / 2
+from nesd.utils import Microphone, sph2cart, norm, normalize, Source, int16_to_float32, get_cos, calculate_microphone_gain, fractional_delay, DirectionSampler, cart2sph, Rotator3D, Ray, expand_along_time
 
 
 class DataModule(LightningDataModule):
@@ -96,10 +93,7 @@ def get_ambisonic_microphone(mic_meta):
 class Dataset:
     def __init__(
         self,
-        # workspace,
-        # source_configs: Dict,
-        # room_configs: Dict,
-        # microphone_configs: Dict,
+        hdf5s_dir,
     ):
         r"""Used for getting data according to a meta.
 
@@ -110,36 +104,18 @@ class Dataset:
             augmentor: Augmentor
             segment_samples: int
         """
-        '''
-        mic_yaml = "ambisonic.yaml"
-        self.speed_of_sound = 343.
-        self.sample_rate = 16000
-        self.filter_len = 16000
-        self.segment_samples = 48000
-        self.rays_num = 100
-
-        self.hdf5s_dir = "/home/tiger/workspaces/nesd/hdf5s/vctk/sr=16000/train"
-        # self.hdf5s_dir = "/home/tiger/workspaces/nesd/hdf5s/vctk/sr=16000/test"
-        self.hdf5_names = sorted(os.listdir(self.hdf5s_dir))
-
-        with open(mic_yaml, 'r') as f:
-            mics_meta = yaml.load(f, Loader=yaml.FullLoader)
-
-        self.mics = []
-
-        for mic_meta in mics_meta:
-
-            mic = get_ambisonic_microphone(mic_meta)
-            self.mics.append(mic)
-        '''
         self.speed_of_sound = 343.
         self.sample_rate = 24000
+        self.rays_num = 100
+        self.segment_samples = self.sample_rate * 3
+        self.frames_num = 301
         mic_yaml = "ambisonic.yaml"
 
         with open(mic_yaml, 'r') as f:
             self.mics_meta = yaml.load(f, Loader=yaml.FullLoader)
 
-        self.hdf5s_dir = "/home/tiger/workspaces/nesd2/hdf5s/vctk/sr=24000/train"
+        # self.hdf5s_dir = "/home/tiger/workspaces/nesd2/hdf5s/vctk/sr=24000/train"
+        self.hdf5s_dir = hdf5s_dir
         self.hdf5_names = sorted(os.listdir(self.hdf5s_dir))
 
     def __getitem__(self, meta: Dict) -> Dict:
@@ -181,21 +157,25 @@ class Dataset:
 
         # -------- Mic
         new_position = np.array([4, 4, 2])
+        new_position = expand_along_time(new_position, self.frames_num)
 
         mic_center_position = np.array([4, 4, 2])
+        mic_center_position = expand_along_time(mic_center_position, self.frames_num)
         
         mics = []
 
         for mic_meta in self.mics_meta:
 
-            x = np.array(sph2cart(
+            relative_mic_posision = np.array(sph2cart(
                 r=mic_meta['radius'], 
                 azimuth=mic_meta['azimuth'], 
                 colatitude=mic_meta['colatitude']
             ))
 
-            mic_position = mic_center_position + x
-            mic_look_direction = normalize(x)
+            mic_position = mic_center_position + relative_mic_posision[None, :]
+
+            mic_look_direction = normalize(relative_mic_posision)
+            mic_look_direction = expand_along_time(mic_look_direction, self.frames_num)
 
             mic = Microphone(
                 position=mic_position,
@@ -215,7 +195,8 @@ class Dataset:
                 random_state.uniform(low=0, high=8),
                 random_state.uniform(low=0, high=4),
             ))
-            
+            source_position = expand_along_time(source_position, self.frames_num)
+
             h5s_num = len(self.hdf5_names)
             h5_index = random_state.randint(h5s_num)
             hdf5_path = os.path.join(self.hdf5s_dir, self.hdf5_names[h5_index])
@@ -230,153 +211,167 @@ class Dataset:
             )
             sources.append(source)
 
-        # --------- 
+        # --------- Fast simulate mic
 
         # Microphone signals
         for mic in mics:
 
             # total = 0
             for source in sources:
-
                 src_to_mic = mic.position - source.position
-                delayed_seconds = norm(src_to_mic) / self.speed_of_sound
+                delayed_seconds = norm(src_to_mic[0, :]) / self.speed_of_sound
                 delayed_samples = self.sample_rate * delayed_seconds
-                
-                cos = get_cos(mic.look_direction, -src_to_mic)
+
+                cos = get_cos(mic.look_direction[0, :], -src_to_mic[0, :])
                 gain = calculate_microphone_gain(cos=cos, directivity=mic.directivity)
 
-                t1 = time.time()
                 y = fractional_delay(x=source.waveform, delayed_samples=delayed_samples)
                 y *= gain
-                print(time.time() - t1)
 
                 mic.waveform += y
 
-            # mic.set_waveform(waveform=total)
+            # soundfile.write(file='_zz.wav', data=mic.waveform, samplerate=24000)
+            # from IPython import embed; embed(using=False); os._exit(0)
 
-            soundfile.write(file='_zz.wav', data=mic.waveform, samplerate=24000)
-            from IPython import embed; embed(using=False); os._exit(0)
-    
-        random_seed = meta['random_seed']
-        random_state = np.random.RandomState(random_seed)
+        # --------- Hard example new position rays
 
-        direction_sampler = DirectionSampler(
-            low_zenith=0, 
-            high_zenith=math.pi, 
-            sample_on_sphere_uniformly=False, 
-            random_state=random_state,
-        )
-
-        
-
-        # field
-        ray_origin = np.array([0, 0, 0])
         rays = []
 
-        for sphere_source in sphere_sources:
+        half_angle = math.atan2(0.1, 1)
 
-            ray_origin_to_src_origin = sphere_source.position - ray_origin
-            distance = np.linalg.norm(ray_origin_to_src_origin)
-            angle = np.arctan2(sphere_source.radius, distance)
+        for source in sources:
 
-            _, src_azimuth, src_zenith = cart2sph(
-                x=sphere_source.position[0], 
-                y=sphere_source.position[1], 
-                z=sphere_source.position[2],
-            )
+            newpos_to_src = source.position - new_position
 
-            rotation_matrix = Rotator3D.get_rotation_matrix_from_azimuth_zenith(
-                azimuth=src_azimuth,
-                zenith=src_zenith,
-            )
-
-            _direction_sampler = DirectionSampler(
-                low_zenith=0, 
-                high_zenith=angle, 
-                sample_on_sphere_uniformly=False, 
+            ray_direction = sample_ray_direction(
+                newpos_to_src=newpos_to_src[0, :],
+                half_angle=half_angle,
                 random_state=random_state,
             )
-            _azimuth, _zenith = _direction_sampler.sample()
+            ray_direction = expand_along_time(ray_direction, self.frames_num)
 
-            ray_azimuth, ray_zenith = Rotator3D.rotate_azimuth_zenith(
-                rotation_matrix=rotation_matrix,
-                azimuth=_azimuth,
-                zenith=_zenith,
-            )
-
-            ray_direction = sph2cart(r=1., azimuth=ray_azimuth, zenith=ray_zenith)
-            delayed_seconds = distance / self.speed_of_sound
+            delayed_seconds = norm(newpos_to_src) / self.speed_of_sound
             delayed_samples = self.sample_rate * delayed_seconds
 
-            gain = 1
-            filt = get_ir_filter(
-                filter_len=self.filter_len, 
-                gain_list=[gain], 
-                delayed_samples_list=[delayed_samples],
-            )
-            y = conv_signals(source=sphere_source.waveform, filt=filt)
+            y = fractional_delay(x=source.waveform, delayed_samples=delayed_samples)
+            gain = 1.
+            y *= gain
 
-            ray = Ray(origin=ray_origin, direction=ray_direction)
-            ray.set_waveform(waveform=y)
-            ray.set_intersect_source(intersect_source=1.)
+            ray = Ray(
+                origin=new_position, 
+                direction=ray_direction, 
+                waveform=y,
+                intersect_source=np.ones(self.frames_num),
+            )
             rays.append(ray)
 
         while len(rays) < self.rays_num:
 
-            azimuth, zenith = direction_sampler.sample()
-            ray_direction = sph2cart(r=1., azimuth=azimuth, zenith=zenith)
+            _direction_sampler = DirectionSampler(
+                low_colatitude=0, 
+                high_colatitude=math.pi, 
+                sample_on_sphere_uniformly=False, 
+                random_state=random_state,
+            )
+
+            azimuth, colatitude = _direction_sampler.sample()
+            ray_direction = np.array(sph2cart(r=1., azimuth=azimuth, colatitude=colatitude))
+            ray_direction = expand_along_time(ray_direction, self.frames_num)
 
             satisfied = True
 
-            for sphere_source in sphere_sources:
+            for source in sources:
 
-                ray_origin_to_src_origin = sphere_source.position - ray_origin
-                distance = np.linalg.norm(ray_origin_to_src_origin)
-                max_angle = np.arctan2(sphere_source.radius, distance)
+                newpos_to_src = source.position - new_position
+                angle_between_ray_and_src = np.arccos(get_cos(ray_direction[0, :], newpos_to_src[0, :]))
 
-                ray_angle = np.arccos(get_cos(ray_origin_to_src_origin, ray_direction))
-
-                if ray_angle < max_angle:
+                if angle_between_ray_and_src < half_angle:
                     satisfied = False
 
             if satisfied:
-                waveform = np.zeros(self.segment_samples)
-                ray = Ray(origin=ray_origin, direction=ray_direction)
-                ray.set_waveform(waveform=waveform)
-                ray.set_intersect_source(intersect_source=0.)
+                ray = Ray(
+                    origin=new_position, 
+                    direction=ray_direction, 
+                    waveform=np.zeros(self.segment_samples),
+                    intersect_source=np.zeros(self.frames_num),
+                )
                 rays.append(ray)
-        
+
         data_dict = {
-            'source_waveform': np.array([sphere_source.waveform for sphere_source in sphere_sources]),
-            'source_position': np.array([sphere_source.position for sphere_source in sphere_sources]),
-            'source_radius': np.array([sphere_source.radius for sphere_source in sphere_sources]),
-            'mic_waveform': np.array([mic.waveform for mic in self.mics]),
-            'mic_position': np.array([mic.position for mic in self.mics]),
-            'mic_direction': np.array([mic.direction for mic in self.mics]),
-            'ray_waveform': np.array([ray.waveform for ray in rays]),
+            'source_waveform': np.array([source.waveform for source in sources]),
+            'source_position': np.array([source.position for source in sources]),
+            'mic_position': np.array([mic.position for mic in mics]),
+            'mic_look_direction': np.array([mic.look_direction for mic in mics]),
+            'mic_waveform': np.array([mic.waveform for mic in mics]),
             'ray_origin': np.array([ray.origin for ray in rays]),
             'ray_direction': np.array([ray.direction for ray in rays]),
+            'ray_waveform': np.array([ray.waveform for ray in rays]),
             'ray_intersect_source': np.array([ray.intersect_source for ray in rays]),
         }
 
+        # Plot
         if False:
-            fig, ax = plt.subplots(1, 1, sharex=True)
-            ax.scatter(data_dict['mic_origin'][:, 0], data_dict['mic_origin'][:, 1], c='r')
-            ax.scatter(data_dict['source_origin'][:, 0], data_dict['source_origin'][:, 1], c='k')
-            # for i, sphere_source in enumerate(sphere_sources):
-            #     plt.Circle((data_dict['source_origin'][i, 0], data_dict['source_origin'][i, 1]), sphere_source.radius, color='k')
-            ax.scatter(ray_origin[0], ray_origin[0], c='b')
-            for ray in rays[0 : sources_num]:
-                ax.quiver(ray.origin[0], ray.origin[1], ray.direction[0], ray.direction[1], color='k', scale=1)
-            for ray in rays[sources_num :]:
-                ax.quiver(ray.origin[0], ray.origin[1], ray.direction[0], ray.direction[1], color='pink')
-            ax.axis('square')
-            ax.set_xlim(-3, 3)
-            ax.set_ylim(-3, 3)
+            azis, cols = [], []
+            for ray in rays:
+                _, azi, col = cart2sph(
+                    x=ray.direction[0],
+                    y=ray.direction[1],
+                    z=ray.direction[2],
+                )
+                azis.append(azi)
+                cols.append(col)
+            plt.scatter(azis, cols, s=4, c='b')
+
+            azis, cols = [], []
+            for source in sources:
+                newpos_to_src = source.position - new_position
+                _, azi, col = cart2sph(
+                    x=newpos_to_src[0],
+                    y=newpos_to_src[1],
+                    z=newpos_to_src[2],
+                )
+                azis.append(azi)
+                cols.append(col)
+            plt.scatter(azis, cols, s=20, c='r', marker='+')
+                
+            plt.xlim(0, 2 * math.pi)
+            plt.ylim(0, math.pi)
             plt.savefig('_zz.pdf')
+            from IPython import embed; embed(using=False); os._exit(0)
 
         return data_dict
 
+
+def sample_ray_direction(newpos_to_src, half_angle, random_state):
+
+    _, newpos_to_src_azimuth, newpos_to_src_colatitude = cart2sph(
+        x=newpos_to_src[0], 
+        y=newpos_to_src[1], 
+        z=newpos_to_src[2],
+    )
+
+    rotation_matrix = Rotator3D.get_rotation_matrix_from_azimuth_colatitude(
+        azimuth=newpos_to_src_azimuth,
+        colatitude=newpos_to_src_colatitude,
+    )
+
+    _direction_sampler = DirectionSampler(
+        low_colatitude=0, 
+        high_colatitude=half_angle, 
+        sample_on_sphere_uniformly=False, 
+        random_state=random_state,
+    )
+    _azimuth, _colatitude = _direction_sampler.sample()
+
+    ray_azimuth, ray_colatitude = Rotator3D.rotate_azimuth_colatitude(
+        rotation_matrix=rotation_matrix,
+        azimuth=_azimuth,
+        colatitude=_colatitude,
+    )
+
+    ray_direction = np.array(sph2cart(r=1., azimuth=ray_azimuth, colatitude=ray_colatitude))
+
+    return ray_direction
 
 def collate_fn(list_data_dict: List[Dict]) -> Dict:
     r"""Collate mini-batch data to inputs and targets for training.
@@ -402,26 +397,9 @@ def collate_fn(list_data_dict: List[Dict]) -> Dict:
     """
     data_dict = {}
     
-    '''
     for key in list_data_dict[0].keys():
-        print(key)
-        if key in ['source_waveform', 'source_azimuth_array', 'source_elevation_array', 'source_audio_name', 'source_class_id']:
-            data_dict[key] = [data_dict[key] for data_dict in list_data_dict]
-        else:
-            data_dict[key] = torch.Tensor(
-                np.array([data_dict[key] for data_dict in list_data_dict])
-            )
-    '''
-    for key in list_data_dict[0].keys():
+        data_dict[key] = torch.Tensor(
+            np.array([_data_dict[key] for _data_dict in list_data_dict])
+        )
 
-        if key in ['source_waveform', 'source_position', 'source_direction', 'source_radius', 'target_position', 'source_class']:
-            data_dict[key] = [_data_dict[key] for _data_dict in list_data_dict]
-        else:
-            try:
-                data_dict[key] = torch.Tensor(
-                    np.array([_data_dict[key] for _data_dict in list_data_dict])
-                )
-            except:
-                from IPython import embed; embed(using=False); os._exit(0)
-    # from IPython import embed; embed(using=False); os._exit(0)
     return data_dict

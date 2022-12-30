@@ -72,6 +72,31 @@ def act(x: torch.Tensor, activation: str) -> torch.Tensor:
         raise Exception("Incorrect activation!")
 
 
+def cart2sph_torch(x, y, z):
+    r = torch.sqrt(x ** 2 + y ** 2 + z ** 2)
+    azimuth = torch.atan2(y, x)
+    azimuth %= math.pi * 2
+    zenith = torch.acos(z / r)
+    return r, azimuth, zenith
+
+
+def interpolate(x, ratio): 
+    """Interpolate data in time domain. This is used to compensate the 
+    resolution reduction in downsampling of a CNN.
+    
+    Args:
+      x: (batch_size, time_steps, classes_num)
+      ratio: int, ratio to interpolate
+    Returns:
+      upsampled: (batch_size, time_steps * ratio, classes_num)
+    """
+    x = x.transpose(1, 2)
+    (batch_size, time_steps, classes_num) = x.shape
+    upsampled = x[:, :, None, :].repeat(1, 1, ratio, 1)
+    upsampled = upsampled.reshape(batch_size, time_steps * ratio, classes_num)
+    x = upsampled.transpose(1, 2)
+    return x
+
 
 class DFTBase(nn.Module):
     def __init__(self):

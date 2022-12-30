@@ -1,12 +1,12 @@
 ---
 task_name: vctk
 speed_of_sound: 343.
-dataset_type: DatasetBaseline
+# dataset_type: DatasetBaseline
 sources:
-    source_type: "nigens_official"
-    train_hdf5s_dir: "hdf5s/nigens_official/sr=24000/train"
-    test_hdf5s_dir: "hdf5s/nigens_official/sr=24000/test"
-    classes_num: 15
+    # source_type: "nigens_official"
+    train_hdf5s_dir: "hdf5s/vctk/sr=24000/train"
+    test_hdf5s_dir: "hdf5s/vctk/sr=24000/test"
+    # classes_num: 15
     min_sources_num: 2
     max_sources_num: 2
     radius: 0.1
@@ -46,14 +46,14 @@ train:
     output_channels: 1
     segment_seconds: 3.0
     model_type: Model01
-    loss_type: frameloc_bce
+    loss_type: intersect_source_bce
     # loss_type: sep_l1
     optimizer_type: AdamW
     learning_rate: 1e-3
     batch_size: 16
     precision: 32
     steps_per_epoch: 10000  # Every 10000 steps is called an `epoch`.
-    evaluate_step_frequency: 2000     # Evaluate every #evaluate_step_frequency steps.
+    evaluate_step_frequency: 200     # Evaluate every #evaluate_step_frequency steps.
     save_step_frequency: 2000  # Save every #save_step_frequency steps. 
     early_stop_steps: 200001
     warm_up_steps: 1000

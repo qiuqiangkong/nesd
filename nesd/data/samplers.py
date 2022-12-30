@@ -2,7 +2,7 @@ from typing import List, Dict
 import numpy as np
 
 
-class SegmentSampler:
+class Sampler:
     def __init__(
         self,
         batch_size,

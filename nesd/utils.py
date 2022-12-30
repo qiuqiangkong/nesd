@@ -104,13 +104,13 @@ class DirectionSampler:
 '''
 
 class DirectionSampler:
-    def __init__(self, low_zenith, high_zenith, sample_on_sphere_uniformly, random_state):
+    def __init__(self, low_colatitude, high_colatitude, sample_on_sphere_uniformly, random_state):
 
         self.random_state = random_state
         # self.sample_on_sphere_uniformly = False # Always set to False.
 
-        self.low_zenith = low_zenith
-        self.high_zenith = high_zenith
+        self.low_colatitude = low_colatitude
+        self.high_colatitude = high_colatitude
         self.sample_on_sphere_uniformly = sample_on_sphere_uniformly
         self.random_state = random_state
 
@@ -120,16 +120,16 @@ class DirectionSampler:
 
         if self.sample_on_sphere_uniformly:
 
-            v = self.random_state.uniform(low=np.cos(self.high_zenith), high=np.cos(self.low_zenith), size=size)
+            v = self.random_state.uniform(low=np.cos(self.high_colatitude), high=np.cos(self.low_colatitude), size=size)
             
-            zenith = np.arccos(v)
+            colatitude = np.arccos(v)
             # Ref: https://mathworld.wolfram.com/SpherePointPicking.html
             # Ref: https://zhuanlan.zhihu.com/p/26052376
 
         else:
-            zenith = self.random_state.uniform(low=self.low_zenith, high=self.high_zenith, size=size)
+            colatitude = self.random_state.uniform(low=self.low_colatitude, high=self.high_colatitude, size=size)
 
-        return azimuth, zenith
+        return azimuth, colatitude
 
 
 def sph2cart(r, azimuth, colatitude):
@@ -170,7 +170,13 @@ class Microphone:
         self.directivity_object = directivity_object
         self.waveform = 0.
 
-        assert np.linalg.norm(look_direction) == 1.
+        frames_num = look_direction.shape[0]
+
+        is_unit_norm_direction = np.allclose(
+            a=np.sum(look_direction ** 2, axis=-1),
+            b=np.ones(frames_num),
+        )
+        assert is_unit_norm_direction
 
     # def set_waveform(self, waveform):
     #     self.waveform = waveform
@@ -319,16 +325,20 @@ def cart2sph(x, y, z):
     r = np.sqrt(x ** 2 + y ** 2 + z ** 2)
     azimuth = np.arctan2(y, x)
     azimuth %= math.pi * 2
-    zenith = np.arccos(z / r)
-    return r, azimuth, zenith
+    colatitude = np.arccos(z / r)
+    return r, azimuth, colatitude
 
 
-def cart2sph_torch(x, y, z):
-    r = torch.sqrt(x ** 2 + y ** 2 + z ** 2)
-    azimuth = torch.atan2(y, x)
-    azimuth %= math.pi * 2
-    zenith = torch.acos(z / r)
-    return r, azimuth, zenith
+# def cart2sph_torch(x, y, z):
+#     r = torch.sqrt(x ** 2 + y ** 2 + z ** 2)
+#     azimuth = torch.atan2(y, x)
+#     azimuth %= math.pi * 2
+#     zenith = torch.acos(z / r)
+#     return r, azimuth, zenith
+
+
+def expand_along_time(x, frames_num):
+    return np.tile(x[None, :], (frames_num, 1))
 
 # def sphere_to_cart(azimuth: np.ndarray, elevation: np.ndarray):
 #     r = 1.
@@ -345,17 +355,32 @@ def cart2sph_torch(x, y, z):
 #     return azimuth, elevation
 
 
+# class Ray:
+#     def __init__(self, origin, direction):
+#         self.origin = origin
+#         self.direction = direction / np.linalg.norm(direction)
+#         # self.waveform = waveform
+
+#     def set_waveform(self, waveform):
+#         self.waveform = waveform
+
+#     def set_intersect_source(self, intersect_source):
+#         self.intersect_source = intersect_source
+
 class Ray:
-    def __init__(self, origin, direction):
+    def __init__(self, origin, direction, waveform, intersect_source):
         self.origin = origin
-        self.direction = direction / np.linalg.norm(direction)
-        # self.waveform = waveform
-
-    def set_waveform(self, waveform):
+        self.direction = direction
         self.waveform = waveform
-
-    def set_intersect_source(self, intersect_source):
         self.intersect_source = intersect_source
+
+        frames_num = direction.shape[0]
+
+        is_unit_norm_direction = np.allclose(
+            a=np.sum(direction ** 2, axis=-1),
+            b=np.ones(frames_num),
+        )
+        assert is_unit_norm_direction
 
 
 class Rotator3D:
@@ -363,17 +388,17 @@ class Rotator3D:
         pass
 
     @staticmethod
-    def get_rotation_matrix_from_azimuth_zenith(azimuth, zenith):
+    def get_rotation_matrix_from_azimuth_colatitude(azimuth, colatitude):
 
-        alpha, beta, gamma = Rotator3D.get_alpha_beta_gamma(azimuth, zenith)
+        alpha, beta, gamma = Rotator3D.get_alpha_beta_gamma(azimuth, colatitude)
         rotation_matrix = Rotator3D.get_rotation_matrix_from_alpha_beta_gamma(alpha, beta, gamma)
 
         return rotation_matrix
 
     @staticmethod
-    def get_alpha_beta_gamma(azimuth, zenith):
+    def get_alpha_beta_gamma(azimuth, colatitude):
         # Rotate along x (roll, gamma) -> along y (pitch, beta) -> along z (yaw, alpha)
-        x, y, z = sph2cart(r=1., azimuth=azimuth, zenith=zenith)
+        x, y, z = sph2cart(r=1., azimuth=azimuth, colatitude=colatitude)
 
         alpha = 0.
         beta = math.atan2(x, z)
@@ -408,11 +433,11 @@ class Rotator3D:
         return rotation_matrix
 
     @staticmethod
-    def rotate_azimuth_zenith(rotation_matrix, azimuth, zenith):
-        x, y, z = sph2cart(r=1., azimuth=azimuth, zenith=zenith)
+    def rotate_azimuth_colatitude(rotation_matrix, azimuth, colatitude):
+        x, y, z = sph2cart(r=1., azimuth=azimuth, colatitude=colatitude)
         new_x, new_y, new_z = Rotator3D.rotate_x_y_z(rotation_matrix, x, y, z)
-        _, new_azimuth, new_zenith = cart2sph(new_x, new_y, new_z)
-        return new_azimuth, new_zenith
+        _, new_azimuth, new_colatitude = cart2sph(new_x, new_y, new_z)
+        return new_azimuth, new_colatitude
 
     @staticmethod
     def rotate_x_y_z(rotation_matrix, x, y, z):

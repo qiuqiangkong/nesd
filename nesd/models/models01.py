@@ -1,3 +1,4 @@
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -5,7 +6,7 @@ from typing import Dict, List, NoReturn, Tuple, Callable, Any
 
 from torchlibrosa.stft import ISTFT, STFT, magphase, Spectrogram, LogmelFilterBank
 
-from nesd.models.base import init_layer, init_bn, init_gru, Base, get_position_encodings, PositionalEncoder, PositionalEncoderRoomXYZ, PositionalEncoderRoomR
+from nesd.models.base import init_layer, init_bn, init_gru, Base, cart2sph_torch, interpolate, get_position_encodings, PositionalEncoder, PositionalEncoderRoomXYZ, PositionalEncoderRoomR
 
 
 class ConvBlockRes(nn.Module):
@@ -218,7 +219,7 @@ class Model01(nn.Module, Base):
         super(Model01, self).__init__() 
 
         window_size = 512
-        hop_size = 160
+        hop_size = 240
         center = True
         pad_mode = "reflect"
         window = "hann" 
@@ -410,32 +411,33 @@ class Model01(nn.Module, Base):
 
         eps = 1e-10
 
-        omni_waveform = torch.sum(data_dict['mic_waveform'], dim=1, keepdim=True)
-        omni_mag0, omni_cos0, omni_sin0 = self.wav_to_spectrogram_phase(omni_waveform, eps) # (batch_size, 1, L, F)
-
-        mic_waveform = data_dict['mic_waveform']
-        mic_direction = data_dict['mic_direction']
         mic_position = data_dict['mic_position']
-        
-        _, mic_di_azimuth, mic_di_zenith = cart2sph_torch(
-            x=mic_direction[:, :, :, 0], 
-            y=mic_direction[:, :, :, 1], 
-            z=mic_direction[:, :, :, 2]
-        )
-
+        mic_look_direction = data_dict['mic_look_direction']
+        mic_waveform = data_dict['mic_waveform']
         ray_direction = data_dict['ray_direction']
         ray_position = data_dict['ray_origin']
 
+        # Mic direction embedding
+        _, mic_look_azimuth, mic_look_colatitude = cart2sph_torch(
+            x=mic_look_direction[:, :, :, 0], 
+            y=mic_look_direction[:, :, :, 1], 
+            z=mic_look_direction[:, :, :, 2],
+        )
+        mic_direction_emb = self.positional_encoder(
+            azimuth=mic_look_azimuth,
+            elevation=mic_look_colatitude,
+        )
+        # (batch_size, mics_num, outputs_num)
+
+        # ray direction embedding
         _, ray_di_azimuth, ray_di_zenith = cart2sph_torch(
             x=ray_direction[:, :, :, 0], 
             y=ray_direction[:, :, :, 1], 
-            z=ray_direction[:, :, :, 2]
+            z=ray_direction[:, :, :, 2],
         )
-
-        # positional encoding
-        mic_pos_emb = self.positional_encoder(
-            azimuth=mic_di_azimuth,
-            elevation=mic_di_zenith,
+        ray_direction_emb = self.positional_encoder(
+            azimuth=ray_di_azimuth,
+            elevation=ray_di_zenith,
         )
         # (batch_size, mics_num, outputs_num)
 
@@ -445,22 +447,21 @@ class Model01(nn.Module, Base):
             z=mic_position[:, :, :, 2],
         )
         
-        ray_pos_emb = self.positional_encoder(
-            azimuth=ray_di_azimuth,
-            elevation=ray_di_zenith,
-        )
-        # (batch_size, mics_num, outputs_num)
-
         ray_pos_xyz_emb = self.positional_encoder_room_xyz(
             x=ray_position[:, :, :, 0],
             y=ray_position[:, :, :, 1],
             z=ray_position[:, :, :, 2],
         )
 
-        batch_size = omni_waveform.shape[0]
+        # batch_size = omni_waveform.shape[0]
 
-        omni_mag, omni_cos, omni_sin = self.wav_to_spectrogram_phase(omni_waveform, eps) # (batch_size, 1, L, F)
+        # omni_mag, omni_cos, omni_sin = self.wav_to_spectrogram_phase(omni_waveform, eps) # (batch_size, 1, L, F)
+        # mic_mag, mic_cos, mic_sin = self.wav_to_spectrogram_phase(mic_waveform, eps) # (batch_size, 1, L, F)
+
+        omni_waveform = torch.sum(mic_waveform, dim=1, keepdim=True)
+        omni_mag, omni_cos, omni_sin = self.wav_to_spectrogram_phase(omni_waveform, eps)
         mic_mag, mic_cos, mic_sin = self.wav_to_spectrogram_phase(mic_waveform, eps) # (batch_size, 1, L, F)
+        # (batch_size, 1, L, F)
 
         omni_real = omni_mag * omni_cos
         omni_imag = omni_mag * omni_sin
@@ -505,9 +506,9 @@ class Model01(nn.Module, Base):
         # Let frequency bins be evenly divided by 2, e.g., 257 -> 256
         x = x[..., 0 : x.shape[-1] - 1]  # (bs, input_channels, T, F)
 
-        mic_pos_emb = F.pad(mic_pos_emb, pad=(0, 0, 0, pad_len))
+        mic_direction_emb = F.pad(mic_direction_emb, pad=(0, 0, 0, pad_len))
         mic_pos_xyz_emb = F.pad(mic_pos_xyz_emb, pad=(0, 0, 0, pad_len))
-        ray_pos_emb = F.pad(ray_pos_emb, pad=(0, 0, 0, pad_len))
+        ray_direction_emb = F.pad(ray_direction_emb, pad=(0, 0, 0, pad_len))
         ray_pos_xyz_emb = F.pad(ray_pos_xyz_emb, pad=(0, 0, 0, pad_len))
 
         # input value FC
@@ -523,7 +524,7 @@ class Model01(nn.Module, Base):
         a1 = F.leaky_relu_(self.input_value_fc1(a1), negative_slope=0.01)
 
         # input angle FC
-        a2 = mic_pos_emb.permute(0, 2, 1, 3).flatten(2)
+        a2 = mic_direction_emb.permute(0, 2, 1, 3).flatten(2)
         a2 = F.leaky_relu_(self.input_angle_fc(a2))    # (batch_size, 1, T', C)
 
         a2_xyz = mic_pos_xyz_emb.permute(0, 2, 1, 3).flatten(2)
@@ -544,7 +545,7 @@ class Model01(nn.Module, Base):
         # (batch_size, outputs_num, T, C * 2)
 
         # output angle FC
-        a3 = F.leaky_relu_(self.output_angle_fc(ray_pos_emb))
+        a3 = F.leaky_relu_(self.output_angle_fc(ray_direction_emb))
         a3 = a3[:, :, 0 :: self.time_downsample_ratio, :]
         # a3 = torch.tile(a3[:, :, None, :], (1, 1, frames_num, 1))
         a3_xyz = F.leaky_relu_(self.output_pos_xyz_fc(ray_pos_xyz_emb))
@@ -581,8 +582,8 @@ class Model01(nn.Module, Base):
             tmp = interpolate(tmp, self.time_downsample_ratio)
             cla_output = tmp.reshape(_bs, _rays_num, -1, _C)
 
-            cla_output = cla_output[:, :, 0 : origin_len, :]
-            output_dict['framewise_cla_output'] = cla_output
+            cla_output = cla_output[:, :, 0 : origin_len, :].flatten(2)
+            output_dict['ray_intersect_source'] = cla_output
 
         # if do_sep:
         if False:
