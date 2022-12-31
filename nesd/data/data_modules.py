@@ -109,6 +109,7 @@ class Dataset:
         self.rays_num = 100
         self.segment_samples = self.sample_rate * 3
         self.frames_num = 301
+        self.max_rays_contain_waveform = 2
         mic_yaml = "ambisonic.yaml"
 
         with open(mic_yaml, 'r') as f:
@@ -293,6 +294,7 @@ class Dataset:
                     origin=new_position, 
                     direction=ray_direction, 
                     waveform=np.zeros(self.segment_samples),
+                    # waveform=None,
                     intersect_source=np.zeros(self.frames_num),
                 )
                 rays.append(ray)
@@ -305,10 +307,10 @@ class Dataset:
             'mic_waveform': np.array([mic.waveform for mic in mics]),
             'ray_origin': np.array([ray.origin for ray in rays]),
             'ray_direction': np.array([ray.direction for ray in rays]),
-            'ray_waveform': np.array([ray.waveform for ray in rays]),
             'ray_intersect_source': np.array([ray.intersect_source for ray in rays]),
+            'ray_waveform': np.array([ray.waveform for ray in rays[0 : self.max_rays_contain_waveform]]),
         }
-
+        
         # Plot
         if False:
             azis, cols = [], []

@@ -15,7 +15,7 @@ train:
     output_channels: 1
     segment_seconds: 3.0
     model_type: Model01
-    loss_type: loc_bce
+    loss_type: loc_bce_sep_l1
     optimizer_type: AdamW
     learning_rate: 1e-3
     batch_size: 16

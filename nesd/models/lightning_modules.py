@@ -57,8 +57,21 @@ class LitModel(pl.LightningModule):
         # Forward.
         self.model.train()
 
-        input_dict = batch_data_dict
-        target_dict = batch_data_dict
+        max_rays_contain_waveform = batch_data_dict['ray_waveform'].shape[1]
+
+        input_dict = {
+            'mic_position': batch_data_dict['mic_position'],
+            'mic_look_direction': batch_data_dict['mic_look_direction'],
+            'mic_waveform': batch_data_dict['mic_waveform'],
+            'ray_origin': batch_data_dict['ray_origin'],
+            'ray_direction': batch_data_dict['ray_direction'],
+            'max_rays_contain_waveform': max_rays_contain_waveform,
+        }
+
+        target_dict = {
+            'ray_intersect_source': batch_data_dict['ray_intersect_source'],
+            'ray_waveform': batch_data_dict['ray_waveform'],
+        }
 
         output_dict = self.model(data_dict=input_dict)
 

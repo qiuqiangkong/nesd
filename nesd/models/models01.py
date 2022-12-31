@@ -407,7 +407,7 @@ class Model01(nn.Module, Base):
         return waveform
 
 
-    def forward(self, data_dict, max_sep_rays=None, do_sep=True, **kwargs):
+    def forward(self, data_dict, do_sep=True):
 
         eps = 1e-10
 
@@ -452,11 +452,6 @@ class Model01(nn.Module, Base):
             y=ray_position[:, :, :, 1],
             z=ray_position[:, :, :, 2],
         )
-
-        # batch_size = omni_waveform.shape[0]
-
-        # omni_mag, omni_cos, omni_sin = self.wav_to_spectrogram_phase(omni_waveform, eps) # (batch_size, 1, L, F)
-        # mic_mag, mic_cos, mic_sin = self.wav_to_spectrogram_phase(mic_waveform, eps) # (batch_size, 1, L, F)
 
         omni_waveform = torch.sum(mic_waveform, dim=1, keepdim=True)
         omni_mag, omni_cos, omni_sin = self.wav_to_spectrogram_phase(omni_waveform, eps)
@@ -533,10 +528,6 @@ class Model01(nn.Module, Base):
         a2 = a2[:, 0 :: self.time_downsample_ratio, :]
         a2_xyz = a2_xyz[:, 0 :: self.time_downsample_ratio, :]
 
-        # from IPython import embed; embed(using=False); os._exit(0)
-        # frames_num = 40
-        # a2 = torch.tile(a2[:, None, :], (1, frames_num, 1))
-        # a2_xyz = torch.tile(a2_xyz[:, None, :], (1, frames_num, 1))
         x = torch.cat((a1, a2, a2_xyz), dim=-1) # (batch_size, T, C * 2)
 
         rays_num = ray_direction.shape[1]
@@ -586,26 +577,18 @@ class Model01(nn.Module, Base):
             output_dict['ray_intersect_source'] = cla_output
 
         # if do_sep:
-        if False:
-            if max_sep_rays:
-                x = inter_emb[:, 0 : max_sep_rays, :, :]
-            else:
-                x = inter_emb
-
-            x = F.leaky_relu_(self.fc_inter(inter_emb[:, 0 : max_sep_rays, :, :]))
+        if True:
+            max_rays_contain_waveform = data_dict['max_rays_contain_waveform']
+            
+            x = F.leaky_relu_(self.fc_inter(inter_emb[:, 0 : max_rays_contain_waveform, :, :]))
 
             batch_size, sep_rays_num, _T, _C = x.shape
             x = x.reshape(batch_size * sep_rays_num, _T, 128, 32)
             x = x.permute(0, 2, 1, 3)
 
-            if max_sep_rays:
-                enc1 = self.tile_omni(x=enc1, rays_num=max_sep_rays)
-                enc2 = self.tile_omni(x=enc2, rays_num=max_sep_rays)
-                enc3 = self.tile_omni(x=enc3, rays_num=max_sep_rays)
-            else:
-                enc1 = self.tile_omni(x=enc1, rays_num=inter_emb.shape[1])
-                enc2 = self.tile_omni(x=enc2, rays_num=inter_emb.shape[1])
-                enc3 = self.tile_omni(x=enc3, rays_num=inter_emb.shape[1])
+            enc1 = self.tile_omni(x=enc1, rays_num=max_rays_contain_waveform)
+            enc2 = self.tile_omni(x=enc2, rays_num=max_rays_contain_waveform)
+            enc3 = self.tile_omni(x=enc3, rays_num=max_rays_contain_waveform)
 
             x = self.dec_block1(x, enc3)
             x = self.dec_block2(x, enc2)
@@ -619,9 +602,9 @@ class Model01(nn.Module, Base):
 
             audio_length = omni_waveform.shape[2]
 
-            omni_mag0 = self.tile_omni(omni_mag0, sep_rays_num)
-            omni_cos0 = self.tile_omni(omni_cos0, sep_rays_num)
-            omni_sin0 = self.tile_omni(omni_sin0, sep_rays_num)
+            omni_mag0 = self.tile_omni(omni_mag, max_rays_contain_waveform)
+            omni_cos0 = self.tile_omni(omni_cos, max_rays_contain_waveform)
+            omni_sin0 = self.tile_omni(omni_sin, max_rays_contain_waveform)
 
             separated_audio = self.feature_maps_to_wav(
                 input_tensor=x,
