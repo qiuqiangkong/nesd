@@ -4,6 +4,7 @@ import os
 import math
 import numpy as np
 import torch
+import soundfile
 import matplotlib.pyplot as plt
 
 from nesd.data.samplers import Sampler
@@ -81,12 +82,15 @@ def inference(args):
     for batch_data_dict in data_module.train_dataloader():
         
         i = 0
+        max_rays_contain_waveform = 2
+
         input_dict = {
-            'mic_position': batch_data_dict['mic_position'][i : i + 1, :, :, :].data.cpu().numpy(),
-            'mic_look_direction': batch_data_dict['mic_look_direction'][i : i + 1, :, :, :].data.cpu().numpy(),
-            'mic_waveform': batch_data_dict['mic_waveform'][i : i + 1, :, :].data.cpu().numpy(),
-            'ray_origin': batch_data_dict['ray_origin'][i : i + 1, 0 : 1, :, :].repeat(1, rays_num, 1, 1).data.cpu().numpy(),
-            'ray_direction': ray_directions,
+            'mic_position': batch_data_dict['mic_position'][i : i + 1, :, :, :].to(device),
+            'mic_look_direction': batch_data_dict['mic_look_direction'][i : i + 1, :, :, :].to(device),
+            'mic_waveform': batch_data_dict['mic_waveform'][i : i + 1, :, :].to(device),
+            'ray_origin': batch_data_dict['ray_origin'][i : i + 1, 0 : 1, :, :].repeat(1, rays_num, 1, 1).to(device),
+            'ray_direction': torch.Tensor(ray_directions).to(device),
+            'max_rays_contain_waveform': max_rays_contain_waveform,
         }
 
         source_positions = batch_data_dict['source_position'][i, :, 0, :]
@@ -127,6 +131,28 @@ def inference(args):
 
     plt.savefig('_zz.pdf')
 
+    ###
+    sources_num = source_positions.shape[0]
+    new_to_src = source_positions - new_position
+    new_to_src = np.tile(new_to_src[None, :, None, :], (1, 1, frames_num, 1))
+
+    i = 0
+    max_rays_contain_waveform = 2
+
+    input_dict = {
+        'mic_position': batch_data_dict['mic_position'][i : i + 1, :, :, :].to(device),
+        'mic_look_direction': batch_data_dict['mic_look_direction'][i : i + 1, :, :, :].to(device),
+        'mic_waveform': batch_data_dict['mic_waveform'][i : i + 1, :, :].to(device),
+        'ray_origin': batch_data_dict['ray_origin'][i : i + 1, 0 : 1, :, :].repeat(1, sources_num, 1, 1).to(device),
+        'ray_direction': torch.Tensor(new_to_src).to(device),
+        'max_rays_contain_waveform': sources_num,
+    }
+    output_dict = forward_in_batch(model, input_dict)
+
+    for i in range(sources_num):
+        soundfile.write(file='_zz{}.wav'.format(i), data=output_dict['ray_waveform'][i], samplerate=24000)
+        
+
     from IPython import embed; embed(using=False); os._exit(0)
 
 
@@ -151,8 +177,8 @@ def forward_in_batch(model, input_dict):
     batch_size = 200
     pointer = 0
 
-    for key in input_dict.keys():
-        input_dict[key] = torch.Tensor(input_dict[key]).to('cuda')
+    # for key in input_dict.keys():
+    #     input_dict[key] = torch.Tensor(input_dict[key]).to('cuda')
 
     output_dicts = []
 

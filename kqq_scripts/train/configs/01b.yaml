@@ -14,7 +14,7 @@ train:
     input_channels: 1
     output_channels: 1
     segment_seconds: 3.0
-    model_type: Model01
+    model_type: Model01_win1024
     loss_type: loc_bce_sep_l1
     optimizer_type: AdamW
     learning_rate: 1e-3

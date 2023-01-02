@@ -213,14 +213,18 @@ class SphereSource:
 '''
 
 def normalize(x):
+    assert x.ndim == 1
     return x / np.linalg.norm(x)
 
 
 def norm(x):
+    assert x.ndim == 1
     return np.linalg.norm(x)
 
 
 def get_cos(a, b):
+    assert a.ndim == 1
+    assert b.ndim == 1
     cos = np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b))
     return cos
 
@@ -367,6 +371,7 @@ def expand_along_time(x, frames_num):
 #     def set_intersect_source(self, intersect_source):
 #         self.intersect_source = intersect_source
 
+'''
 class Ray:
     def __init__(self, origin, direction, waveform, intersect_source):
         self.origin = origin
@@ -381,7 +386,38 @@ class Ray:
             b=np.ones(frames_num),
         )
         assert is_unit_norm_direction
+'''
 
+'''
+class Agent:
+    def __init__(self, position, look_direction, look_direction_waveform, look_direction_contains_source):
+        self.position = position
+        self.look_direction = look_direction
+        self.look_direction_waveform = look_direction_waveform
+        self.look_direction_contains_source = look_direction_contains_source
+
+        frames_num = look_direction.shape[0]
+
+        is_unit_norm_direction = np.allclose(
+            a=np.sum(look_direction ** 2, axis=-1),
+            b=np.ones(frames_num),
+        )
+        assert is_unit_norm_direction
+'''
+class Agent:
+    def __init__(self, position, look_direction, waveform, see_source):
+        self.position = position
+        self.look_direction = look_direction
+        self.waveform = waveform
+        self.see_source = see_source
+
+        frames_num = look_direction.shape[0]
+
+        is_unit_norm_direction = np.allclose(
+            a=np.sum(look_direction ** 2, axis=-1),
+            b=np.ones(frames_num),
+        )
+        assert is_unit_norm_direction
 
 class Rotator3D:
     def __init__(self):

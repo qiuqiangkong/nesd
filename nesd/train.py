@@ -225,13 +225,14 @@ def train(args) -> NoReturn:
     config_yaml = args.config_yaml
     filename = args.filename
 
-    num_workers = 8
+    num_workers = 0
     distributed = True if gpus > 1 else False
     evaluate_device = "cuda" if gpus > 0 else "cpu"
 
     configs = read_yaml(config_yaml)
     model_type = configs['train']['model_type']
     loss_type = configs['train']['loss_type']
+    do_separate = configs['train']['do_separate']
     optimizer_type = configs['train']['optimizer_type']
     learning_rate = float(configs['train']['learning_rate'])
     warm_up_steps = int(configs['train']['warm_up_steps'])
@@ -259,7 +260,7 @@ def train(args) -> NoReturn:
     # Model = get_model_class(model_type=model_type)
     classes_num = 1
     Model = eval(model_type)
-    model = Model(microphones_num=4, classes_num=classes_num)
+    model = Model(microphones_num=4, classes_num=classes_num, do_separate=do_separate)
 
     loss_function = eval(loss_type)
     
