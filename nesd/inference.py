@@ -23,6 +23,9 @@ def inference(args):
 
     configs = read_yaml(config_yaml)
     model_type = configs['train']['model_type']
+    do_localization = configs['train']['do_localization']
+    do_sed = configs['train']['do_sed']
+    # do_separation = configs['train']['do_separation']
     test_hdf5s_dir = os.path.join(workspace, configs['sources']['test_hdf5s_dir'])
     evaluate_step_frequency = configs['train']['evaluate_step_frequency']
     save_step_frequency = configs['train']['save_step_frequency']
@@ -35,9 +38,17 @@ def inference(args):
     device = 'cuda'
 
     frames_num = 301
+    classes_num = -1
 
     Model = eval(model_type)
-    model = Model(microphones_num=4, classes_num=1)
+
+    model = Model(
+        microphones_num=4, 
+        classes_num=classes_num, 
+        do_localization=do_localization,
+        do_sed=do_sed,
+        do_separation=False,
+    )
 
     checkpoint = torch.load(checkpoint_path)
     model.load_state_dict(checkpoint['model'])
@@ -73,34 +84,38 @@ def inference(args):
     grid_deg = 2
     azimuth_grids = 360 // grid_deg
     elevation_grids = 180 // grid_deg
-    azimuths, colatitudes = get_all_ray_directions(grid_deg)
-    ray_directions = np.stack(sph2cart(r=1., azimuth=azimuths, colatitude=colatitudes), axis=-1)
-    ray_directions = np.tile(ray_directions[None, :, None, :], (1, 1, frames_num, 1))
 
-    rays_num = azimuths.shape[0]
+    agent_look_azimuths, agent_look_colatitudes = get_all_agent_look_directions(grid_deg)
+
+    agent_look_directions = np.stack(sph2cart(
+        r=1., azimuth=agent_look_azimuths, colatitude=agent_look_colatitudes), axis=-1)
+
+    agent_look_directions = np.tile(agent_look_directions[None, :, None, :], (1, 1, frames_num, 1))
+
+    agents_num = agent_look_directions.shape[1]
 
     for batch_data_dict in data_module.train_dataloader():
         
         i = 0
-        max_rays_contain_waveform = 2
+        max_agents_contain_waveform = 2
 
         input_dict = {
             'mic_position': batch_data_dict['mic_position'][i : i + 1, :, :, :].to(device),
             'mic_look_direction': batch_data_dict['mic_look_direction'][i : i + 1, :, :, :].to(device),
             'mic_waveform': batch_data_dict['mic_waveform'][i : i + 1, :, :].to(device),
-            'ray_origin': batch_data_dict['ray_origin'][i : i + 1, 0 : 1, :, :].repeat(1, rays_num, 1, 1).to(device),
-            'ray_direction': torch.Tensor(ray_directions).to(device),
-            'max_rays_contain_waveform': max_rays_contain_waveform,
+            'agent_position': batch_data_dict['agent_position'][i : i + 1, 0 : 1, :, :].repeat(1, agents_num, 1, 1).to(device),
+            'agent_look_direction': torch.Tensor(agent_look_directions).to(device),
+            'max_agents_contain_waveform': max_agents_contain_waveform,
         }
 
         source_positions = batch_data_dict['source_position'][i, :, 0, :]
         sources_num = source_positions.shape[0]
-        new_position = batch_data_dict['ray_origin'][i, 0, 0, :]
+        agent_position = batch_data_dict['agent_position'][i, 0, 0, :]
         break
 
     output_dict = forward_in_batch(model, input_dict)
 
-    pred_mat = np.mean(output_dict['ray_intersect_source'], axis=1).reshape(azimuth_grids, elevation_grids)
+    pred_mat = np.mean(output_dict['agent_see_source'], axis=1).reshape(azimuth_grids, elevation_grids)
 
     gt_mat = np.zeros((azimuth_grids, elevation_grids))
     half_angle = math.atan2(0.1, 1)
@@ -112,7 +127,7 @@ def inference(args):
             plot_direction = np.array(sph2cart(1., _azi, _zen))
 
             for k in range(sources_num):
-                new_to_src = source_positions[k] - new_position
+                new_to_src = source_positions[k] - agent_position
                 ray_angle = np.arccos(get_cos(new_to_src, plot_direction))
 
                 if ray_angle < half_angle:
@@ -132,31 +147,32 @@ def inference(args):
     plt.savefig('_zz.pdf')
 
     ###
-    sources_num = source_positions.shape[0]
-    new_to_src = source_positions - new_position
-    new_to_src = np.tile(new_to_src[None, :, None, :], (1, 1, frames_num, 1))
+    if False:
+        sources_num = source_positions.shape[0]
+        new_to_src = source_positions - new_position
+        new_to_src = np.tile(new_to_src[None, :, None, :], (1, 1, frames_num, 1))
 
-    i = 0
-    max_rays_contain_waveform = 2
+        i = 0
+        max_rays_contain_waveform = 2
 
-    input_dict = {
-        'mic_position': batch_data_dict['mic_position'][i : i + 1, :, :, :].to(device),
-        'mic_look_direction': batch_data_dict['mic_look_direction'][i : i + 1, :, :, :].to(device),
-        'mic_waveform': batch_data_dict['mic_waveform'][i : i + 1, :, :].to(device),
-        'ray_origin': batch_data_dict['ray_origin'][i : i + 1, 0 : 1, :, :].repeat(1, sources_num, 1, 1).to(device),
-        'ray_direction': torch.Tensor(new_to_src).to(device),
-        'max_rays_contain_waveform': sources_num,
-    }
-    output_dict = forward_in_batch(model, input_dict)
+        input_dict = {
+            'mic_position': batch_data_dict['mic_position'][i : i + 1, :, :, :].to(device),
+            'mic_look_direction': batch_data_dict['mic_look_direction'][i : i + 1, :, :, :].to(device),
+            'mic_waveform': batch_data_dict['mic_waveform'][i : i + 1, :, :].to(device),
+            'ray_origin': batch_data_dict['ray_origin'][i : i + 1, 0 : 1, :, :].repeat(1, sources_num, 1, 1).to(device),
+            'ray_direction': torch.Tensor(new_to_src).to(device),
+            'max_rays_contain_waveform': sources_num,
+        }
+        output_dict = forward_in_batch(model, input_dict)
 
-    for i in range(sources_num):
-        soundfile.write(file='_zz{}.wav'.format(i), data=output_dict['ray_waveform'][i], samplerate=24000)
+        for i in range(sources_num):
+            soundfile.write(file='_zz{}.wav'.format(i), data=output_dict['ray_waveform'][i], samplerate=24000)
         
 
     from IPython import embed; embed(using=False); os._exit(0)
 
 
-def get_all_ray_directions(grid_deg):
+def get_all_agent_look_directions(grid_deg):
     delta = 2 * np.pi * (grid_deg / 360)
     
     tmp = []
@@ -165,30 +181,25 @@ def get_all_ray_directions(grid_deg):
             tmp.append([i, j])
 
     tmp = np.array(tmp)
-    azimuths = tmp[:, 0]
-    colatitudes = tmp[:, 1]
-    return azimuths, colatitudes
+    agent_look_azimuths = tmp[:, 0]
+    agent_look_colatitudes = tmp[:, 1]
+    return agent_look_azimuths, agent_look_colatitudes
 
 
 def forward_in_batch(model, input_dict):
 
-    import copy
-    N = input_dict['ray_direction'].shape[1]
+    N = input_dict['agent_position'].shape[1]
     batch_size = 200
     pointer = 0
-
-    # for key in input_dict.keys():
-    #     input_dict[key] = torch.Tensor(input_dict[key]).to('cuda')
 
     output_dicts = []
 
     while pointer < N:
-
-        # batch_input_dict = copy.deepcopy(input_dict)
+        
         batch_input_dict = {}
 
         for key in input_dict.keys():
-            if key in ['ray_direction', 'ray_origin']:
+            if key in ['agent_position', 'agent_look_direction']:
                 batch_input_dict[key] = input_dict[key][:, pointer : pointer + batch_size, :]
             else:
                 batch_input_dict[key] = input_dict[key]

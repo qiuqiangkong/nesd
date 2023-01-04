@@ -15,8 +15,10 @@ train:
     output_channels: 1
     segment_seconds: 3.0
     model_type: Model01
+    do_localization: True
+    do_sed: False
+    do_separation: True
     loss_type: loc_bce_sep_l1
-    do_separate: True
     optimizer_type: AdamW
     learning_rate: 1e-3
     batch_size: 16

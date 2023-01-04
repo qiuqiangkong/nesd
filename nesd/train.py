@@ -225,23 +225,22 @@ def train(args) -> NoReturn:
     config_yaml = args.config_yaml
     filename = args.filename
 
-    num_workers = 0
+    num_workers = 8
     distributed = True if gpus > 1 else False
     evaluate_device = "cuda" if gpus > 0 else "cpu"
 
     configs = read_yaml(config_yaml)
     model_type = configs['train']['model_type']
+    do_localization = configs['train']['do_localization']
+    do_sed = configs['train']['do_sed']
+    do_separation = configs['train']['do_separation']
     loss_type = configs['train']['loss_type']
-    do_separate = configs['train']['do_separate']
     optimizer_type = configs['train']['optimizer_type']
     learning_rate = float(configs['train']['learning_rate'])
     warm_up_steps = int(configs['train']['warm_up_steps'])
     reduce_lr_steps = int(configs['train']['reduce_lr_steps'])
     early_stop_steps = int(configs['train']['early_stop_steps'])
     precision = int(configs['train']['precision'])
-    # max_sep_rays = configs['targets']['max_sep_rays']
-    # target_configs = configs['targets']
-    # classes_num = configs['sources']['classes_num']
 
     # paths
     checkpoints_dir, logs_dir, logger, statistics_path = get_dirs(
@@ -258,9 +257,16 @@ def train(args) -> NoReturn:
 
     # model
     # Model = get_model_class(model_type=model_type)
-    classes_num = 1
+    classes_num = -1
     Model = eval(model_type)
-    model = Model(microphones_num=4, classes_num=classes_num, do_separate=do_separate)
+    
+    model = Model(
+        microphones_num=4, 
+        classes_num=classes_num, 
+        do_localization=do_localization,
+        do_sed=do_sed,
+        do_separation=do_separation,
+    )
 
     loss_function = eval(loss_type)
     
@@ -275,7 +281,6 @@ def train(args) -> NoReturn:
         loss_function=loss_function,
         evaluate_device=evaluate_device,
     )
-    # callbacks = []
 
     # learning rate reduce function
     lr_lambda = partial(

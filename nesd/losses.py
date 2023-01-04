@@ -4,14 +4,15 @@ import torch
 
 def loc_bce(model, output_dict, target_dict):
     loss = F.binary_cross_entropy(
-        input=output_dict['ray_intersect_source'], 
-        target=target_dict['ray_intersect_source']
+        input=output_dict['agent_see_source'], 
+        target=target_dict['agent_see_source'],
     )
+    print(loss.item())
     return loss
 
 
 def sep_l1(model, output_dict, target_dict):
-    loss = torch.mean(torch.abs(output_dict['ray_waveform'] - target_dict['ray_waveform']))
+    loss = torch.mean(torch.abs(output_dict['agent_waveform'] - target_dict['agent_waveform']))
     return loss
 
 def loc_bce_sep_l1(model, output_dict, target_dict):
@@ -31,10 +32,9 @@ def loc_bce_sep_l1(model, output_dict, target_dict):
     sep_loss *= 10.
 
     total_loss = loc_loss + sep_loss
-    # total_loss = sep_loss
+    
+    # print(torch.mean(torch.abs(target_dict['agent_waveform'])).item(), torch.mean(torch.abs(output_dict['agent_waveform'])).item())
 
-    print(torch.mean(torch.abs(target_dict['ray_waveform'])).item(), torch.mean(torch.abs(output_dict['ray_waveform'])).item())
-    # print(torch.max(target_dict['ray_waveform']).item(), torch.max(output_dict['ray_waveform']).item())
     print(loc_loss.item(), sep_loss.item())
     # from IPython import embed; embed(using=False); os._exit(0)
     # import numpy as np

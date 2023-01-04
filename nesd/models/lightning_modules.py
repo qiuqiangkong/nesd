@@ -57,7 +57,7 @@ class LitModel(pl.LightningModule):
         # Forward.
         self.model.train()
 
-        max_rays_contain_waveform = batch_data_dict['agent_waveform'].shape[1]
+        max_agents_contain_waveform = batch_data_dict['agent_waveform'].shape[1]
 
         input_dict = {
             'mic_position': batch_data_dict['mic_position'],
@@ -65,7 +65,7 @@ class LitModel(pl.LightningModule):
             'mic_waveform': batch_data_dict['mic_waveform'],
             'agent_position': batch_data_dict['agent_position'],
             'agent_look_direction': batch_data_dict['agent_look_direction'],
-            'max_rays_contain_waveform': max_rays_contain_waveform,
+            'max_agents_contain_waveform': max_agents_contain_waveform,
         }
 
         target_dict = {

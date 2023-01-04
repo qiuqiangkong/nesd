@@ -5,6 +5,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from einops import rearrange
 
 
 def init_layer(layer):
@@ -79,7 +80,7 @@ def cart2sph_torch(x, y, z):
     zenith = torch.acos(z / r)
     return r, azimuth, zenith
 
-
+'''
 def interpolate(x, ratio): 
     """Interpolate data in time domain. This is used to compensate the 
     resolution reduction in downsampling of a CNN.
@@ -90,13 +91,31 @@ def interpolate(x, ratio):
     Returns:
       upsampled: (batch_size, time_steps * ratio, classes_num)
     """
-    x = x.transpose(1, 2)
+    # from IPython import embed; embed(using=False); os._exit(0)
+    # x = x.transpose(1, 2)
     (batch_size, time_steps, classes_num) = x.shape
     upsampled = x[:, :, None, :].repeat(1, 1, ratio, 1)
     upsampled = upsampled.reshape(batch_size, time_steps * ratio, classes_num)
-    x = upsampled.transpose(1, 2)
+    # x = upsampled.transpose(1, 2)
     return x
+'''
+def interpolate(x, ratio): 
+    """Interpolate data in time domain. This is used to compensate the 
+    resolution reduction in downsampling of a CNN.
+    
+    Args:
+      x: (batch_size, time_steps, classes_num)
+      ratio: int, ratio to interpolate
+    Returns:
+      upsampled: (batch_size, time_steps * ratio, classes_num)
+    """
+    x = x[:, :, None, :].repeat(1, 1, ratio, 1)
+    # (N, time_steps, ratio, features_num)
 
+    x = rearrange(x, 'n t r c -> n (t r) c')
+    # (N, time_steps * ratio, features_num)
+
+    return x
 
 class DFTBase(nn.Module):
     def __init__(self):
@@ -256,25 +275,6 @@ def get_position_encodings(locts, N):
 class PositionalEncoder:
     def __init__(self, factor):
         self.factor = factor
-
-    def __call__(self, azimuth, elevation):
-
-        angles = []
-
-        for i in range(self.factor):
-            angles.append((2 ** i) * azimuth)
-            angles.append((2 ** i) * elevation)
-
-        angles = torch.stack(angles, dim=-1)
-
-        positional_embedding = torch.cat((torch.cos(angles), torch.sin(angles)), dim=-1)
-
-        return positional_embedding
-
-
-class PositionalEncoderRoomXYZ:
-    def __init__(self, factor):
-        self.factor = factor
         self.room_scaler = 10 / math.pi
 
     def __call__(self, x, y, z):
@@ -285,6 +285,25 @@ class PositionalEncoderRoomXYZ:
             angles.append((2 ** i) * (x / self.room_scaler))
             angles.append((2 ** i) * (y / self.room_scaler))
             angles.append((2 ** i) * (z / self.room_scaler))
+
+        angles = torch.stack(angles, dim=-1)
+
+        positional_embedding = torch.cat((torch.cos(angles), torch.sin(angles)), dim=-1)
+
+        return positional_embedding
+
+
+class LookDirectionEncoder:
+    def __init__(self, factor):
+        self.factor = factor
+
+    def __call__(self, azimuth, elevation):
+
+        angles = []
+
+        for i in range(self.factor):
+            angles.append((2 ** i) * azimuth)
+            angles.append((2 ** i) * elevation)
 
         angles = torch.stack(angles, dim=-1)
 
