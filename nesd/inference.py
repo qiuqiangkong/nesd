@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 
 from nesd.data.samplers import Sampler
 from nesd.data.data_modules import DataModule, Dataset
+from nesd.data.data_modules import *
 from nesd.utils import read_yaml, create_logging, sph2cart, get_cos
 from nesd.models.models01 import *
 
@@ -22,19 +23,29 @@ def inference(args):
     filename = args.filename
 
     configs = read_yaml(config_yaml)
+    sampler_type = configs['sampler_type']
+    dataset_type = configs['dataset_type']
     model_type = configs['train']['model_type']
     do_localization = configs['train']['do_localization']
     do_sed = configs['train']['do_sed']
-    # do_separation = configs['train']['do_separation']
-    test_hdf5s_dir = os.path.join(workspace, configs['sources']['test_hdf5s_dir'])
+    do_separation = configs['train']['do_separation']
     evaluate_step_frequency = configs['train']['evaluate_step_frequency']
     save_step_frequency = configs['train']['save_step_frequency']
     batch_size = configs['train']['batch_size']
     steps_per_epoch = configs['train']['steps_per_epoch']
 
+    split = 'test'
+
+    if split == 'train':
+        hdf5s_dir = os.path.join(workspace, configs['sources']['train_hdf5s_dir'])
+        random_seed = 1234
+
+    elif split == 'test':
+        hdf5s_dir = os.path.join(workspace, configs['sources']['test_hdf5s_dir'])
+        random_seed = 2345
+
     num_workers = 8
     distributed = True if gpus > 1 else False
-    random_seed = 2345
     device = 'cuda'
 
     frames_num = 301
@@ -47,7 +58,7 @@ def inference(args):
         classes_num=classes_num, 
         do_localization=do_localization,
         do_sed=do_sed,
-        do_separation=False,
+        do_separation=do_separation,
     )
 
     checkpoint = torch.load(checkpoint_path)
@@ -57,15 +68,18 @@ def inference(args):
     )
     model.to(device)
 
+    _Sampler = eval(sampler_type)
+    _Dataset = eval(dataset_type)
+
     # sampler
-    train_sampler = Sampler(
+    train_sampler = _Sampler(
         batch_size=batch_size,
         steps_per_epoch=steps_per_epoch,
         random_seed=random_seed,
     )
 
-    train_dataset = Dataset(
-        hdf5s_dir=test_hdf5s_dir,
+    train_dataset = _Dataset(
+        hdf5s_dir=hdf5s_dir,
     )
 
     # data module
@@ -108,12 +122,12 @@ def inference(args):
             'max_agents_contain_waveform': max_agents_contain_waveform,
         }
 
-        source_positions = batch_data_dict['source_position'][i, :, 0, :]
+        source_positions = batch_data_dict['source_position'][i][:, 0, :]
+        agent_position = batch_data_dict['agent_position'][i][0, 0, :].data.cpu().numpy()
         sources_num = source_positions.shape[0]
-        agent_position = batch_data_dict['agent_position'][i, 0, 0, :]
         break
 
-    output_dict = forward_in_batch(model, input_dict)
+    output_dict = forward_in_batch(model, input_dict, do_separation=False)
 
     pred_mat = np.mean(output_dict['agent_see_source'], axis=1).reshape(azimuth_grids, elevation_grids)
 
@@ -147,26 +161,26 @@ def inference(args):
     plt.savefig('_zz.pdf')
 
     ###
-    if False:
+    if do_separation:
         sources_num = source_positions.shape[0]
-        new_to_src = source_positions - new_position
-        new_to_src = np.tile(new_to_src[None, :, None, :], (1, 1, frames_num, 1))
+        agent_to_src = source_positions - agent_position
+        agent_to_src = np.tile(agent_to_src[None, :, None, :], (1, 1, frames_num, 1))
 
         i = 0
-        max_rays_contain_waveform = 2
+        max_agents_contain_waveform = 2
 
         input_dict = {
             'mic_position': batch_data_dict['mic_position'][i : i + 1, :, :, :].to(device),
             'mic_look_direction': batch_data_dict['mic_look_direction'][i : i + 1, :, :, :].to(device),
             'mic_waveform': batch_data_dict['mic_waveform'][i : i + 1, :, :].to(device),
-            'ray_origin': batch_data_dict['ray_origin'][i : i + 1, 0 : 1, :, :].repeat(1, sources_num, 1, 1).to(device),
-            'ray_direction': torch.Tensor(new_to_src).to(device),
-            'max_rays_contain_waveform': sources_num,
+            'agent_position': batch_data_dict['agent_position'][i : i + 1, 0 : 1, :, :].repeat(1, sources_num, 1, 1).to(device),
+            'agent_look_direction': torch.Tensor(agent_to_src).to(device),
+            'max_agents_contain_waveform': sources_num,
         }
-        output_dict = forward_in_batch(model, input_dict)
+        output_dict = forward_in_batch(model, input_dict, do_separation=True)
 
         for i in range(sources_num):
-            soundfile.write(file='_zz{}.wav'.format(i), data=output_dict['ray_waveform'][i], samplerate=24000)
+            soundfile.write(file='_zz{}.wav'.format(i), data=output_dict['agent_waveform'][i], samplerate=24000)
         
 
     from IPython import embed; embed(using=False); os._exit(0)
@@ -186,7 +200,7 @@ def get_all_agent_look_directions(grid_deg):
     return agent_look_azimuths, agent_look_colatitudes
 
 
-def forward_in_batch(model, input_dict):
+def forward_in_batch(model, input_dict, do_separation):
 
     N = input_dict['agent_position'].shape[1]
     batch_size = 200
@@ -206,7 +220,7 @@ def forward_in_batch(model, input_dict):
 
         with torch.no_grad():
             model.eval()
-            batch_output_dict = model(data_dict=batch_input_dict)
+            batch_output_dict = model(data_dict=batch_input_dict, do_separation=do_separation)
 
         output_dicts.append(batch_output_dict)
         pointer += batch_size

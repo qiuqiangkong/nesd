@@ -21,7 +21,9 @@ import torch.nn.functional as F
 
 from nesd.utils import read_yaml, create_logging
 from nesd.data.samplers import Sampler
+from nesd.data.samplers import *
 from nesd.data.data_modules import DataModule, Dataset
+from nesd.data.data_modules import *
 from nesd.models.models01 import *
 from nesd.models.lightning_modules import LitModel
 from nesd.optimizers.lr_schedulers import get_lr_lambda
@@ -121,35 +123,24 @@ def get_data_module(
 
     configs = read_yaml(config_yaml)
 
-    # sample_rate = configs['train']['sample_rate']
-    # segment_seconds = configs['train']['segment_seconds']
-    
-    # dataset_type = configs['dataset_type']
-    # source_configs = configs['sources']
-    # background_configs = configs['background']
-    # room_configs = configs['rooms']
-    # microphone_configs = configs['microphones'] 
-    # rendering_configs = configs['rendering']
-    # target_configs = configs['targets']
-    # sampled_rays_configs = configs['train']['sampled_rays'] 
-    # split = "train"
-    # classes_num = configs['train']['classes_num']
-
+    sampler_type = configs['sampler_type']
+    dataset_type = configs['dataset_type']
     train_hdf5s_dir = os.path.join(workspace, configs['sources']['train_hdf5s_dir'])
     test_hdf5s_dir = os.path.join(workspace, configs['sources']['test_hdf5s_dir'])
     batch_size = configs['train']['batch_size']
     steps_per_epoch = configs['train']['steps_per_epoch']
+
+    _Sampler = eval(sampler_type)
+    _Dataset = eval(dataset_type)
     
     # sampler
-    train_sampler = Sampler(
+    train_sampler = _Sampler(
         batch_size=batch_size,
         steps_per_epoch=steps_per_epoch,
         random_seed=1234,
     )
 
-    # hdf5s_dir = "/home/tiger/workspaces/nesd2/hdf5s/vctk/sr=24000/train"
-
-    train_dataset = Dataset(
+    train_dataset = _Dataset(
         hdf5s_dir=train_hdf5s_dir,
     )
 
@@ -225,7 +216,7 @@ def train(args) -> NoReturn:
     config_yaml = args.config_yaml
     filename = args.filename
 
-    num_workers = 8
+    num_workers = 0
     distributed = True if gpus > 1 else False
     evaluate_device = "cuda" if gpus > 0 else "cpu"
 
@@ -256,10 +247,9 @@ def train(args) -> NoReturn:
     )
 
     # model
-    # Model = get_model_class(model_type=model_type)
     classes_num = -1
     Model = eval(model_type)
-    
+
     model = Model(
         microphones_num=4, 
         classes_num=classes_num, 

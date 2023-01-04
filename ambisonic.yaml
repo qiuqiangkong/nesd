@@ -1,0 +1,16 @@
+- azimuth: 0.
+  colatitude: 1.0471975511965976  # 1 / 3 * pi
+  radius: 0.042
+  directivity: "cardioid"
+- azimuth: 3.141592653589793     # pi
+  colatitude: 1.0471975511965976  # 1 / 3 * pi
+  radius: 0.042
+  directivity: "cardioid"
+- azimuth: 1.5707963267948966    # 1 / 2 * pi
+  colatitude: 2.0943951023931953  # 2 / 3 * pi
+  radius: 0.042
+  directivity: "cardioid"
+- azimuth: 4.71238898038469      # 3 / 2 * pi
+  colatitude: 2.0943951023931953  # 2 / 3 * pi
+  radius: 0.042
+  directivity: "cardioid"

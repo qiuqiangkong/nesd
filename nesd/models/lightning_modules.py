@@ -72,7 +72,7 @@ class LitModel(pl.LightningModule):
             'agent_see_source': batch_data_dict['agent_see_source'],
             'agent_waveform': batch_data_dict['agent_waveform'],
         }
-
+        
         output_dict = self.model(data_dict=input_dict)
 
         loss = self.loss_function(

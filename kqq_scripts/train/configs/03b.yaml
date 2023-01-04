@@ -1,11 +1,13 @@
 ---
 task_name: vctk
 speed_of_sound: 343.
+sampler_type: Sampler
+dataset_type: Dataset_src4
 sources:
     train_hdf5s_dir: "hdf5s/vctk/sr=24000/train"
     test_hdf5s_dir: "hdf5s/vctk/sr=24000/test"
-    min_sources_num: 2
-    max_sources_num: 2
+    min_sources_num: 4
+    max_sources_num: 4
     radius: 0.1
     random_position_type: "random_on_unit_sphere"
     projection_type: "parallel_projection"

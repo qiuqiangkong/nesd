@@ -1,3 +1,8 @@
 01a.yaml	freefield, loc_bce, src=2
-- 01b.yaml
-01c.yaml	freefield, loc_bce_sep_l1, src=2
+01b.yaml	freefield, loc_bce_sep_l1, src=2
++ 02a.yaml	freefield, loc_bce_sep_l1, src=2
+02b.yaml	freefield, loc_bce_sep_l1, src=2, agent=[5,5,2]
+02c.yaml	freefield, loc_bce_sep_l1, src=2, agent=random
+03a.yaml	freefield, loc_bce_sep_l1, src=1-2
+03b.yaml	freefield, loc_bce_sep_l1, src=4
+03c.yaml	freefield, loc_bce_sep_l1, src=8
