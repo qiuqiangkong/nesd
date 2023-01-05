@@ -372,6 +372,49 @@ def sample_agent_look_direction(agent_to_src, half_angle, random_state):
     return agent_look_direction
 
 
+def sample_agent_look_direction2(agent_to_src_direction, half_angle, random_state):
+
+    frames_num = agent_to_src_direction.shape[0]
+    
+    _direction_sampler = DirectionSampler(
+        low_colatitude=0, 
+        high_colatitude=half_angle, 
+        sample_on_sphere_uniformly=False, 
+        random_state=random_state,
+    )
+    _azimuth, _colatitude = _direction_sampler.sample()
+
+    _, agent_to_src_azimuth, agent_to_src_colatitude = cart2sph(
+        x=agent_to_src_direction[:, 0], 
+        y=agent_to_src_direction[:, 1], 
+        z=agent_to_src_direction[:, 2],
+    )
+
+    agent_look_azimuth = np.zeros(frames_num)
+    agent_look_colatitude = np.zeros(frames_num)
+
+    for i in range(frames_num):
+
+        rotation_matrix = Rotator3D.get_rotation_matrix_from_azimuth_colatitude(
+            azimuth=agent_to_src_azimuth[i],
+            colatitude=agent_to_src_colatitude[i],
+        )
+
+        agent_look_azimuth[i], agent_look_colatitude[i] = Rotator3D.rotate_azimuth_colatitude(
+            rotation_matrix=rotation_matrix,
+            azimuth=_azimuth,
+            colatitude=_colatitude,
+        )
+
+    agent_look_direction = np.stack(sph2cart(
+        r=1., 
+        azimuth=agent_look_azimuth, 
+        colatitude=agent_look_colatitude
+    ), axis=-1)
+
+    return agent_look_direction
+
+
 def collate_fn(list_data_dict: List[Dict]) -> Dict:
     r"""Collate mini-batch data to inputs and targets for training.
 
@@ -1688,6 +1731,12 @@ class Dataset_src8:
 
         return data_dict
 
+def dcase_phase_to_nesd_phase(azimuth, elevation):
+    nesd_azimuths = np.deg2rad(azimuth % 360)
+    nesd_colatitude = np.deg2rad(90 - elevation)
+    return nesd_azimuths, nesd_colatitude
+
+
 #################
 class DatasetDcase2021Task3:
     def __init__(
@@ -1711,6 +1760,9 @@ class DatasetDcase2021Task3:
         self.frames_num = 301
         self.max_agents_contain_waveform = 2
         mic_yaml = "eigenmike.yaml"
+
+        self.dcase_fps = 10
+        self.nesd_fps = 100
 
         with open(mic_yaml, 'r') as f:
             self.mics_meta = yaml.load(f, Loader=yaml.FullLoader)
@@ -1805,53 +1857,109 @@ class DatasetDcase2021Task3:
                 segment = int16_to_float32(hf['waveform'][mic_index, begin_sample : end_sample])
                 mic.waveform = segment
 
-            begin_frame_10fps = int(begin_second * 10)
-            end_frame_10fps = int(end_second * 10)
+            begin_frame_10fps = int(begin_second * self.dcase_fps)
+            end_frame_10fps = int(end_second * self.dcase_fps)
+            segment_frames_10fps = int(self.segment_seconds * self.dcase_fps)
 
-            frame_indexes = hf['frame_index'][:]
+            frame_indexes_10fps = hf['frame_index'][:]
             class_indexes = hf['class_index'][:]
             event_indexes = hf['event_index'][:]
 
-            for n in range(len(frame_indexes)):
-                frame_index_10fps = frame_indexes[n]
+            azimuths, colatitudes = dcase_phase_to_nesd_phase(
+                azimuth=hf['azimuth'][:],
+                elevation=hf['elevation'][:],
+            )
 
-                if begin_frame_10fps <= frame_index_10fps < end_frame_10fps:
+        # Collect sources
+        event_ids = set(event_indexes)
 
-                    relative_frame_index_10fps = frame_index_10fps - begin_frame_10fps
-                    from IPython import embed; embed(using=False); os._exit(0)
+        events_dict = {}
 
-            azimuths = np.deg2rad(hf['azimuth'][:] % 360)
-            elevations = np.deg2rad(90 - hf['elevation'][:])
+        for event_id in event_ids:
+
+            event = None
+
+            for n in range(len(frame_indexes_10fps)):
+
+                frame_index_10fps = frame_indexes_10fps[n]
+
+                if event_indexes[n] == event_id and begin_frame_10fps <= frame_index_10fps < end_frame_10fps:
+
+                    if event is None:
+                        event = {
+                            'class_id': np.ones(segment_frames_10fps, dtype=np.int32) * np.nan,
+                            'azimuth': np.ones(segment_frames_10fps) * np.nan,
+                            'colatitude': np.ones(segment_frames_10fps) * np.nan,
+                        }
+
+                    relative_frame_10fps = frame_index_10fps - begin_frame_10fps
+
+                    event['class_id'][relative_frame_10fps] = class_indexes[n]
+                    event['azimuth'][relative_frame_10fps] = azimuths[n]
+                    event['colatitude'][relative_frame_10fps] = colatitudes[n]
+
+            if event:
+                events_dict[event_id] = event
 
         # --------- Hard example new position agents
 
-        agents = []
-
         half_angle = math.atan2(0.1, 1)
 
-        for source in sources:
+        agents = []
 
-            agent_to_src = source.position - agent_position
+        for event_id in events_dict.keys():
 
-            agent_look_direction = sample_agent_look_direction(
-                agent_to_src=agent_to_src[0, :],
+            class_id_array = events_dict[event_id]['class_id']
+            azimuth_array = events_dict[event_id]['azimuth'].copy()
+            colatitude_array = events_dict[event_id]['colatitude'].copy()
+
+            agent_see_source = np.zeros(segment_frames_10fps)
+            agent_see_source_classwise = np.zeros((segment_frames_10fps, 15))
+
+            for i in range(segment_frames_10fps):
+                if not math.isnan(class_id_array[i]):
+                    agent_see_source[i] = 1
+                    agent_see_source_classwise[i, int(class_id_array[i])] = 1
+
+            for i in range(1, segment_frames_10fps):
+                if math.isnan(azimuth_array[i]):
+                    azimuth_array[i] = azimuth_array[i - 1]
+                    colatitude_array[i] = colatitude_array[i - 1]
+
+            for i in range(segment_frames_10fps - 2, -1, -1):
+                if math.isnan(azimuth_array[i]):
+                    azimuth_array[i] = azimuth_array[i + 1]
+                    colatitude_array[i] = colatitude_array[i + 1]
+
+            agent_to_src_direction = np.stack(sph2cart(
+                r=1.,
+                azimuth=azimuth_array,
+                colatitude=colatitude_array
+            ), axis=-1)
+
+            agent_look_direction = sample_agent_look_direction2(
+                agent_to_src_direction=agent_to_src_direction,
                 half_angle=half_angle,
                 random_state=random_state,
             )
-            agent_look_direction = expand_along_time(agent_look_direction, self.frames_num)
 
-            delayed_seconds = norm(agent_to_src[0, :]) / self.speed_of_sound
-            delayed_samples = self.sample_rate * delayed_seconds
+            agent_look_direction = extend_dcase_frames_to_nesd_frames(
+                x=agent_look_direction, 
+                dcase_fps=self.dcase_fps,
+                nesd_fps=self.nesd_fps,
+            )
 
-            y = fractional_delay(x=source.waveform, delayed_samples=delayed_samples)
-            gain = 1.
-            y *= gain
+            agent_see_source = extend_dcase_frames_to_nesd_frames(
+                x=agent_see_source, 
+                dcase_fps=self.dcase_fps,
+                nesd_fps=self.nesd_fps,
+            )
 
             agent = Agent(
                 position=agent_position, 
                 look_direction=agent_look_direction, 
-                waveform=y,
-                see_source=np.ones(self.frames_num),
+                waveform=np.ones(self.segment_samples) * np.nan,
+                see_source=agent_see_source,
             )
 
             agents.append(agent)
@@ -1871,30 +1979,48 @@ class DatasetDcase2021Task3:
                 azimuth=agent_look_azimuth, 
                 colatitude=agent_look_colatitude
             ))
-            agent_look_direction = expand_along_time(agent_look_direction, self.frames_num)
+            agent_look_direction = expand_along_time(agent_look_direction, segment_frames_10fps)
 
             satisfied = True
 
-            for source in sources:
+            for event_id in events_dict.keys():
 
-                agent_to_src = source.position - agent_position
-                angle_between_agent_and_src = np.arccos(get_cos(agent_look_direction[0, :], agent_to_src[0, :]))
+                azimuth_array = events_dict[event_id]['azimuth']
+                colatitude_array = events_dict[event_id]['colatitude']
 
-                if angle_between_agent_and_src < half_angle:
-                    satisfied = False
+                agent_to_src_direction = np.stack(sph2cart(
+                    r=1.,
+                    azimuth=azimuth_array,
+                    colatitude=colatitude_array
+                ), axis=-1)
 
+                for i in range(segment_frames_10fps):
+
+                    if not math.isnan(azimuth_array[i]):
+
+                        angle_between_agent_and_src = np.arccos(get_cos(agent_look_direction[i, :], agent_to_src_direction[i, :]))
+
+                        if angle_between_agent_and_src < half_angle:
+                            satisfied = False
+
+            agent_look_direction = extend_dcase_frames_to_nesd_frames(
+                x=agent_look_direction, 
+                dcase_fps=self.dcase_fps,
+                nesd_fps=self.nesd_fps,
+            )
+            
             if satisfied:
                 agent = Agent(
                     position=agent_position, 
                     look_direction=agent_look_direction, 
-                    waveform=np.zeros(self.segment_samples),
+                    waveform=np.ones(self.segment_samples) * np.nan,
                     see_source=np.zeros(self.frames_num),
                 )
                 agents.append(agent)
 
         data_dict = {
-            'source_position': np.array([source.position for source in sources]),
-            'source_waveform': np.array([source.waveform for source in sources]),
+            # 'source_position': np.array([source.position for source in sources]),
+            # 'source_waveform': np.array([source.waveform for source in sources]),
             'mic_position': np.array([mic.position for mic in mics]),
             'mic_look_direction': np.array([mic.look_direction for mic in mics]),
             'mic_waveform': np.array([mic.waveform for mic in mics]),
@@ -1935,3 +2061,9 @@ class DatasetDcase2021Task3:
             from IPython import embed; embed(using=False); os._exit(0)
 
         return data_dict
+
+
+def extend_dcase_frames_to_nesd_frames(x, dcase_fps, nesd_fps):
+    x = np.repeat(x, repeats=nesd_fps // dcase_fps, axis=0)
+    x = np.concatenate((x, x[-1:]), axis=0)
+    return x

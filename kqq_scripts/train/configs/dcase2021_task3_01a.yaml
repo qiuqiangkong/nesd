@@ -18,7 +18,7 @@ train:
     do_localization: True
     do_sed: False
     do_separation: False
-    loss_type: loc_bce_sep_l1
+    loss_type: loc_bce
     optimizer_type: AdamW
     learning_rate: 1e-3
     batch_size: 16
