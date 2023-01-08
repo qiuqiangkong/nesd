@@ -216,7 +216,7 @@ def train(args) -> NoReturn:
     config_yaml = args.config_yaml
     filename = args.filename
 
-    num_workers = 8
+    num_workers = 0
     distributed = True if gpus > 1 else False
     evaluate_device = "cuda" if gpus > 0 else "cpu"
 
@@ -284,8 +284,6 @@ def train(args) -> NoReturn:
         loss_function=loss_function,
         learning_rate=learning_rate,
         lr_lambda=lr_lambda,
-        # max_sep_rays=max_sep_rays,
-        # target_configs=target_configs,
     )
 
     # trainer

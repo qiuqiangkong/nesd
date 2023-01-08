@@ -1869,7 +1869,7 @@ class DatasetDcase2021Task3:
                 azimuth=hf['azimuth'][:],
                 elevation=hf['elevation'][:],
             )
-
+            
         # Collect sources
         event_ids = set(event_indexes)
 
@@ -1900,6 +1900,31 @@ class DatasetDcase2021Task3:
 
             if event:
                 events_dict[event_id] = event
+
+        # sources
+        sources = []
+
+        for event_id in events_dict.keys():
+
+            agent_to_src_direction = np.stack(sph2cart(
+                r=1.,
+                azimuth=events_dict[event_id]['azimuth'],
+                colatitude=events_dict[event_id]['colatitude'],
+            ), axis=-1)
+
+            agent_to_src_direction_dcase_fps = extend_dcase_frames_to_nesd_frames(
+                x=agent_to_src_direction, 
+                dcase_fps=self.dcase_fps,
+                nesd_fps=self.nesd_fps,
+            )
+            source_position = agent_to_src_direction_dcase_fps + agent_position
+
+            source = Source(
+                position=source_position,
+                radius=0.1,
+                waveform=np.nan * np.zeros(self.segment_samples),
+            )
+            sources.append(source)
 
         # --------- Hard example new position agents
 
@@ -2019,7 +2044,7 @@ class DatasetDcase2021Task3:
                 agents.append(agent)
 
         data_dict = {
-            # 'source_position': np.array([source.position for source in sources]),
+            'source_position': np.array([source.position for source in sources]),
             # 'source_waveform': np.array([source.waveform for source in sources]),
             'mic_position': np.array([mic.position for mic in mics]),
             'mic_look_direction': np.array([mic.look_direction for mic in mics]),
