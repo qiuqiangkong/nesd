@@ -1763,6 +1763,7 @@ class DatasetDcase2021Task3:
 
         self.dcase_fps = 10
         self.nesd_fps = 100
+        self.classes_num = 12
 
         with open(mic_yaml, 'r') as f:
             self.mics_meta = yaml.load(f, Loader=yaml.FullLoader)
@@ -1939,7 +1940,7 @@ class DatasetDcase2021Task3:
             colatitude_array = events_dict[event_id]['colatitude'].copy()
 
             agent_see_source = np.zeros(segment_frames_10fps)
-            agent_see_source_classwise = np.zeros((segment_frames_10fps, 15))
+            agent_see_source_classwise = np.zeros((segment_frames_10fps, self.classes_num))
 
             for i in range(segment_frames_10fps):
                 if not math.isnan(class_id_array[i]):
@@ -1980,11 +1981,18 @@ class DatasetDcase2021Task3:
                 nesd_fps=self.nesd_fps,
             )
 
+            agent_see_source_classwise = extend_dcase_frames_to_nesd_frames(
+                x=agent_see_source_classwise, 
+                dcase_fps=self.dcase_fps,
+                nesd_fps=self.nesd_fps,
+            )
+
             agent = Agent(
                 position=agent_position, 
                 look_direction=agent_look_direction, 
                 waveform=np.ones(self.segment_samples) * np.nan,
                 see_source=agent_see_source,
+                see_source_classwise=agent_see_source_classwise,
             )
 
             agents.append(agent)
@@ -2040,6 +2048,7 @@ class DatasetDcase2021Task3:
                     look_direction=agent_look_direction, 
                     waveform=np.ones(self.segment_samples) * np.nan,
                     see_source=np.zeros(self.frames_num),
+                    see_source_classwise=np.zeros((self.frames_num, self.classes_num))
                 )
                 agents.append(agent)
 
@@ -2053,6 +2062,7 @@ class DatasetDcase2021Task3:
             'agent_look_direction': np.array([agent.look_direction for agent in agents]),
             'agent_waveform': np.array([agent.waveform for agent in agents[0 : self.max_agents_contain_waveform]]),
             'agent_see_source': np.array([agent.see_source for agent in agents]),
+            'agent_see_source_classwise': np.array([agent.see_source_classwise for agent in agents]),
         }
         
         # Plot

@@ -405,11 +405,12 @@ class Agent:
         assert is_unit_norm_direction
 '''
 class Agent:
-    def __init__(self, position, look_direction, waveform, see_source):
+    def __init__(self, position, look_direction, waveform, see_source, see_source_classwise=None):
         self.position = position
         self.look_direction = look_direction
         self.waveform = waveform
         self.see_source = see_source
+        self.see_source_classwise = see_source_classwise
 
         frames_num = look_direction.shape[0]
 

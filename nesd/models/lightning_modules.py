@@ -72,6 +72,9 @@ class LitModel(pl.LightningModule):
             'agent_see_source': batch_data_dict['agent_see_source'],
             'agent_waveform': batch_data_dict['agent_waveform'],
         }
+
+        if 'agent_see_source_classwise' in batch_data_dict.keys():
+            target_dict['agent_see_source_classwise'] = batch_data_dict['agent_see_source_classwise']
         
         output_dict = self.model(data_dict=input_dict)
 

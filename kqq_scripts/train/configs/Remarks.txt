@@ -6,3 +6,6 @@
 03a.yaml	freefield, loc_bce_sep_l1, src=1-2
 03b.yaml	freefield, loc_bce_sep_l1, src=4
 03c.yaml	freefield, loc_bce_sep_l1, src=8
+
++ dcase2021_task3_01a.yaml	Model01
+dcase2021_task3_01b.yaml	Model01_Rnn
