@@ -428,7 +428,7 @@ def inference_timelapse(args):
     from IPython import embed; embed(using=False); os._exit(0)
 
 
-def inference_dcase2021(args):
+def inference_dcase2021_multi_maps(args):
 
     workspace = args.workspace
     config_yaml = args.config_yaml
@@ -439,6 +439,7 @@ def inference_dcase2021(args):
     configs = read_yaml(config_yaml) 
     sampler_type = configs['sampler_type']
     dataset_type = configs['dataset_type']
+    classes_num = configs['sources']['classes_num']
     sample_rate = configs['train']['sample_rate']
     model_type = configs['train']['model_type']
     do_localization = configs['train']['do_localization']
@@ -449,11 +450,11 @@ def inference_dcase2021(args):
     batch_size = configs['train']['batch_size']
     steps_per_epoch = configs['train']['steps_per_epoch']
 
-    # audio_path = "/home/tiger/datasets/dcase2021/task3/mic_dev/dev-test/fold6_room1_mix001.wav"
-    # csv_path = "/home/tiger/datasets/dcase2021/task3/metadata_dev/dev-test/fold6_room1_mix001.csv"
+    audio_path = "/home/tiger/datasets/dcase2021/task3/mic_dev/dev-test/fold6_room1_mix001.wav"
+    csv_path = "/home/tiger/datasets/dcase2021/task3/metadata_dev/dev-test/fold6_room1_mix001.csv"
 
-    audio_path = "/home/tiger/datasets/dcase2021/task3/mic_dev/dev-test/fold6_room2_mix050.wav"
-    csv_path = "/home/tiger/datasets/dcase2021/task3/metadata_dev/dev-test/fold6_room2_mix050.csv"
+    # audio_path = "/home/tiger/datasets/dcase2021/task3/mic_dev/dev-test/fold6_room2_mix050.wav"
+    # csv_path = "/home/tiger/datasets/dcase2021/task3/metadata_dev/dev-test/fold6_room2_mix050.csv"
 
     # audio_path = "/home/tiger/datasets/dcase2021/task3/mic_dev/dev-train/fold1_room1_mix001.wav"
     # csv_path = "/home/tiger/datasets/dcase2021/task3/metadata_dev/dev-train/fold1_room1_mix001.csv"
@@ -464,23 +465,26 @@ def inference_dcase2021(args):
     azimuths = df[3].values % 360
     elevations = 90 - df[4].values
 
-    grid_deg = 2
+    grid_deg = 4
     azimuth_grids = 360 // grid_deg
     elevation_grids = 180 // grid_deg
-
+    classwise = True
     
-    gt_mat_timelapse = np.zeros((600, 180, 90))
-    # label_list = [""] * (int(frame_indexes[-1] / 10 * frames_per_sec) + 1)
+    gt_mat_timelapse = np.zeros((600, azimuth_grids, elevation_grids))
+    gt_mat_classwise_timelapse = np.zeros((600, azimuth_grids, elevation_grids, classes_num))
 
     for n in range(len(frame_indexes)):
         i = int(azimuths[n] / grid_deg)
         j = int(elevations[n] / grid_deg)
+        class_id = class_ids[n]
         r = 2
         gt_mat_timelapse[frame_indexes[n], max(i - r, 0) : min(i + r, azimuth_grids), max(j - r, 0) : min(j + r, elevation_grids)] = 1
 
+        gt_mat_classwise_timelapse[frame_indexes[n], max(i - r, 0) : min(i + r, azimuth_grids), max(j - r, 0) : min(j + r, elevation_grids), class_id] = 1
+
     device = 'cuda'
     frames_num = 301
-    classes_num = -1
+    # classes_num = -1
     segment_samples = int(3 * sample_rate)
 
     if True:
@@ -534,9 +538,202 @@ def inference_dcase2021(args):
     cnt = 0
     losses = []
 
-    grid_deg = 2
+    agent_look_azimuths, agent_look_colatitudes = get_all_agent_look_directions(grid_deg)
+
+    agent_look_directions = np.stack(sph2cart(
+        r=1., azimuth=agent_look_azimuths, colatitude=agent_look_colatitudes), axis=-1)
+
+    agent_look_directions = np.tile(agent_look_directions[None, :, None, :], (1, 1, frames_num, 1))
+
+    agents_num = agent_look_directions.shape[1]
+
+    pointer = 0
+
+    audio, _ = librosa.load(audio_path, sr=sample_rate, mono=False)
+    audio_samples = audio.shape[-1]
+
+    for batch_data_dict in data_module.train_dataloader():
+        
+        i = 0
+
+        input_dict = {
+            'mic_position': batch_data_dict['mic_position'][i : i + 1, :, :, :].to(device),
+            'mic_look_direction': batch_data_dict['mic_look_direction'][i : i + 1, :, :, :].to(device),
+            # 'mic_waveform': batch_data_dict['mic_waveform'][i : i + 1, :, :].to(device),
+            'agent_position': batch_data_dict['agent_position'][i : i + 1, 0 : 1, :, :].repeat(1, agents_num, 1, 1).to(device),
+            'agent_look_direction': torch.Tensor(agent_look_directions).to(device),
+        }
+
+        source_positions = batch_data_dict['source_position'][i]  # (2, 301, 3)
+        agent_position = batch_data_dict['agent_position'][i][0, :, :].data.cpu().numpy()
+        sources_num = source_positions.shape[0]
+        break
+    
+    global_t = 0
+    while pointer + segment_samples < audio_samples:
+        print(global_t)
+
+        segment = audio[:, pointer : pointer + segment_samples]
+
+        input_dict['mic_waveform'] = torch.Tensor(segment[None, :, :]).to(device)
+        input_dict['max_agents_contain_waveform'] = input_dict['agent_position'].shape[1]
+
+        output_dict = forward_in_batch(model, input_dict, do_separation=False)
+
+        pred_mat_timelapse = output_dict['agent_see_source'][:, 0 : -1 : 10].T.reshape(30, azimuth_grids, elevation_grids)
+
+        if classwise:
+            pred_mat_classwise_timelapse = output_dict['agent_see_source_classwise'][:, 0 : -1 : 10, :].transpose(1, 0, 2).reshape(30, azimuth_grids, elevation_grids, classes_num)
+
+            pred_mat_classwise_timelapse = pred_mat_timelapse[:, :, :, None] * pred_mat_classwise_timelapse
+
+        for t in range(pred_mat_timelapse.shape[0]):
+            print(t)
+            plt.figure(figsize=(20, 10))
+            fig, axs = plt.subplots(2, 1, sharex=True)
+            axs[0].matshow(gt_mat_timelapse[global_t].T, origin='upper', aspect='equal', cmap='jet', vmin=0, vmax=1)
+            axs[1].matshow(pred_mat_timelapse[t].T, origin='upper', aspect='equal', cmap='jet', vmin=0, vmax=1)
+            for i in range(2):
+                axs[i].grid(color='w', linestyle='--', linewidth=0.1)
+                axs[i].xaxis.set_ticks(np.arange(0, azimuth_grids+1, 10))
+                axs[i].yaxis.set_ticks(np.arange(0, elevation_grids+1, 10))
+                axs[i].xaxis.set_ticklabels(np.arange(0, 361, 10 * grid_deg), rotation=90)
+                axs[i].yaxis.set_ticklabels(np.arange(0, 181, 10 * grid_deg))
+
+            os.makedirs('_tmp', exist_ok=True)
+            plt.savefig('_tmp/_zz_{:03d}.jpg'.format(global_t))
+            
+            if classwise:
+                plt.figure(figsize=(20, 20))
+                fig, axs = plt.subplots(6, 4, sharex=True)
+
+                for k in range(classes_num):
+                    axs[k // 4, k % 4].matshow(gt_mat_classwise_timelapse[global_t, :, :, k].T, origin='upper', aspect='equal', cmap='jet', vmin=0, vmax=1)
+
+                    axs[3 + k // 4, k % 4].matshow(pred_mat_classwise_timelapse[t, :, :, k].T, origin='upper', aspect='equal', cmap='jet', vmin=0, vmax=1)
+
+                os.makedirs('_tmp2', exist_ok=True)
+                plt.savefig('_tmp2/_zz_{:03d}.jpg'.format(global_t))
+
+            global_t += 1
+
+            # from IPython import embed; embed(using=False); os._exit(0)
+
+        pointer += segment_samples
+
+
+
+def inference_dcase2021_single_map(args):
+
+    workspace = args.workspace
+    config_yaml = args.config_yaml
+    checkpoint_path = args.checkpoint_path
+    gpus = args.gpus
+    filename = args.filename
+
+    configs = read_yaml(config_yaml) 
+    sampler_type = configs['sampler_type']
+    dataset_type = configs['dataset_type']
+    classes_num = configs['sources']['classes_num']
+    sample_rate = configs['train']['sample_rate']
+    model_type = configs['train']['model_type']
+    do_localization = configs['train']['do_localization']
+    do_sed = configs['train']['do_sed']
+    do_separation = configs['train']['do_separation']
+    evaluate_step_frequency = configs['train']['evaluate_step_frequency']
+    save_step_frequency = configs['train']['save_step_frequency']
+    batch_size = configs['train']['batch_size']
+    steps_per_epoch = configs['train']['steps_per_epoch']
+
+    audio_path = "/home/tiger/datasets/dcase2021/task3/mic_dev/dev-test/fold6_room1_mix001.wav"
+    csv_path = "/home/tiger/datasets/dcase2021/task3/metadata_dev/dev-test/fold6_room1_mix001.csv"
+
+    # audio_path = "/home/tiger/datasets/dcase2021/task3/mic_dev/dev-test/fold6_room2_mix050.wav"
+    # csv_path = "/home/tiger/datasets/dcase2021/task3/metadata_dev/dev-test/fold6_room2_mix050.csv"
+
+    # audio_path = "/home/tiger/datasets/dcase2021/task3/mic_dev/dev-train/fold1_room1_mix001.wav"
+    # csv_path = "/home/tiger/datasets/dcase2021/task3/metadata_dev/dev-train/fold1_room1_mix001.csv"
+
+    df = pd.read_csv(csv_path, sep=',', header=None)
+    frame_indexes = df[0].values
+    class_ids = df[1].values
+    azimuths = df[3].values % 360
+    elevations = 90 - df[4].values
+
+    grid_deg = 4
     azimuth_grids = 360 // grid_deg
     elevation_grids = 180 // grid_deg
+    classwise = True
+    
+    gt_mat_timelapse = np.zeros((600, azimuth_grids, elevation_grids))
+    strs = [''] * 600
+
+    from nesd.dataset_creation.pack_audios_to_hdf5s.dcase2021_task3 import ID_TO_LB
+    
+    for n in range(len(frame_indexes)):
+        i = int(azimuths[n] / grid_deg)
+        j = int(elevations[n] / grid_deg)
+        class_id = class_ids[n]
+        r = 2
+        gt_mat_timelapse[frame_indexes[n], max(i - r, 0) : min(i + r, azimuth_grids), max(j - r, 0) : min(j + r, elevation_grids)] = 1
+
+        strs[frame_indexes[n]] += '({}, {}): {} '.format(azimuths[n], elevations[n], ID_TO_LB[class_id])
+    
+    device = 'cuda'
+    frames_num = 301
+    # classes_num = -1
+    segment_samples = int(3 * sample_rate)
+
+    if True:
+        hdf5s_dir = os.path.join(workspace, configs['sources']['train_hdf5s_dir'])
+        random_seed = 1234
+
+        num_workers = 0
+        distributed = True if gpus > 1 else False
+
+        _Sampler = eval(sampler_type)
+        _Dataset = eval(dataset_type)
+
+        # sampler
+        train_sampler = _Sampler(
+            batch_size=batch_size,
+            steps_per_epoch=steps_per_epoch,
+            random_seed=random_seed,
+        )
+
+        train_dataset = _Dataset(
+            hdf5s_dir=hdf5s_dir,
+        )
+
+        # data module
+        data_module = DataModule(
+            train_sampler=train_sampler,
+            train_dataset=train_dataset,
+            num_workers=num_workers,
+            distributed=distributed,
+        )
+
+        data_module.setup()
+
+    Model = eval(model_type)
+
+    model = Model(
+        microphones_num=4, 
+        classes_num=classes_num, 
+        do_localization=do_localization,
+        do_sed=do_sed,
+        do_separation=do_separation,
+    )
+
+    checkpoint = torch.load(checkpoint_path)
+    model.load_state_dict(checkpoint['model'])
+    print(
+        "Load pretrained checkpoint from {}".format(checkpoint_path)
+    )
+    model.to(device)
+
+    cnt = 0
+    losses = []
 
     agent_look_azimuths, agent_look_colatitudes = get_all_agent_look_directions(grid_deg)
 
@@ -568,7 +765,7 @@ def inference_dcase2021(args):
         agent_position = batch_data_dict['agent_position'][i][0, :, :].data.cpu().numpy()
         sources_num = source_positions.shape[0]
         break
-        
+    
     global_t = 0
     while pointer + segment_samples < audio_samples:
         print(global_t)
@@ -576,26 +773,69 @@ def inference_dcase2021(args):
         segment = audio[:, pointer : pointer + segment_samples]
 
         input_dict['mic_waveform'] = torch.Tensor(segment[None, :, :]).to(device)
+        input_dict['max_agents_contain_waveform'] = input_dict['agent_position'].shape[1]
 
         output_dict = forward_in_batch(model, input_dict, do_separation=False)
 
         pred_mat_timelapse = output_dict['agent_see_source'][:, 0 : -1 : 10].T.reshape(30, azimuth_grids, elevation_grids)
 
+        if classwise:
+            pred_mat_classwise_timelapse = output_dict['agent_see_source_classwise'][:, 0 : -1 : 10, :].transpose(1, 0, 2).reshape(30, azimuth_grids, elevation_grids, classes_num)
+
+            pred_mat_classwise_timelapse = pred_mat_timelapse[:, :, :, None] * pred_mat_classwise_timelapse
+
         for t in range(pred_mat_timelapse.shape[0]):
+            
+            tmp = pred_mat_timelapse[t, :, :]
+            max_coord = np.array(np.unravel_index(np.argmax(tmp), tmp.shape))
+            max_prob = np.max(tmp)
+
+            tmp = pred_mat_classwise_timelapse[t, max_coord[0], max_coord[1], :]
+            pred_class_id = np.argmax(tmp)
+            pred_prob = np.max(tmp)
+            
+            if max_prob > 0.5:
+                pred_str = '({},{}):{},{:.3f}'.format(max_coord[0] * grid_deg, max_coord[1] * grid_deg, ID_TO_LB[pred_class_id], pred_prob)
+            else:
+                pred_str = ''
+
             plt.figure(figsize=(20, 10))
             fig, axs = plt.subplots(2, 1, sharex=True)
             axs[0].matshow(gt_mat_timelapse[global_t].T, origin='upper', aspect='equal', cmap='jet', vmin=0, vmax=1)
             axs[1].matshow(pred_mat_timelapse[t].T, origin='upper', aspect='equal', cmap='jet', vmin=0, vmax=1)
+            axs[0].set_title(strs[global_t])
+            axs[1].set_title(pred_str)
             for i in range(2):
                 axs[i].grid(color='w', linestyle='--', linewidth=0.1)
                 axs[i].xaxis.set_ticks(np.arange(0, azimuth_grids+1, 10))
                 axs[i].yaxis.set_ticks(np.arange(0, elevation_grids+1, 10))
                 axs[i].xaxis.set_ticklabels(np.arange(0, 361, 10 * grid_deg), rotation=90)
                 axs[i].yaxis.set_ticklabels(np.arange(0, 181, 10 * grid_deg))
+                axs[i].xaxis.tick_bottom()
 
+            # plt.tight_layout(pad=0, h_pad=0, w_pad=0)
             os.makedirs('_tmp', exist_ok=True)
             plt.savefig('_tmp/_zz_{:03d}.jpg'.format(global_t))
+
+
+
+            # from IPython import embed; embed(using=False); os._exit(0)
+            
+            # if classwise:
+            #     plt.figure(figsize=(20, 20))
+            #     fig, axs = plt.subplots(6, 4, sharex=True)
+
+            #     for k in range(classes_num):
+            #         axs[k // 4, k % 4].matshow(gt_mat_classwise_timelapse[global_t, :, :, k].T, origin='upper', aspect='equal', cmap='jet', vmin=0, vmax=1)
+
+            #         axs[3 + k // 4, k % 4].matshow(pred_mat_classwise_timelapse[t, :, :, k].T, origin='upper', aspect='equal', cmap='jet', vmin=0, vmax=1)
+
+            #     os.makedirs('_tmp2', exist_ok=True)
+            #     plt.savefig('_tmp2/_zz_{:03d}.jpg'.format(global_t))
+
             global_t += 1
+
+            # from IPython import embed; embed(using=False); os._exit(0)
 
         pointer += segment_samples
 
@@ -638,20 +878,36 @@ if __name__ == "__main__":
     parser_inference_timelapse.add_argument("--gpus", type=int, required=True)
 
     #
-    parser_inference_dcase2021 = subparsers.add_parser("inference_dcase2021")
-    parser_inference_dcase2021.add_argument(
+    parser_inference_dcase2021_multi_maps = subparsers.add_parser("inference_dcase2021_multi_maps")
+    parser_inference_dcase2021_multi_maps.add_argument(
         "--workspace", type=str, required=True, help="Directory of workspace."
     )
-    parser_inference_dcase2021.add_argument(
+    parser_inference_dcase2021_multi_maps.add_argument(
         "--config_yaml",
         type=str,
         required=True,
         help="Path of config file for training.",
     )
-    parser_inference_dcase2021.add_argument(
+    parser_inference_dcase2021_multi_maps.add_argument(
         "--checkpoint_path", type=str,
     )
-    parser_inference_dcase2021.add_argument("--gpus", type=int, required=True)
+    parser_inference_dcase2021_multi_maps.add_argument("--gpus", type=int, required=True)
+
+    #
+    parser_inference_dcase2021_multi_maps = subparsers.add_parser("inference_dcase2021_single_map")
+    parser_inference_dcase2021_multi_maps.add_argument(
+        "--workspace", type=str, required=True, help="Directory of workspace."
+    )
+    parser_inference_dcase2021_multi_maps.add_argument(
+        "--config_yaml",
+        type=str,
+        required=True,
+        help="Path of config file for training.",
+    )
+    parser_inference_dcase2021_multi_maps.add_argument(
+        "--checkpoint_path", type=str,
+    )
+    parser_inference_dcase2021_multi_maps.add_argument("--gpus", type=int, required=True)
 
     #
     args = parser.parse_args()
@@ -663,8 +919,11 @@ if __name__ == "__main__":
     elif args.mode == "inference_timelapse":
         inference_timelapse(args)
 
-    elif args.mode == "inference_dcase2021":
-        inference_dcase2021(args)
+    elif args.mode == "inference_dcase2021_multi_maps":
+        inference_dcase2021_multi_maps(args)
+
+    elif args.mode == "inference_dcase2021_single_map":
+        inference_dcase2021_single_map(args)
 
     else:
         raise Exception("Error argument!")

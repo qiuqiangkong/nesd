@@ -12,7 +12,6 @@ import time
 import yaml
 import soundfile
 from pytorch_lightning.core.datamodule import LightningDataModule
-import pyroomacoustics as pra
 from scipy.signal import fftconvolve
 
 from nesd.data.samplers import DistributedSamplerWrapper
@@ -2062,7 +2061,8 @@ class DatasetDcase2021Task3:
             'agent_look_direction': np.array([agent.look_direction for agent in agents]),
             'agent_waveform': np.array([agent.waveform for agent in agents[0 : self.max_agents_contain_waveform]]),
             'agent_see_source': np.array([agent.see_source for agent in agents]),
-            'agent_see_source_classwise': np.array([agent.see_source_classwise for agent in agents]),
+            # 'agent_see_source_classwise': np.array([agent.see_source_classwise for agent in agents]),
+            'agent_see_source_classwise': np.array([agent.see_source_classwise for agent in agents[0 : self.max_agents_contain_waveform]]),
         }
         
         # Plot

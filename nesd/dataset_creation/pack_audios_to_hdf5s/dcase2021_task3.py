@@ -12,6 +12,12 @@ import librosa
 from nesd.utils import float32_to_int16
 
 
+LABELS = ['alarm', 'crying baby', 'crash', 'barking dog', 'female scream', 'female speech', 'footsteps', 'knocking on door', 'male scream', 'male speech', 'ringing phone', 'piano']
+
+LB_TO_ID = {lb: id for id, lb in enumerate(LABELS)}
+ID_TO_LB = {id: lb for id, lb in enumerate(LABELS)}
+
+
 def pack_audios_to_hdf5s(args) -> NoReturn:
     r"""Pack (resampled) audio files into hdf5 files to speed up loading.
 

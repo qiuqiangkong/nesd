@@ -41,3 +41,11 @@ CUDA_VISIBLE_DEVICES=6 python3 ./nesd/train.py train \
     --workspace=$WORKSPACE \
     --config_yaml="./kqq_scripts/train/configs/dcase2021_task3_01a.yaml" \
     --gpus=1
+
+CUDA_VISIBLE_DEVICES=0 python3 ./nesd/inference.py inference_dcase2021 \
+    --workspace=$WORKSPACE \
+    --config_yaml="./kqq_scripts/train/configs/dcase2021_task3_01b.yaml" \
+    --checkpoint_path="/home/tiger/workspaces/nesd2/checkpoints/train/config=dcase2021_task3_01b,gpus=1/step=10000.pth" \
+    --gpus=1
+
+ffmpeg -framerate 10 -i '_tmp/_zz_%03d.jpg' -r 30 -pix_fmt yuv420p 123.mp4

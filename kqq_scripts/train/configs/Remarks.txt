@@ -9,3 +9,5 @@
 
 + dcase2021_task3_01a.yaml	Model01
 dcase2021_task3_01b.yaml	Model01_Rnn
+dcase2021_task3_02a.yaml	Model01_classwise
+dcase2021_task3_03a.yaml	Model01_Rnn_classwise
