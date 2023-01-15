@@ -42,7 +42,7 @@ CUDA_VISIBLE_DEVICES=6 python3 ./nesd/train.py train \
     --config_yaml="./kqq_scripts/train/configs/dcase2021_task3_01a.yaml" \
     --gpus=1
 
-CUDA_VISIBLE_DEVICES=0 python3 ./nesd/inference.py inference_dcase2021 \
+CUDA_VISIBLE_DEVICES=0 python3 ./nesd/inference.py inference_dcase2021_single_map \
     --workspace=$WORKSPACE \
     --config_yaml="./kqq_scripts/train/configs/dcase2021_task3_01b.yaml" \
     --checkpoint_path="/home/tiger/workspaces/nesd2/checkpoints/train/config=dcase2021_task3_01b,gpus=1/step=10000.pth" \

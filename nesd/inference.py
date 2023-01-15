@@ -660,7 +660,7 @@ def inference_dcase2021_single_map(args):
     azimuths = df[3].values % 360
     elevations = 90 - df[4].values
 
-    grid_deg = 4
+    grid_deg = 2
     azimuth_grids = 360 // grid_deg
     elevation_grids = 180 // grid_deg
     classwise = True

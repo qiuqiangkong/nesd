@@ -11,6 +11,7 @@ sources:
     radius: 0.1
     random_position_type: "random_on_unit_sphere"
     projection_type: "parallel_projection"
+    classes_num: 1
 train:
     sample_rate: 24000
     input_channels: 1
