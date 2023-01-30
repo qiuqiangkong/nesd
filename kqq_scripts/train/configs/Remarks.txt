@@ -9,6 +9,8 @@
 04a.yaml	freefield, loc_bce_sep_l1, src=2, 4 mic loc
 05a.yaml	pyroomacoustics, src=2, mic=4
 05a2.yaml	pyroomacoustics, freefield, src=2, mic=4
+06a.yaml	freefield, src=2, mic=4, rnn
+06b.yaml	pyroomacoustics, ord=5, src=2, mic=4, rnn
 
 + dcase2021_task3_01a.yaml	Model01
 dcase2021_task3_01b.yaml	Model01_Rnn
