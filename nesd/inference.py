@@ -185,6 +185,9 @@ def inference(args):
 
         for i in range(sources_num):
             soundfile.write(file='_zz{}.wav'.format(i), data=output_dict['agent_waveform'][i], samplerate=24000)
+
+        soundfile.write(file='_zz.wav', data=batch_data_dict['mic_waveform'][i, 0].data.cpu().numpy(), samplerate=24000)
+        batch_data_dict['mic_waveform']
         
 
     from IPython import embed; embed(using=False); os._exit(0)
