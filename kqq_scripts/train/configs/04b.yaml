@@ -2,7 +2,7 @@
 task_name: vctk
 speed_of_sound: 343.
 sampler_type: Sampler
-dataset_type: Dataset4GroupMics
+dataset_type: Dataset4GroupMicsDepth
 sources:
     train_hdf5s_dir: "hdf5s/vctk/sr=24000/train"
     test_hdf5s_dir: "hdf5s/vctk/sr=24000/test"
@@ -17,11 +17,11 @@ train:
     input_channels: 1
     output_channels: 1
     segment_seconds: 3.0
-    model_type: Model01_4GroupMics
+    model_type: Model01_4GroupMicsDepth
     do_localization: True
     do_sed: False
     do_separation: True
-    loss_type: loc_bce_sep_l1
+    loss_type: loc_bce_sep_l1_depth_bce
     optimizer_type: AdamW
     learning_rate: 1e-3
     batch_size: 16

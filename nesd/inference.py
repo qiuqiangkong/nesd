@@ -183,8 +183,8 @@ def inference(args):
         }
         output_dict = forward_in_batch(model, input_dict, do_separation=True)
 
-        for i in range(sources_num):
-            soundfile.write(file='_zz{}.wav'.format(i), data=output_dict['agent_waveform'][i], samplerate=24000)
+        for j in range(sources_num):
+            soundfile.write(file='_zz{}.wav'.format(j), data=output_dict['agent_waveform'][j], samplerate=24000)
 
         soundfile.write(file='_zz.wav', data=batch_data_dict['mic_waveform'][i, 0].data.cpu().numpy(), samplerate=24000)
         batch_data_dict['mic_waveform']

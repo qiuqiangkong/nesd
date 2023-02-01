@@ -6,6 +6,8 @@ import librosa
 import soundfile
 import time
 
+from nesd.utils import normalize
+
 
 wall_mat = {
     "description": "Example wall material",
@@ -108,6 +110,62 @@ def add():
     # 280
 
 
+def add2():
+
+    sample_rate = 24000
+        
+    t = np.arange(sample_rate)
+    source = np.cos(t * 2 * math.pi * 440 / sample_rate) * 0.1
+    
+    corners = np.array([
+        [8, 8], 
+        [0, 8], 
+        [0, 0], 
+        [8, 0],
+    ]).T
+    height = 4
+    cnt = 0
+    random_state = np.random.RandomState(1234)
+
+    while True:
+        
+        try:
+            t1 = time.time()
+            room = pra.Room.from_corners(
+                corners=corners,
+                fs=sample_rate,
+                materials=None,
+                max_order=5,
+                ray_tracing=False,
+                air_absorption=False,
+            )
+            room.extrude(
+                height=height, 
+                materials=None
+            )
+
+
+            a1 = normalize(random_state.uniform(low=-1, high=1, size=3))
+            source_position = np.array([4, 4, 2]) + a1
+            print(cnt, a1, source_position)
+
+            room.add_source(position=source_position, signal=source)
+
+            directivity_object = None
+            room.add_microphone(loc=np.array([4, 4, 2]), directivity=directivity_object)
+
+            room.compute_rir()
+            
+            # room.simulate()
+            # print(cnt, time.time() - t1)
+            cnt += 1
+        
+        except:
+            from IPython import embed; embed(using=False); os._exit(0)
+
+
+
 if __name__ == '__main__':
 
-    add()
+    # add()
+    add2()

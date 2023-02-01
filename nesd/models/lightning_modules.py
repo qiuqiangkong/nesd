@@ -68,6 +68,10 @@ class LitModel(pl.LightningModule):
             'max_agents_contain_waveform': max_agents_contain_waveform,
         }
 
+        if 'agent_look_depth' in batch_data_dict.keys():
+            input_dict['agent_look_depth'] = batch_data_dict['agent_look_depth']
+            input_dict['max_agents_contain_depth'] = batch_data_dict['agent_look_depth'].shape[1]
+
         target_dict = {
             'agent_see_source': batch_data_dict['agent_see_source'],
             'agent_waveform': batch_data_dict['agent_waveform'],
@@ -75,6 +79,9 @@ class LitModel(pl.LightningModule):
 
         if 'agent_see_source_classwise' in batch_data_dict.keys():
             target_dict['agent_see_source_classwise'] = batch_data_dict['agent_see_source_classwise']
+
+        if 'agent_exist_source' in batch_data_dict.keys():
+            target_dict['agent_exist_source'] = batch_data_dict['agent_exist_source']
         
         output_dict = self.model(data_dict=input_dict)
 

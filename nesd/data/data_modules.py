@@ -1495,7 +1495,7 @@ class Dataset_src8:
         self.agents_num = 100
         self.segment_samples = self.sample_rate * 3
         self.frames_num = 301
-        self.max_agents_contain_waveform = 4
+        self.max_agents_contain_waveform = 8
         mic_yaml = "ambisonic.yaml"
 
         with open(mic_yaml, 'r') as f:
@@ -1736,7 +1736,7 @@ def dcase_phase_to_nesd_phase(azimuth, elevation):
     nesd_colatitude = np.deg2rad(90 - elevation)
     return nesd_azimuths, nesd_colatitude
 
-
+'''
 class Dataset4GroupMics:
     def __init__(
         self,
@@ -1963,6 +1963,579 @@ class Dataset4GroupMics:
             'agent_look_direction': np.array([agent.look_direction for agent in agents]),
             'agent_waveform': np.array([agent.waveform for agent in agents[0 : self.max_agents_contain_waveform]]),
             'agent_see_source': np.array([agent.see_source for agent in agents]),
+        }
+        from IPython import embed; embed(using=False); os._exit(0)
+
+        # Plot
+        if False:
+            azis, cols = [], []
+            for ray in rays:
+                _, azi, col = cart2sph(
+                    x=ray.direction[0],
+                    y=ray.direction[1],
+                    z=ray.direction[2],
+                )
+                azis.append(azi)
+                cols.append(col)
+            plt.scatter(azis, cols, s=4, c='b')
+
+            azis, cols = [], []
+            for source in sources:
+                newpos_to_src = source.position - new_position
+                _, azi, col = cart2sph(
+                    x=newpos_to_src[0],
+                    y=newpos_to_src[1],
+                    z=newpos_to_src[2],
+                )
+                azis.append(azi)
+                cols.append(col)
+            plt.scatter(azis, cols, s=20, c='r', marker='+')
+                
+            plt.xlim(0, 2 * math.pi)
+            plt.ylim(0, math.pi)
+            plt.savefig('_zz.pdf')
+            from IPython import embed; embed(using=False); os._exit(0)
+
+        return data_dict
+'''
+
+class Dataset4GroupMics:
+    def __init__(
+        self,
+        hdf5s_dir,
+    ):
+        r"""Used for getting data according to a meta.
+
+        Args:
+            input_source_types: list of str, e.g., ['vocals', 'accompaniment']
+            target_source_types: list of str, e.g., ['vocals']
+            input_channels: int
+            augmentor: Augmentor
+            segment_samples: int
+        """
+        self.speed_of_sound = 343.
+        self.sample_rate = 24000
+        self.agents_num = 100
+        self.segment_samples = self.sample_rate * 3
+        self.frames_num = 301
+        self.max_agents_contain_waveform = 2
+        mic_yaml = "ambisonic.yaml"
+
+        with open(mic_yaml, 'r') as f:
+            self.mics_meta = yaml.load(f, Loader=yaml.FullLoader)
+
+        # self.hdf5s_dir = "/home/tiger/workspaces/nesd2/hdf5s/vctk/sr=24000/train"
+        self.hdf5s_dir = hdf5s_dir
+        self.hdf5_names = sorted(os.listdir(self.hdf5s_dir))
+
+    def __getitem__(self, meta: Dict) -> Dict:
+        r"""Return data according to a meta. E.g., an input meta looks like: {
+            'vocals': [['song_A.h5', 6332760, 6465060], ['song_B.h5', 198450, 330750]],
+            'accompaniment': [['song_C.h5', 24232920, 24365250], ['song_D.h5', 1569960, 1702260]]}.
+        }
+
+        Then, vocals segments of song_A and song_B will be mixed (mix-audio augmentation).
+        Accompaniment segments of song_C and song_B will be mixed (mix-audio augmentation).
+        Finally, mixture is created by summing vocals and accompaniment.
+
+        Args:
+            meta: dict, e.g., {
+                'vocals': [['song_A.h5', 6332760, 6465060], ['song_B.h5', 198450, 330750]],
+                'accompaniment': [['song_C.h5', 24232920, 24365250], ['song_D.h5', 1569960, 1702260]]}
+            }
+
+        Returns:
+            data_dict: dict, e.g., {
+                'vocals': (channels, segments_num),
+                'accompaniment': (channels, segments_num),
+                'mixture': (channels, segments_num),
+            }
+        """
+
+        # Init mic pos, source pos, target pos
+
+        # Calculate mic signal 
+        # - Normal: calculate all agents and convolve with mic IR
+        # - Fast: free-field use sparsity
+
+        # Calculate target signal, hard sample
+        # - Normal: calculate all signals at all directions
+        # - Fast: Hard example directions
+
+        random_seed = meta['random_seed']
+        random_state = np.random.RandomState(random_seed)
+
+        # -------- Mic
+        agent_position = np.array([4, 4, 2])
+        agent_position = expand_along_time(agent_position, self.frames_num)
+
+        mics = []
+
+        # mic_center_position = np.array([4, 4, 2])
+        for mic_center_position in [np.array([2, 2, 2]), np.array([6, 2, 2]), np.array([6, 6, 2]), np.array([2, 6, 2])]:
+
+            mic_center_position = expand_along_time(mic_center_position, self.frames_num)
+
+            for mic_meta in self.mics_meta:
+
+                relative_mic_posision = np.array(sph2cart(
+                    r=mic_meta['radius'], 
+                    azimuth=mic_meta['azimuth'], 
+                    colatitude=mic_meta['colatitude']
+                ))
+
+                mic_position = mic_center_position + relative_mic_posision[None, :]
+
+                mic_look_direction = normalize(relative_mic_posision)
+                mic_look_direction = expand_along_time(mic_look_direction, self.frames_num)
+
+                mic = Microphone(
+                    position=mic_position,
+                    look_direction=mic_look_direction,
+                    directivity=mic_meta['directivity'],
+                )
+                mics.append(mic)
+
+        # --------- Source
+        sources_num = 2
+        sources = []
+
+        for i in range(sources_num):
+        
+            source_position = np.array((
+                random_state.uniform(low=0, high=8),
+                random_state.uniform(low=0, high=8),
+                random_state.uniform(low=0, high=4),
+            ))
+            source_position = expand_along_time(source_position, self.frames_num)
+
+            h5s_num = len(self.hdf5_names)
+            h5_index = random_state.randint(h5s_num)
+            hdf5_path = os.path.join(self.hdf5s_dir, self.hdf5_names[h5_index])
+
+            with h5py.File(hdf5_path, 'r') as hf:
+                waveform = int16_to_float32(hf['waveform'][:])
+
+            source = Source(
+                position=source_position,
+                radius=0.1,
+                waveform=waveform,
+            )
+            sources.append(source)
+
+        # --------- Fast simulate mic
+
+        # Microphone signals
+        for mic in mics:
+
+            # total = 0
+            for source in sources:
+                mic_to_src = source.position - mic.position
+                delayed_seconds = norm(mic_to_src[0, :]) / self.speed_of_sound
+                delayed_samples = self.sample_rate * delayed_seconds
+
+                cos = get_cos(mic.look_direction[0, :], mic_to_src[0, :])
+                gain = calculate_microphone_gain(cos=cos, directivity=mic.directivity)
+
+                y = fractional_delay(x=source.waveform, delayed_samples=delayed_samples)
+                y *= gain
+
+                mic.waveform += y
+
+        # --------- Hard example new position agents
+
+        agents = []
+
+        half_angle = math.atan2(0.1, 1)
+
+        for source in sources:
+
+            agent_to_src = source.position - agent_position
+
+            agent_look_direction = sample_agent_look_direction(
+                agent_to_src=agent_to_src[0, :],
+                half_angle=half_angle,
+                random_state=random_state,
+            )
+            agent_look_direction = expand_along_time(agent_look_direction, self.frames_num)
+
+            delayed_seconds = norm(agent_to_src[0, :]) / self.speed_of_sound
+            delayed_samples = self.sample_rate * delayed_seconds
+
+            y = fractional_delay(x=source.waveform, delayed_samples=delayed_samples)
+            gain = 1.
+            y *= gain
+
+            agent = Agent(
+                position=agent_position, 
+                look_direction=agent_look_direction, 
+                waveform=y,
+                see_source=np.ones(self.frames_num),
+            )
+
+            agents.append(agent)
+
+        while len(agents) < self.agents_num:
+
+            _direction_sampler = DirectionSampler(
+                low_colatitude=0, 
+                high_colatitude=math.pi, 
+                sample_on_sphere_uniformly=False, 
+                random_state=random_state,
+            )
+
+            agent_look_azimuth, agent_look_colatitude = _direction_sampler.sample()
+            agent_look_direction = np.array(sph2cart(
+                r=1., 
+                azimuth=agent_look_azimuth, 
+                colatitude=agent_look_colatitude
+            ))
+            agent_look_direction = expand_along_time(agent_look_direction, self.frames_num)
+
+            satisfied = True
+
+            for source in sources:
+
+                agent_to_src = source.position - agent_position
+                angle_between_agent_and_src = np.arccos(get_cos(agent_look_direction[0, :], agent_to_src[0, :]))
+
+                if angle_between_agent_and_src < half_angle:
+                    satisfied = False
+
+            if satisfied:
+                agent = Agent(
+                    position=agent_position, 
+                    look_direction=agent_look_direction, 
+                    waveform=np.zeros(self.segment_samples),
+                    see_source=np.zeros(self.frames_num),
+                )
+                agents.append(agent)
+
+        data_dict = {
+            'source_position': np.array([source.position for source in sources]),
+            'source_waveform': np.array([source.waveform for source in sources]),
+            'mic_position': np.array([mic.position for mic in mics]),
+            'mic_look_direction': np.array([mic.look_direction for mic in mics]),
+            'mic_waveform': np.array([mic.waveform for mic in mics]),
+            'agent_position': np.array([agent.position for agent in agents]),
+            'agent_look_direction': np.array([agent.look_direction for agent in agents]),
+            'agent_waveform': np.array([agent.waveform for agent in agents[0 : self.max_agents_contain_waveform]]),
+            'agent_see_source': np.array([agent.see_source for agent in agents]),
+        }
+        
+        # Plot
+        if False:
+            azis, cols = [], []
+            for ray in rays:
+                _, azi, col = cart2sph(
+                    x=ray.direction[0],
+                    y=ray.direction[1],
+                    z=ray.direction[2],
+                )
+                azis.append(azi)
+                cols.append(col)
+            plt.scatter(azis, cols, s=4, c='b')
+
+            azis, cols = [], []
+            for source in sources:
+                newpos_to_src = source.position - new_position
+                _, azi, col = cart2sph(
+                    x=newpos_to_src[0],
+                    y=newpos_to_src[1],
+                    z=newpos_to_src[2],
+                )
+                azis.append(azi)
+                cols.append(col)
+            plt.scatter(azis, cols, s=20, c='r', marker='+')
+                
+            plt.xlim(0, 2 * math.pi)
+            plt.ylim(0, math.pi)
+            plt.savefig('_zz.pdf')
+            from IPython import embed; embed(using=False); os._exit(0)
+
+        return data_dict
+
+
+class Dataset4GroupMicsDepth:
+    def __init__(
+        self,
+        hdf5s_dir,
+    ):
+        r"""Used for getting data according to a meta.
+
+        Args:
+            input_source_types: list of str, e.g., ['vocals', 'accompaniment']
+            target_source_types: list of str, e.g., ['vocals']
+            input_channels: int
+            augmentor: Augmentor
+            segment_samples: int
+        """
+        self.speed_of_sound = 343.
+        self.sample_rate = 24000
+        self.agents_num = 100
+        self.segment_samples = self.sample_rate * 3
+        self.frames_num = 301
+        self.max_agents_contain_waveform = 2
+        self.max_agents_contain_depths = 20
+        mic_yaml = "ambisonic.yaml"
+
+        with open(mic_yaml, 'r') as f:
+            self.mics_meta = yaml.load(f, Loader=yaml.FullLoader)
+
+        # self.hdf5s_dir = "/home/tiger/workspaces/nesd2/hdf5s/vctk/sr=24000/train"
+        self.hdf5s_dir = hdf5s_dir
+        self.hdf5_names = sorted(os.listdir(self.hdf5s_dir))
+
+    def __getitem__(self, meta: Dict) -> Dict:
+        r"""Return data according to a meta. E.g., an input meta looks like: {
+            'vocals': [['song_A.h5', 6332760, 6465060], ['song_B.h5', 198450, 330750]],
+            'accompaniment': [['song_C.h5', 24232920, 24365250], ['song_D.h5', 1569960, 1702260]]}.
+        }
+
+        Then, vocals segments of song_A and song_B will be mixed (mix-audio augmentation).
+        Accompaniment segments of song_C and song_B will be mixed (mix-audio augmentation).
+        Finally, mixture is created by summing vocals and accompaniment.
+
+        Args:
+            meta: dict, e.g., {
+                'vocals': [['song_A.h5', 6332760, 6465060], ['song_B.h5', 198450, 330750]],
+                'accompaniment': [['song_C.h5', 24232920, 24365250], ['song_D.h5', 1569960, 1702260]]}
+            }
+
+        Returns:
+            data_dict: dict, e.g., {
+                'vocals': (channels, segments_num),
+                'accompaniment': (channels, segments_num),
+                'mixture': (channels, segments_num),
+            }
+        """
+
+        # Init mic pos, source pos, target pos
+
+        # Calculate mic signal 
+        # - Normal: calculate all agents and convolve with mic IR
+        # - Fast: free-field use sparsity
+
+        # Calculate target signal, hard sample
+        # - Normal: calculate all signals at all directions
+        # - Fast: Hard example directions
+
+        random_seed = meta['random_seed']
+        random_state = np.random.RandomState(random_seed)
+
+        # -------- Mic
+        agent_position = np.array([4, 4, 2])
+        agent_position = expand_along_time(agent_position, self.frames_num)
+
+        mics = []
+
+        # mic_center_position = np.array([4, 4, 2])
+        for mic_center_position in [np.array([2, 2, 2]), np.array([6, 2, 2]), np.array([6, 6, 2]), np.array([2, 6, 2])]:
+
+            mic_center_position = expand_along_time(mic_center_position, self.frames_num)
+
+            for mic_meta in self.mics_meta:
+
+                relative_mic_posision = np.array(sph2cart(
+                    r=mic_meta['radius'], 
+                    azimuth=mic_meta['azimuth'], 
+                    colatitude=mic_meta['colatitude']
+                ))
+
+                mic_position = mic_center_position + relative_mic_posision[None, :]
+
+                mic_look_direction = normalize(relative_mic_posision)
+                mic_look_direction = expand_along_time(mic_look_direction, self.frames_num)
+
+                mic = Microphone(
+                    position=mic_position,
+                    look_direction=mic_look_direction,
+                    directivity=mic_meta['directivity'],
+                )
+                mics.append(mic)
+
+        # --------- Source
+        sources_num = 2
+        sources = []
+
+        for i in range(sources_num):
+        
+            source_position = np.array((
+                random_state.uniform(low=0, high=8),
+                random_state.uniform(low=0, high=8),
+                random_state.uniform(low=0, high=4),
+            ))
+            source_position = expand_along_time(source_position, self.frames_num)
+
+            h5s_num = len(self.hdf5_names)
+            h5_index = random_state.randint(h5s_num)
+            hdf5_path = os.path.join(self.hdf5s_dir, self.hdf5_names[h5_index])
+
+            with h5py.File(hdf5_path, 'r') as hf:
+                waveform = int16_to_float32(hf['waveform'][:])
+
+            source = Source(
+                position=source_position,
+                radius=0.1,
+                waveform=waveform,
+            )
+            sources.append(source)
+
+        # --------- Fast simulate mic
+
+        # Microphone signals
+        for mic in mics:
+
+            # total = 0
+            for source in sources:
+                mic_to_src = source.position - mic.position
+                delayed_seconds = norm(mic_to_src[0, :]) / self.speed_of_sound
+                delayed_samples = self.sample_rate * delayed_seconds
+
+                cos = get_cos(mic.look_direction[0, :], mic_to_src[0, :])
+                gain = calculate_microphone_gain(cos=cos, directivity=mic.directivity)
+
+                y = fractional_delay(x=source.waveform, delayed_samples=delayed_samples)
+                y *= gain
+
+                mic.waveform += y
+
+        # --------- Hard example new position agents
+        agents = []
+
+        half_angle = math.atan2(0.1, 1)
+
+        for source in sources:
+
+            agent_to_src = source.position - agent_position
+
+            agent_look_direction = sample_agent_look_direction(
+                agent_to_src=agent_to_src[0, :],
+                half_angle=half_angle,
+                random_state=random_state,
+            )
+            agent_look_direction = expand_along_time(agent_look_direction, self.frames_num)
+
+            delayed_seconds = norm(agent_to_src[0, :]) / self.speed_of_sound
+            delayed_samples = self.sample_rate * delayed_seconds
+
+            y = fractional_delay(x=source.waveform, delayed_samples=delayed_samples)
+            gain = 1.
+            y *= gain
+
+            agent = Agent(
+                position=agent_position, 
+                look_direction=agent_look_direction, 
+                waveform=y,
+                see_source=np.ones(self.frames_num),
+            )
+
+            agents.append(agent)
+
+        while len(agents) < self.agents_num:
+
+            _direction_sampler = DirectionSampler(
+                low_colatitude=0, 
+                high_colatitude=math.pi, 
+                sample_on_sphere_uniformly=False, 
+                random_state=random_state,
+            )
+
+            agent_look_azimuth, agent_look_colatitude = _direction_sampler.sample()
+            agent_look_direction = np.array(sph2cart(
+                r=1., 
+                azimuth=agent_look_azimuth, 
+                colatitude=agent_look_colatitude
+            ))
+            agent_look_direction = expand_along_time(agent_look_direction, self.frames_num)
+
+            satisfied = True
+
+            for source in sources:
+
+                agent_to_src = source.position - agent_position
+                angle_between_agent_and_src = np.arccos(get_cos(agent_look_direction[0, :], agent_to_src[0, :]))
+
+                if angle_between_agent_and_src < half_angle:
+                    satisfied = False
+
+            if satisfied:
+                agent = Agent(
+                    position=agent_position, 
+                    look_direction=agent_look_direction, 
+                    waveform=np.zeros(self.segment_samples),
+                    see_source=np.zeros(self.frames_num),
+                )
+                agents.append(agent)
+
+        # depth agents
+        agents2 = []
+
+        for source in sources:
+
+            agent_to_src = source.position - agent_position
+
+            agent_look_direction = sample_agent_look_direction(
+                agent_to_src=agent_to_src[0, :],
+                half_angle=half_angle,
+                random_state=random_state,
+            )
+            agent_look_direction = expand_along_time(agent_look_direction, self.frames_num)
+
+            max_depth = 6
+            sphere_r = 0.2
+            distance = norm(agent_to_src[0, :])
+
+            # Positive depth
+            depth = random_state.uniform(
+                low=max(0, distance - sphere_r), 
+                high=min(distance + sphere_r, max_depth),
+            )
+
+            agent = Agent(
+                position=agent_position, 
+                look_direction=agent_look_direction, 
+                waveform=np.zeros(self.segment_samples),
+                see_source=np.ones(self.frames_num),
+            )
+            agent.look_depth = depth * np.ones(self.frames_num)
+            agent.exist_source = np.ones(self.frames_num)
+            agents2.append(agent)
+
+            # Negative depth
+            for _ in range(9):
+                while True:
+                    depth = random_state.uniform(low=0., high=max_depth)
+
+                    if distance - sphere_r < depth < distance + sphere_r:
+                        continue
+                    else:
+                        break
+
+                agent = Agent(
+                    position=agent_position, 
+                    look_direction=agent_look_direction, 
+                    waveform=np.zeros(self.segment_samples),
+                    see_source=np.zeros(self.frames_num),
+                )
+                agent.look_depth = depth * np.ones(self.frames_num)
+                agent.exist_source = np.zeros(self.frames_num)
+                agents2.append(agent)
+
+        agents.extend(agents2)
+
+        data_dict = {
+            'source_position': np.array([source.position for source in sources]),
+            'source_waveform': np.array([source.waveform for source in sources]),
+            'mic_position': np.array([mic.position for mic in mics]),
+            'mic_look_direction': np.array([mic.look_direction for mic in mics]),
+            'mic_waveform': np.array([mic.waveform for mic in mics]),
+            'agent_position': np.array([agent.position for agent in agents]),
+            'agent_look_direction': np.array([agent.look_direction for agent in agents]),
+            'agent_waveform': np.array([agent.waveform for agent in agents[0 : self.max_agents_contain_waveform]]),
+            'agent_see_source': np.array([agent.see_source for agent in agents[0 : self.agents_num]]),
+            'agent_look_depth': np.array([agent.look_depth for agent in agents[self.agents_num : self.agents_num + self.max_agents_contain_depths]]),
+            'agent_exist_source': np.array([agent.exist_source for agent in agents[self.agents_num : self.agents_num + self.max_agents_contain_depths]]),
         }
 
         # Plot
@@ -2477,103 +3050,112 @@ class DatasetPra:
             sources_num = 2
         sources = []
 
-        for i in range(sources_num):
+        success_flag = False
         
-            source_position = mic_center_position + normalize(random_state.uniform(low=-1, high=1, size=3))
+        while not success_flag:
 
-            h5s_num = len(self.hdf5_names)
-            h5_index = random_state.randint(h5s_num)
-            hdf5_path = os.path.join(self.hdf5s_dir, self.hdf5_names[h5_index])
+            for i in range(sources_num):
+            
+                source_position = mic_center_position + normalize(random_state.uniform(low=-1, high=1, size=3))
 
-            with h5py.File(hdf5_path, 'r') as hf:
-                waveform = int16_to_float32(hf['waveform'][:])
+                h5s_num = len(self.hdf5_names)
+                h5_index = random_state.randint(h5s_num)
+                hdf5_path = os.path.join(self.hdf5s_dir, self.hdf5_names[h5_index])
+
+                with h5py.File(hdf5_path, 'r') as hf:
+                    waveform = int16_to_float32(hf['waveform'][:])
+
+                if debug:
+                    waveform = np.zeros(72000)
+                    waveform[100] = 1
+
+                source = Source(
+                    position=source_position,
+                    radius=0.1,
+                    waveform=waveform,
+                )
+                sources.append(source)
+
+            # --------- Fast simulate mic
+            
+            corners = np.array([
+                [8, 8], 
+                [0, 8], 
+                [0, 0], 
+                [8, 0],
+            ]).T
+            height = 4
+
+            r = 0.2
+            wall_mat = {
+                "description": "Example wall material",
+                "coeffs": [r, r, r, r, r, r, r, r, ],
+                "center_freqs": [125, 250, 500, 1000, 2000, 4000, 8000, 16000],
+            }
+
+            materials = pra.Material(
+                energy_absorption=wall_mat,
+            )
 
             if debug:
-                waveform = np.zeros(72000)
-                waveform[100] = 1
+                is_raytracing = True
+            else:
+                is_raytracing = True
 
-            source = Source(
-                position=source_position,
-                radius=0.1,
-                waveform=waveform,
-            )
-            sources.append(source)
+            t1 = time.time()
+            if debug:
+                room = pra.Room.from_corners(
+                    corners=corners,
+                    fs=self.sample_rate,
+                    materials=materials,
+                    max_order=3,
+                    ray_tracing=is_raytracing,
+                    air_absorption=False,
+                )
+            else:
+                room = pra.Room.from_corners(
+                    corners=corners,
+                    fs=self.sample_rate,
+                    materials=materials,
+                    max_order=3,
+                    ray_tracing=is_raytracing,
+                    air_absorption=False,
+                )
 
-        # --------- Fast simulate mic
-        
-        corners = np.array([
-            [8, 8], 
-            [0, 8], 
-            [0, 0], 
-            [8, 0],
-        ]).T
-        height = 4
-
-        r = 0.2
-        wall_mat = {
-            "description": "Example wall material",
-            "coeffs": [r, r, r, r, r, r, r, r, ],
-            "center_freqs": [125, 250, 500, 1000, 2000, 4000, 8000, 16000],
-        }
-
-        materials = pra.Material(
-            energy_absorption=wall_mat,
-        )
-
-        if debug:
-            is_raytracing = True
-        else:
-            is_raytracing = True
-
-        t1 = time.time()
-        if debug:
-            room = pra.Room.from_corners(
-                corners=corners,
-                fs=self.sample_rate,
+            room.extrude(
+                height=height, 
                 materials=materials,
-                max_order=3,
-                ray_tracing=is_raytracing,
-                air_absorption=False,
-            )
-        else:
-            room = pra.Room.from_corners(
-                corners=corners,
-                fs=self.sample_rate,
-                materials=materials,
-                max_order=3,
-                ray_tracing=is_raytracing,
-                air_absorption=False,
             )
 
-        room.extrude(
-            height=height, 
-            materials=materials,
-        )
+            if is_raytracing:
+                room.set_ray_tracing(
+                    n_rays=1000,
+                    receiver_radius=0.5,
+                    energy_thres=1e-7,
+                    time_thres=1.0,
+                    hist_bin_size=0.004,
+                )
 
-        if is_raytracing:
-            room.set_ray_tracing(
-                n_rays=1000,
-                receiver_radius=0.5,
-                energy_thres=1e-7,
-                time_thres=1.0,
-                hist_bin_size=0.004,
-            )
+            try:
+                for source in sources:
+                    room.add_source(
+                        position=source.position[0],
+                        signal=source.waveform,
+                    )
 
-        for source in sources:
-            room.add_source(
-                position=source.position[0],
-                signal=source.waveform,
-            )
+                directivity_object = None
 
-        directivity_object = None
+                for mic in mics:
+                    room.add_microphone(
+                        loc=mic.position[0], 
+                        directivity=directivity_object,
+                    )
 
-        for mic in mics:
-            room.add_microphone(
-                loc=mic.position[0], 
-                directivity=directivity_object,
-            )
-
-        room.compute_rir()
+                room.compute_rir()
+                success_flag = True
+                
+            except:
+                success_flag = False
 
         room.simulate()
         # print(time.time() - t1)
@@ -3165,103 +3747,112 @@ class DatasetPraOrd1:
             sources_num = 2
         sources = []
 
-        for i in range(sources_num):
-        
-            source_position = mic_center_position + normalize(random_state.uniform(low=-1, high=1, size=3))
+        success_flag = False
 
-            h5s_num = len(self.hdf5_names)
-            h5_index = random_state.randint(h5s_num)
-            hdf5_path = os.path.join(self.hdf5s_dir, self.hdf5_names[h5_index])
+        while not success_flag:
 
-            with h5py.File(hdf5_path, 'r') as hf:
-                waveform = int16_to_float32(hf['waveform'][:])
+            for i in range(sources_num):
+            
+                source_position = mic_center_position + normalize(random_state.uniform(low=-1, high=1, size=3))
+
+                h5s_num = len(self.hdf5_names)
+                h5_index = random_state.randint(h5s_num)
+                hdf5_path = os.path.join(self.hdf5s_dir, self.hdf5_names[h5_index])
+
+                with h5py.File(hdf5_path, 'r') as hf:
+                    waveform = int16_to_float32(hf['waveform'][:])
+
+                if debug:
+                    waveform = np.zeros(72000)
+                    waveform[100] = 1
+
+                source = Source(
+                    position=source_position,
+                    radius=0.1,
+                    waveform=waveform,
+                )
+                sources.append(source)
+
+            # --------- Fast simulate mic
+            
+            corners = np.array([
+                [8, 8], 
+                [0, 8], 
+                [0, 0], 
+                [8, 0],
+            ]).T
+            height = 4
+
+            r = 0.2
+            wall_mat = {
+                "description": "Example wall material",
+                "coeffs": [r, r, r, r, r, r, r, r, ],
+                "center_freqs": [125, 250, 500, 1000, 2000, 4000, 8000, 16000],
+            }
+
+            materials = pra.Material(
+                energy_absorption=wall_mat,
+            )
 
             if debug:
-                waveform = np.zeros(72000)
-                waveform[100] = 1
+                is_raytracing = False
+            else:
+                is_raytracing = False
 
-            source = Source(
-                position=source_position,
-                radius=0.1,
-                waveform=waveform,
-            )
-            sources.append(source)
+            t1 = time.time()
+            if debug:
+                room = pra.Room.from_corners(
+                    corners=corners,
+                    fs=self.sample_rate,
+                    materials=materials,
+                    max_order=5,
+                    ray_tracing=is_raytracing,
+                    air_absorption=False,
+                )
+            else:
+                room = pra.Room.from_corners(
+                    corners=corners,
+                    fs=self.sample_rate,
+                    materials=materials,
+                    max_order=5,
+                    ray_tracing=False,
+                    air_absorption=False,
+                )
 
-        # --------- Fast simulate mic
-        
-        corners = np.array([
-            [8, 8], 
-            [0, 8], 
-            [0, 0], 
-            [8, 0],
-        ]).T
-        height = 4
-
-        r = 0.2
-        wall_mat = {
-            "description": "Example wall material",
-            "coeffs": [r, r, r, r, r, r, r, r, ],
-            "center_freqs": [125, 250, 500, 1000, 2000, 4000, 8000, 16000],
-        }
-
-        materials = pra.Material(
-            energy_absorption=wall_mat,
-        )
-
-        if debug:
-            is_raytracing = False
-        else:
-            is_raytracing = False
-
-        t1 = time.time()
-        if debug:
-            room = pra.Room.from_corners(
-                corners=corners,
-                fs=self.sample_rate,
+            room.extrude(
+                height=height, 
                 materials=materials,
-                max_order=5,
-                ray_tracing=is_raytracing,
-                air_absorption=False,
-            )
-        else:
-            room = pra.Room.from_corners(
-                corners=corners,
-                fs=self.sample_rate,
-                materials=materials,
-                max_order=5,
-                ray_tracing=False,
-                air_absorption=False,
             )
 
-        room.extrude(
-            height=height, 
-            materials=materials,
-        )
+            if is_raytracing:
+                room.set_ray_tracing(
+                    n_rays=1000,
+                    receiver_radius=0.5,
+                    energy_thres=1e-7,
+                    time_thres=1.0,
+                    hist_bin_size=0.004,
+                )
 
-        if is_raytracing:
-            room.set_ray_tracing(
-                n_rays=1000,
-                receiver_radius=0.5,
-                energy_thres=1e-7,
-                time_thres=1.0,
-                hist_bin_size=0.004,
-            )
+            try:
+                for source in sources:
+                    room.add_source(
+                        position=source.position[0],
+                        signal=source.waveform,
+                    )
 
-        for source in sources:
-            room.add_source(
-                position=source.position[0],
-                signal=source.waveform,
-            )
+                directivity_object = None
 
-        directivity_object = None
+                for mic in mics:
+                    room.add_microphone(
+                        loc=mic.position[0], 
+                        directivity=directivity_object,
+                    )
 
-        for mic in mics:
-            room.add_microphone(
-                loc=mic.position[0], 
-                directivity=directivity_object,
-            )
+                room.compute_rir()
+                success_flag = True
 
-        room.compute_rir()
+            except:
+                success_flag = False
 
         room.simulate()
         # print(time.time() - t1)
