@@ -1662,6 +1662,7 @@ class Model01_4GroupMicsDepth(nn.Module, Base):
         self, 
         data_dict: Dict, 
         do_separation=None,
+        mode='train',
     ):
 
         do_localization = self.do_localization
@@ -1827,7 +1828,11 @@ class Model01_4GroupMicsDepth(nn.Module, Base):
 
         agent_look_depth_feature = agent_look_depth_feature[:, :, 0 :: self.time_downsample_ratio, :]
         tmp = torch.zeros_like(agent_look_direction_feature)
-        tmp[:, -max_agents_contain_depth :, :, :] = agent_look_depth_feature
+
+        if mode == 'train':
+            tmp[:, -max_agents_contain_depth :, :, :] = agent_look_depth_feature
+        elif mode == 'eval':
+            tmp = agent_look_depth_feature
         
         # Concatenate mic features and agent features.
         shared_feature = torch.cat((mic_feature, agent_position_feature, 
@@ -1839,7 +1844,10 @@ class Model01_4GroupMicsDepth(nn.Module, Base):
         if do_localization:
             batch_size, agents_num, _T, _C = shared_feature.shape
 
-            x = shared_feature[:, 0 : -max_agents_contain_depth, :, :]
+            if mode == 'train':
+                x = shared_feature[:, 0 : -max_agents_contain_depth, :, :]
+            elif mode == 'eval':
+                x = shared_feature
 
             x = rearrange(x, 'b n t c -> (b n) c t')[:, :, :, None]
             # (bs * agents_num, C=1536, T, 1)
@@ -1927,8 +1935,10 @@ class Model01_4GroupMicsDepth(nn.Module, Base):
             output_dict['agent_waveform'] = agent_waveform
 
         if self.do_depth:
-            x = shared_feature[:, -max_agents_contain_depth :, :, :]
-            # (bs, n=max_agents_contain_waveform, T=38, C=1536)
+            if mode == 'train':
+                x = shared_feature[:, -max_agents_contain_depth :, :, :]
+            elif mode == 'eval':
+                x = shared_feature
 
             batch_size, agents_num, _T, _C = x.shape
 
