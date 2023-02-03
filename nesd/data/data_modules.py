@@ -2704,6 +2704,7 @@ class DatasetDcase2021Task3:
                 azimuth=hf['azimuth'][:],
                 elevation=hf['elevation'][:],
             )
+            from IPython import embed; embed(using=False); os._exit(0)
             
         # Collect sources
         event_ids = set(event_indexes)
