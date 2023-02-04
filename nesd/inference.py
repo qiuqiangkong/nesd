@@ -681,16 +681,16 @@ def inference_dcase2021_single_map(args):
     batch_size = configs['train']['batch_size']
     steps_per_epoch = configs['train']['steps_per_epoch']
 
-    audio_path = "/home/tiger/datasets/dcase2021/task3/mic_dev/dev-test/fold6_room1_mix001.wav"
-    csv_path = "/home/tiger/datasets/dcase2021/task3/metadata_dev/dev-test/fold6_room1_mix001.csv"
+    # audio_path = "/home/tiger/datasets/dcase2021/task3/mic_dev/dev-test/fold6_room1_mix001.wav"
+    # csv_path = "/home/tiger/datasets/dcase2021/task3/metadata_dev/dev-test/fold6_room1_mix001.csv"
 
     # audio_path = "/home/tiger/datasets/dcase2021/task3/mic_dev/dev-test/fold6_room2_mix050.wav"
     # csv_path = "/home/tiger/datasets/dcase2021/task3/metadata_dev/dev-test/fold6_room2_mix050.csv"
 
-    # audio_path = "/home/tiger/datasets/dcase2021/task3/mic_dev/dev-train/fold1_room1_mix001.wav"
-    # csv_path = "/home/tiger/datasets/dcase2021/task3/metadata_dev/dev-train/fold1_room1_mix001.csv"
+    audio_path = "/home/tiger/datasets/dcase2021/task3/mic_dev/dev-train/fold1_room1_mix001.wav"
+    csv_path = "/home/tiger/datasets/dcase2021/task3/metadata_dev/dev-train/fold1_room1_mix001.csv"
 
-    df = pd.read_csv(csv_path, sep=',', header=None)
+    df = pd.read_csv(csv_path, sep=',', header=None) 
     frame_indexes = df[0].values
     class_ids = df[1].values
     azimuths = df[3].values % 360
@@ -826,12 +826,15 @@ def inference_dcase2021_single_map(args):
             max_coord = np.array(np.unravel_index(np.argmax(tmp), tmp.shape))
             max_prob = np.max(tmp)
 
-            tmp = pred_mat_classwise_timelapse[t, max_coord[0], max_coord[1], :]
-            pred_class_id = np.argmax(tmp)
-            pred_prob = np.max(tmp)
-            
-            if max_prob > 0.5:
-                pred_str = '({},{}):{},{:.3f}'.format(max_coord[0] * grid_deg, max_coord[1] * grid_deg, ID_TO_LB[pred_class_id], pred_prob)
+            if classwise:
+                tmp = pred_mat_classwise_timelapse[t, max_coord[0], max_coord[1], :]
+                pred_class_id = np.argmax(tmp)
+                pred_prob = np.max(tmp)
+                
+                if max_prob > 0.5:
+                    pred_str = '({},{}):{},{:.3f}'.format(max_coord[0] * grid_deg, max_coord[1] * grid_deg, ID_TO_LB[pred_class_id], pred_prob)
+                else:
+                    pred_str = ''
             else:
                 pred_str = ''
 
@@ -853,25 +856,7 @@ def inference_dcase2021_single_map(args):
             os.makedirs('_tmp', exist_ok=True)
             plt.savefig('_tmp/_zz_{:03d}.jpg'.format(global_t))
 
-
-
-            # from IPython import embed; embed(using=False); os._exit(0)
-            
-            # if classwise:
-            #     plt.figure(figsize=(20, 20))
-            #     fig, axs = plt.subplots(6, 4, sharex=True)
-
-            #     for k in range(classes_num):
-            #         axs[k // 4, k % 4].matshow(gt_mat_classwise_timelapse[global_t, :, :, k].T, origin='upper', aspect='equal', cmap='jet', vmin=0, vmax=1)
-
-            #         axs[3 + k // 4, k % 4].matshow(pred_mat_classwise_timelapse[t, :, :, k].T, origin='upper', aspect='equal', cmap='jet', vmin=0, vmax=1)
-
-            #     os.makedirs('_tmp2', exist_ok=True)
-            #     plt.savefig('_tmp2/_zz_{:03d}.jpg'.format(global_t))
-
             global_t += 1
-
-            # from IPython import embed; embed(using=False); os._exit(0)
 
         pointer += segment_samples
 

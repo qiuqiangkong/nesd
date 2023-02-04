@@ -164,8 +164,115 @@ def add2():
             from IPython import embed; embed(using=False); os._exit(0)
 
 
+def add3():
+
+    select = '5'
+
+    if select == '1':
+        x = np.array([np.nan, np.nan, 1.3, 1.5, 1.8, 2.0, np.nan, np.nan, 4.3, 4.6, 4.7, np.nan, np.nan])
+    elif select == '2':
+        x = np.array([np.nan, np.nan, 1.3, 1.5, 1.8, 2.0, np.nan, np.nan, 4.3, 4.6, 4.7, np.nan, np.nan, np.nan, 6.1, 6.3, 6.4, np.nan, np.nan])
+    elif select == '3':
+        x = np.array([1.3, 1.5, 1.8, 2.0, np.nan, np.nan])
+    elif select == '4':
+        x = np.array([np.nan, np.nan, 1.3, 1.5, 1.8, 2.0])
+    elif select == '5':  # will not happen
+        x = np.array([np.nan, np.nan, np.nan, np.nan, np.nan, np.nan])
+    elif select == '6':
+        x = np.array([1.3, 1.5, 1.8, 2.0])
+
+
+    x = x[:, None]
+    extend_look_direction(x)
+
+from sklearn.linear_model import LinearRegression
+
+
+def extend_look_direction(look_direction):
+
+    frames_num = look_direction.shape[0]
+
+    tmp = []  # nan
+    tmp2 = []  # float
+
+    new_x = look_direction.copy()
+
+    # process begin Nan
+    for i in range(frames_num):
+        if math.isnan(look_direction[i, 0]):
+            if len(tmp2) > 0:
+                break
+            else:
+                tmp.append(i)
+
+        if not math.isnan(look_direction[i, 0]):
+            tmp2.append(i)
+
+        if math.isnan(look_direction[i, 0]) and len(tmp2) > 0:
+            break
+
+    if len(tmp) > 0 and len(tmp2) > 0:
+        X = np.array(tmp2)[:, None]
+        y = look_direction[np.array(tmp2)]
+        reg = LinearRegression().fit(X, y)
+        pred = reg.predict(np.array(tmp)[:, None])
+        new_x[np.array(tmp)] = pred
+
+    # process end Nan
+    tmp = []  # nan
+    tmp2 = []  # float
+    new_x = new_x[::-1]
+    _look_direction = look_direction[::-1]
+
+    for i in range(frames_num):
+        if math.isnan(_look_direction[i, 0]):
+            if len(tmp2) > 0:
+                break
+            else:
+                tmp.append(i)
+
+        if not math.isnan(_look_direction[i, 0]):
+            tmp2.append(i)
+
+        if math.isnan(_look_direction[i, 0]) and len(tmp2) > 0:
+            break
+
+    if len(tmp) > 0 and len(tmp2) > 0:
+        X = np.array(tmp2)[:, None]
+        y = _look_direction[np.array(tmp2)]
+        reg = LinearRegression().fit(X, y)
+        pred = reg.predict(np.array(tmp)[:, None])
+        new_x[np.array(tmp)] = pred
+
+    new_x = new_x[::-1]
+    
+    # process Middle Nan
+    bgn = None
+    end = None
+
+    for i in range(1, frames_num):
+        if math.isnan(new_x[i, 0]) and not math.isnan(new_x[i - 1, 0]):
+            bgn = i - 1
+
+        if not math.isnan(new_x[i, 0]) and math.isnan(new_x[i - 1, 0]):
+            end = i
+
+        if bgn is not None and end is not None:
+            X = np.array([bgn, end])[:, None]
+            y = np.array([new_x[bgn], new_x[end]])
+            reg = LinearRegression().fit(X, y)
+            pred = reg.predict(np.arange(bgn + 1, end)[:, None])
+            new_x[np.arange(bgn + 1, end)] = pred
+            bgn = None
+            end = None
+            
+    for i in range(frames_num):
+        new_x[i] = normalize(new_x[i])
+    
+    return new_x
 
 if __name__ == '__main__':
 
     # add()
-    add2()
+    # add2()
+    add3()
