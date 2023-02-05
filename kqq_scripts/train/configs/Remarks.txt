@@ -20,3 +20,4 @@ dcase2021_task3_02a.yaml	Model01_classwise
 dcase2021_task3_03a.yaml	Model01_Rnn_classwise
 dcase2021_task3_03b.yaml	DatasetDcase2021Task3_MovB (smooth move) Model01_Rnn_classwise
 dcase2021_task3_03c.yaml	DatasetDcase2021Task3_MovC (smooth move + fix) Model01_Rnn_classwise
+dcase2021_task3_03c2.yaml	DatasetDcase2021Task3_MovC (smooth move + fix) Model01
