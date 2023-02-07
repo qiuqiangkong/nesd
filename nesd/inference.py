@@ -7,6 +7,7 @@ import torch
 import soundfile
 import matplotlib.pyplot as plt
 import pandas as pd
+import pickle
 
 from nesd.data.samplers import Sampler
 from nesd.data.data_modules import DataModule, Dataset
@@ -803,7 +804,10 @@ def inference_dcase2021_single_map(args):
         break
     
     global_t = 0
-    while pointer + segment_samples < audio_samples:
+    all_pred_mat_timelapse = []
+    all_pred_mat_classwise_timelapse = []
+
+    while pointer + segment_samples <= audio_samples:
         print(global_t)
 
         segment = audio[:, pointer : pointer + segment_samples]
@@ -859,6 +863,17 @@ def inference_dcase2021_single_map(args):
             global_t += 1
 
         pointer += segment_samples
+
+        all_pred_mat_timelapse.append(pred_mat_timelapse)
+        all_pred_mat_classwise_timelapse.append(pred_mat_classwise_timelapse)
+
+    all_pred_mat_timelapse = np.concatenate(all_pred_mat_timelapse, axis=0)
+    all_pred_mat_classwise_timelapse = np.concatenate(all_pred_mat_classwise_timelapse, axis=0)
+
+    pickle.dump(all_pred_mat_timelapse, open('_all_pred_mat_timelapse.pkl', 'wb'))
+    pickle.dump(all_pred_mat_classwise_timelapse, open('_all_pred_mat_classwise_timelapse.pkl', 'wb'))
+
+    from IPython import embed; embed(using=False); os._exit(0)
 
 
 def inference_depth(args):
