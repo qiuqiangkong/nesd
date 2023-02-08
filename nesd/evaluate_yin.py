@@ -2,6 +2,7 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+import matplotlib.pyplot as plt
 
 import nesd.SELD_evaluation_metrics_2019 as SELDMetrics2019
 from nesd.SELD_data_utilities import (load_dcase_format,
@@ -9,6 +10,8 @@ from nesd.SELD_data_utilities import (load_dcase_format,
 from nesd.SELD_evaluation_metrics_2020 import \
     SELDMetrics as SELDMetrics2020
 from nesd.SELD_evaluation_metrics_2020 import early_stopping_metric
+from nesd.dataset_creation.pack_audios_to_hdf5s.dcase2021_task3 import LABELS
+
 
 class AA:
     def __init__(self):
@@ -115,6 +118,23 @@ def evaluate():
         pred_sed_metrics2019.shape[0], label_resolution=dataset.label_resolution)
     gt_metrics2020_dict = to_metrics2020_format(gt_output_dict, 
         gt_sed_metrics2019.shape[0], label_resolution=dataset.label_resolution)    
+    
+    if True:
+        pred_sed_metrics2019
+        fig, axs = plt.subplots(2, 1, sharex=True)
+        axs[0].matshow(gt_sed_metrics2019.T, origin='lower', aspect='auto', cmap='jet')
+        axs[1].matshow(pred_sed_metrics2019.T, origin='lower', aspect='auto', cmap='jet')
+        # axs[0].xaxis.set_ticks(np.arange(0, 101, 10))
+        # axs[0].xaxis.set_ticklabels(np.arange(11))
+        classes_num = len(LABELS)
+        for i in range(2):
+            axs[i].yaxis.set_ticks(np.arange(classes_num))
+            axs[i].yaxis.set_ticklabels([lb[0:10] for lb in LABELS], fontsize=8)
+        axs[0].xaxis.grid(color='k', linestyle='solid', linewidth=1)
+        axs[1].xaxis.grid(color='w', linestyle='solid', linewidth=1)
+        axs[1].yaxis.grid(color='w', linestyle='solid', linewidth=0.2)
+        plt.savefig('_zz.pdf')
+        # from IPython import embed; embed(using=False); os._exit(0)
 
     # 2019 metrics
     num_frames_1s = int(1 / dataset.label_resolution)

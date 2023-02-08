@@ -50,6 +50,6 @@ CUDA_VISIBLE_DEVICES=0 python3 ./nesd/inference.py inference_dcase2021_single_ma
 
 ffmpeg -framerate 10 -i '_tmp/_zz_%03d.jpg' -r 30 -pix_fmt yuv420p 123.mp4
 
-python3 nesd/evaluate_dcase2021_task3.py process_mat_write_csv --csv=""
+python3 nesd/evaluate_dcase2021_task3.py process_mat_write_csv --csv="./submissions/01_test/fold6_room1_mix001.csv"
 
 python3 nesd/evaluate_yin.py

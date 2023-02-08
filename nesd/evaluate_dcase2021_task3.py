@@ -94,15 +94,19 @@ def process_mat_write_csv(args):
 
         if len(loct_pairs) > 0:
             for (azi, col) in loct_pairs:
-                pred_id = np.argmax(pred_mat_classwise_timelapse[t, azi, col])
+                tmp = pred_mat_classwise_timelapse[t, azi, col]
+                pred_id = np.argmax(tmp)
+                prob = np.max(tmp)
                 
-                dcase_azimuth = azi * grid_deg
-                if dcase_azimuth > 180:
-                    dcase_azimuth -= 360
-                dcase_colatitude = 90 - col * grid_deg
+                # if prob > 0.2:
+                if prob > 0.:
+                    dcase_azimuth = azi * grid_deg
+                    if dcase_azimuth > 180:
+                        dcase_azimuth -= 360
+                    dcase_colatitude = 90 - col * grid_deg
 
-                event = [t, pred_id, dcase_azimuth, dcase_colatitude]  # TODO
-                events.append(event)
+                    event = [t, pred_id, dcase_azimuth, dcase_colatitude]  # TODO
+                    events.append(event)
 
     os.makedirs(os.path.dirname(csv_path), exist_ok=True)
 
