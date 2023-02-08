@@ -341,6 +341,7 @@ class DatasetEigenmike:
     def __init__(
         self,
         hdf5s_dir,
+        classes_num,
     ):
         r"""Used for getting data according to a meta.
 
@@ -2832,6 +2833,7 @@ class DatasetDcase2021Task3:
     def __init__(
         self,
         hdf5s_dir,
+        classes_num,
     ):
         r"""Used for getting data according to a meta.
 
@@ -2853,7 +2855,7 @@ class DatasetDcase2021Task3:
 
         self.dcase_fps = 10
         self.nesd_fps = 100
-        self.classes_num = 12
+        self.classes_num = classes_num
 
         self.segment_frames_10fps = int(self.segment_seconds * self.dcase_fps) + 1
 
