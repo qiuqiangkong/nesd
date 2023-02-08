@@ -127,6 +127,7 @@ def get_data_module(
     dataset_type = configs['dataset_type']
     train_hdf5s_dir = os.path.join(workspace, configs['sources']['train_hdf5s_dir'])
     test_hdf5s_dir = os.path.join(workspace, configs['sources']['test_hdf5s_dir'])
+    classes_num = configs['sources']['classes_num']
     batch_size = configs['train']['batch_size']
     steps_per_epoch = configs['train']['steps_per_epoch']
 
@@ -142,6 +143,7 @@ def get_data_module(
 
     train_dataset = _Dataset(
         hdf5s_dir=train_hdf5s_dir,
+        classes_num=classes_num,
     )
 
     # data module
@@ -154,52 +156,6 @@ def get_data_module(
 
     return data_module
 
-'''
-def loc_bce(model, output_dict, target_dict):
-    loss = F.binary_cross_entropy(output_dict['ray_intersect_source'], target_dict['ray_intersect_source'])
-    return loss
-
-def loc_bce_sep_l1(model, output_dict, target_dict):
-    loc_loss = F.binary_cross_entropy(output_dict['ray_intersect_source'], target_dict['ray_intersect_source'])
-    sep_loss = torch.mean(torch.abs(output_dict['ray_waveform'] - target_dict['ray_waveform'][:, 0 : 2, :]))
-    sep_loss *= 10.
-
-    total_loss = loc_loss + sep_loss
-    print(loc_loss.item(), sep_loss.item(), torch.max(output_dict['ray_waveform']).item()) 
-
-    return total_loss
-
-
-def sep_l1(model, output_dict, target_dict):
-    # from IPython import embed; embed(using=False); os._exit(0)
-    # loc_loss = F.binary_cross_entropy(output_dict['ray_intersect_source'], target_dict['ray_intersect_source'])
-    sep_loss = torch.mean(torch.abs(output_dict['ray_waveform'] - target_dict['ray_waveform'][:, 0 : 2, :]))
-    sep_loss *= 10.
-
-    total_loss = sep_loss
-    print(sep_loss.item(), torch.max(output_dict['ray_waveform']).item()) 
-
-    return total_loss
-
-
-def loc_bce_cla_bce_sep_l1(model, output_dict, target_dict):
-    
-    eng_mat = torch.mean(torch.abs(target_dict['waveform']), dim=-1)
-    wav_loss_mat = torch.mean(torch.abs(output_dict['waveform'] - target_dict['waveform']), dim=-1)
-
-    weight_mat = eng_mat / torch.max(eng_mat)
-    weight_mat = torch.clamp(weight_mat, 0.01, 1.)
-
-    wav_loss = torch.sum(wav_loss_mat * weight_mat / torch.sum(weight_mat))
-    wav_loss *= 10
-
-    loc_loss = F.binary_cross_entropy(output_dict['has_energy_array'], target_dict['has_energy_array'])
-    cla_loss = F.binary_cross_entropy(output_dict['class_id_mat'], target_dict['class_id_mat'])
-    
-    total_loss = loc_loss + wav_loss + cla_loss
-    
-    return total_loss
-'''
 
 def train(args) -> NoReturn:
     r"""Train & evaluate and save checkpoints.

@@ -13,6 +13,7 @@
 06a.yaml	freefield, src=2, mic=4, rnn
 06b.yaml	pyroomacoustics, ord=5, src=2, mic=4, rnn
 06c.yaml	pyroomacoustics, src=2, mic=4, rnn
+07a.yaml	freefield, loc_bce_sep_l1, src=2, eigenmike
 
 + dcase2021_task3_01a.yaml	Model01
 dcase2021_task3_01b.yaml	Model01_Rnn

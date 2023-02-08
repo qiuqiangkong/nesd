@@ -63,6 +63,47 @@ def _segment_index(x, chunklen, hoplen, last_frame_always_paddding=False):
 
     return segmented_indexes, segmented_pad_width
 
+'''
+def load_dcase_format(meta_path, frame_begin_index=0, frame_length=600, num_classes=14, set_type='gt'):
+    """ Load meta into dcase format
+
+    Args:
+        meta_path (Path obj): path of meta file
+        frame_begin_index (int): frame begin index, for concatenating labels
+        frame_length (int): frame length in a file
+        num_classes (int): number of classes
+    Output:
+        output_dict: return a dict containing dcase output format
+            output_dict[frame-containing-events] = [[class_index_1, azi_1 in degree, ele_1 in degree], [class_index_2, azi_2 in degree, ele_2 in degree]]
+        sed_metrics2019: (frame, num_classes)
+        doa_metrics2019: (frame, 2*num_classes), with (frame, 0:num_classes) represents azimuth, (frame, num_classes:2*num_classes) represents elevation
+            both are in radiance
+    """
+    df = pd.read_csv(meta_path, header=None)
+
+    output_dict = {}
+    sed_metrics2019 = np.zeros((frame_length, num_classes))
+    doa_metrics2019 = np.zeros((frame_length, 2*num_classes))
+    for row in df.iterrows():
+        frame_idx = row[1][0]
+        frame_idx2020 = frame_idx + frame_begin_index
+        event_idx = row[1][1]
+        if set_type == 'gt':
+            azi = row[1][3]
+            ele = row[1][4]
+        elif set_type == 'pred':
+            azi = row[1][2]
+            ele = row[1][3]
+            # azi = row[1][3]
+            # ele = row[1][4]
+        if frame_idx2020 not in output_dict:
+            output_dict[frame_idx2020] = []
+        output_dict[frame_idx2020].append([event_idx, azi, ele])
+        sed_metrics2019[frame_idx, event_idx] = 1.0
+        doa_metrics2019[frame_idx, event_idx], doa_metrics2019[frame_idx, event_idx + num_classes] \
+            = azi * np.pi / 180.0, ele * np.pi / 180.0
+    return output_dict, sed_metrics2019, doa_metrics2019
+'''
 
 def load_dcase_format(meta_path, frame_begin_index=0, frame_length=600, num_classes=14, set_type='gt'):
     """ Load meta into dcase format
@@ -88,6 +129,7 @@ def load_dcase_format(meta_path, frame_begin_index=0, frame_length=600, num_clas
         frame_idx = row[1][0]
         frame_idx2020 = frame_idx + frame_begin_index
         event_idx = row[1][1]
+        # event_idx = 0 
         if set_type == 'gt':
             azi = row[1][3]
             ele = row[1][4]

@@ -28,6 +28,7 @@ def loc_bce_classwise_bce(model, output_dict, target_dict):
         target=target_dict['agent_see_source_classwise'],
     )
     total_loss = loc_loss + classwise_loss
+    print(loc_loss.item(), classwise_loss.item())
     
     return total_loss
 

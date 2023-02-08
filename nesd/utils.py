@@ -234,6 +234,9 @@ def calculate_microphone_gain(cos, directivity):
     if directivity == "cardioid":
         gain = (1 + cos) / 2
 
+    elif directivity == "omni":
+        gain = 1.
+
     # elif self.directivity == "omni":
     #     gain = np.ones_like(angle)
 

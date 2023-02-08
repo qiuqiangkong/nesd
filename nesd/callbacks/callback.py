@@ -52,6 +52,7 @@ def get_callback(
     dataset_type = configs['dataset_type']
     sampler_type = configs['sampler_type']
     test_hdf5s_dir = os.path.join(workspace, configs['sources']['test_hdf5s_dir'])
+    classes_num = configs['sources']['classes_num']
     evaluate_step_frequency = configs['train']['evaluate_step_frequency']
     save_step_frequency = configs['train']['save_step_frequency']
     batch_size = configs['train']['batch_size']
@@ -76,6 +77,7 @@ def get_callback(
     evaluate_test_callback = EvaluationCallback(
         sampler_type=sampler_type,
         dataset_type=dataset_type,
+        classes_num=classes_num,
         split="test",
         hdf5s_dir=test_hdf5s_dir,
         model=model,
@@ -99,6 +101,7 @@ class EvaluationCallback(pl.Callback):
         self,
         sampler_type,
         dataset_type,
+        classes_num,
         split: str,
         hdf5s_dir,
         model: nn.Module,
@@ -127,6 +130,7 @@ class EvaluationCallback(pl.Callback):
         """
         self.sampler_type = sampler_type
         self.dataset_type = dataset_type
+        self.classes_num = classes_num
         self.split = split
         self.model = model
         self.loss_function = loss_function
@@ -170,6 +174,7 @@ class EvaluationCallback(pl.Callback):
 
             train_dataset = _Dataset(
                 hdf5s_dir=self.hdf5s_dir,
+                classes_num=self.classes_num,
             )
 
             # data module
