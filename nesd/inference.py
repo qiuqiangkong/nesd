@@ -745,20 +745,28 @@ def inference_dcase2021_single_map(args):
     steps_per_epoch = configs['train']['steps_per_epoch']
 
     task = "dcase2021_task3"
+    split = 'test'
 
     if task == "dcase2019_task3":
-        audio_path = "/home/tiger/datasets/dcase2019/task3/mic_dev/split1_ir0_ov1_1.wav"
-        csv_path = "/home/tiger/datasets/dcase2019/task3/metadata_dev/split1_ir0_ov1_1.csv"
+        if split == 'train':
+            audio_path = "/home/tiger/datasets/dcase2019/task3/mic_dev/split1_ir0_ov1_1.wav"
+            csv_path = "/home/tiger/datasets/dcase2019/task3/metadata_dev/split1_ir0_ov1_1.csv"
+
+        elif split == 'test':
+            audio_path = "/home/tiger/datasets/dcase2019/task3/mic_eval/split0_100.wav"
+            csv_path = "/home/tiger/datasets/dcase2019/task3/metadata_eval/split0_100.csv"
 
         frame_indexes, class_ids, azimuths, elevations = read_dcase2019_task3_csv(csv_path)
         from nesd.dataset_creation.pack_audios_to_hdf5s.dcase2019_task3 import ID_TO_LB
 
     elif task == "dcase2021_task3":
-        # audio_path = "/home/tiger/datasets/dcase2021/task3/mic_dev/dev-train/fold1_room1_mix001.wav"
-        # csv_path = "/home/tiger/datasets/dcase2021/task3/metadata_dev/dev-train/fold1_room1_mix001.csv"
+        if split == 'train':
+            audio_path = "/home/tiger/datasets/dcase2021/task3/mic_dev/dev-train/fold1_room1_mix001.wav"
+            csv_path = "/home/tiger/datasets/dcase2021/task3/metadata_dev/dev-train/fold1_room1_mix001.csv"
 
-        audio_path = "/home/tiger/datasets/dcase2021/task3/mic_dev/dev-test/fold6_room1_mix001.wav"
-        csv_path = "/home/tiger/datasets/dcase2021/task3/metadata_dev/dev-test/fold6_room1_mix001.csv"
+        elif split == 'test':
+            audio_path = "/home/tiger/datasets/dcase2021/task3/mic_dev/dev-test/fold6_room1_mix001.wav"
+            csv_path = "/home/tiger/datasets/dcase2021/task3/metadata_dev/dev-test/fold6_room1_mix001.csv"
 
         # audio_path = "/home/tiger/datasets/dcase2021/task3/mic_dev/dev-test/fold6_room2_mix050.wav"
         # csv_path = "/home/tiger/datasets/dcase2021/task3/metadata_dev/dev-test/fold6_room2_mix050.csv"
@@ -767,11 +775,13 @@ def inference_dcase2021_single_map(args):
         from nesd.dataset_creation.pack_audios_to_hdf5s.dcase2021_task3 import ID_TO_LB
 
     elif task == "dcase2022_task3":
-        # audio_path = "/home/tiger/datasets/dcase2022/task3/mic_dev/dev-train-sony/fold3_room21_mix001.wav"
-        # csv_path = "/home/tiger/datasets/dcase2022/task3/metadata_dev/dev-train-sony/fold3_room21_mix001.csv"
+        if split == 'train':
+            audio_path = "/home/tiger/datasets/dcase2022/task3/mic_dev/dev-train-sony/fold3_room21_mix001.wav"
+            csv_path = "/home/tiger/datasets/dcase2022/task3/metadata_dev/dev-train-sony/fold3_room21_mix001.csv"
 
-        audio_path = "/home/tiger/datasets/dcase2022/task3/mic_dev/dev-test-sony/fold4_room23_mix001.wav"
-        csv_path = "/home/tiger/datasets/dcase2022/task3/metadata_dev/dev-test-sony/fold4_room23_mix001.csv"
+        elif split == 'test':
+            audio_path = "/home/tiger/datasets/dcase2022/task3/mic_dev/dev-test-sony/fold4_room23_mix001.wav"
+            csv_path = "/home/tiger/datasets/dcase2022/task3/metadata_dev/dev-test-sony/fold4_room23_mix001.csv"
 
         frame_indexes, class_ids, azimuths, elevations = read_dcase2022_task3_csv(csv_path)
         from nesd.dataset_creation.pack_audios_to_hdf5s.dcase2022_task3 import ID_TO_LB
@@ -779,7 +789,7 @@ def inference_dcase2021_single_map(args):
     grid_deg = 2
     azimuth_grids = 360 // grid_deg
     elevation_grids = 180 // grid_deg
-    classwise = True
+    classwise = False
 
     total_frames_num = max(600, np.max(frame_indexes) + 1)
     
