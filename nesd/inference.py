@@ -27,6 +27,7 @@ def inference(args):
     configs = read_yaml(config_yaml) 
     sampler_type = configs['sampler_type']
     dataset_type = configs['dataset_type']
+    classes_num = configs['sources']['classes_num']
     model_type = configs['train']['model_type']
     do_localization = configs['train']['do_localization']
     do_sed = configs['train']['do_sed']
@@ -82,6 +83,7 @@ def inference(args):
 
     train_dataset = _Dataset(
         hdf5s_dir=hdf5s_dir,
+        classes_num=classes_num,
     )
 
     # data module
@@ -744,7 +746,7 @@ def inference_dcase2021_single_map(args):
     batch_size = configs['train']['batch_size']
     steps_per_epoch = configs['train']['steps_per_epoch']
 
-    task = "dcase2021_task3"
+    task = "dcase2021_task3" 
     split = 'test'
 
     if task == "dcase2019_task3":
@@ -796,8 +798,6 @@ def inference_dcase2021_single_map(args):
     gt_mat_timelapse = np.zeros((total_frames_num, azimuth_grids, elevation_grids))
     strs = [''] * total_frames_num
 
-    
-
     for n in range(len(frame_indexes)):
         i = int(azimuths[n] / grid_deg)
         j = int(elevations[n] / grid_deg)
@@ -806,7 +806,6 @@ def inference_dcase2021_single_map(args):
         gt_mat_timelapse[frame_indexes[n], max(i - r, 0) : min(i + r, azimuth_grids), max(j - r, 0) : min(j + r, elevation_grids)] = 1
 
         strs[frame_indexes[n]] += '({}, {}): {} '.format(azimuths[n], elevations[n], ID_TO_LB[class_id])
-
     
     device = 'cuda'
     frames_num = 301

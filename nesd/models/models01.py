@@ -3712,8 +3712,8 @@ class Model01_classwise(nn.Module, Base):
         self.window_size = window_size
         self.hop_size = hop_size
         self.pad_mode = pad_mode
-        self.do_localization = True
-        self.do_sed = True
+        self.do_localization = do_localization
+        self.do_sed = do_sed
         self.do_separation = do_separation
 
         positional_embedding_factor = 5
@@ -4321,8 +4321,8 @@ class Model01_Rnn_classwise(nn.Module, Base):
         self.window_size = window_size
         self.hop_size = hop_size
         self.pad_mode = pad_mode
-        self.do_localization = True
-        self.do_sed = True
+        self.do_localization = do_localization
+        self.do_sed = do_sed
         self.do_separation = do_separation
 
         positional_embedding_factor = 5

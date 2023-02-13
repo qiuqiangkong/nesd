@@ -5,6 +5,7 @@ import math
 import librosa
 import soundfile
 import time
+from scipy import signal
 
 from nesd.utils import normalize
 
@@ -271,8 +272,161 @@ def extend_look_direction(look_direction):
     
     return new_x
 
+
+class CrossFade:
+    def __init__(self):
+
+        self.filter = self.calculate_filters()
+
+    def calculate_filters(self):
+
+        frame_samples = 2400
+        # frames_num, channels_num, audio_samples = audios.shape
+        frames_num = 10
+        audio_samples = 24000
+        new_audios = []
+
+        filters = np.zeros((frames_num, audio_samples))
+
+        triangle = signal.windows.triang(frame_samples * 2 + 1)
+
+        bgn_sample = frame_samples // 2
+        end_sample = frame_samples // 2 + frame_samples
+        filters[0, 0 : bgn_sample] = 1
+        filters[0, bgn_sample : end_sample + 1] = triangle[frame_samples :]
+
+        for frame_index in range(1, frames_num - 1):
+            bgn_sample = frame_index * frame_samples - frame_samples // 2
+            end_sample = bgn_sample + 2 * frame_samples
+            filters[frame_index, bgn_sample : end_sample + 1] = triangle
+
+        bgn_sample = (frames_num - 1) * frame_samples - frame_samples // 2
+        end_sample = frames_num * frame_samples - frame_samples // 2
+        filters[-1, bgn_sample : end_sample] = triangle[0 : frame_samples]
+        filters[-1, end_sample :] = 1
+
+        return filters
+
+    def forward(self, audios):
+
+        np.sum(self.filter, axis=-1)
+
+        output_audio = np.sum(audios * self.filter[:, None, :], axis=0)
+
+        return output_audio
+
+
+
+def cross_fade(audios):
+
+    t1 = time.time()
+
+    
+
+    print(time.time() - t1)
+
+    import matplotlib.pyplot as plt
+    plt.plot(filters.T)
+    plt.savefig('_zz.pdf')
+
+    from IPython import embed; embed(using=False); os._exit(0)
+
+
+def add4():
+    sample_rate = 24000
+    # sample_rate = 8000
+    frame_samples = 2400
+    frames_num = 10
+
+    select = '1'
+
+    if select == '1':
+        t = np.arange(sample_rate)
+        source = np.cos(t * 2 * math.pi * 440 / sample_rate) * 0.1
+    elif select == '2':
+        t = np.arange(sample_rate * 3)
+        source = np.zeros(len(t))
+        source[100] = 1
+    elif select == '3':
+        audio_path = './resources/p360_396_mic1.flac.wav'
+        source, fs = librosa.load(audio_path, sr=sample_rate, mono=True)
+
+    corners = np.array([
+        [8, 8], 
+        [0, 8], 
+        [0, 0], 
+        [8, 0],
+    ]).T
+    height = 4
+
+    materials = pra.Material(energy_absorption=wall_mat2)
+    # materials = None
+
+    is_raytracing = False
+
+    audios = []
+
+    for i in range(frames_num):
+        
+        t1 = time.time()
+        room = pra.Room.from_corners(
+            corners=corners,
+            fs=sample_rate,
+            materials=materials,
+            max_order=0,
+            ray_tracing=is_raytracing,
+            air_absorption=False,
+        )
+        room.extrude(
+            height=height, 
+            materials=materials
+        )
+
+        room.add_source(position=np.array([3.8, 7.43, 2.7]), signal=source)
+
+        directivity_object = None
+        room.add_microphone(loc=np.array([4, 4, 2]), directivity=directivity_object)
+        room.add_microphone(loc=np.array([4, 4, 2]), directivity=directivity_object)
+
+        room.compute_rir()
+        room.simulate()
+        audios.append(room.mic_array.signals[:, 0 : 24000])
+        print(time.time() - t1)
+
+    audios = np.stack(audios, axis=0)
+
+    cross_fade = CrossFade()
+    out_audio = cross_fade.forward(audios)
+
+    soundfile.write(file='_zz.wav', data=out_audio.T, samplerate=sample_rate)
+
+    from IPython import embed; embed(using=False); os._exit(0)
+
+    room.simulate()
+    print(time.time() - t1)
+    
+    #
+    mic_signals = room.mic_array.signals[0]
+
+    soundfile.write(file='_zz.wav', data=mic_signals, samplerate=sample_rate)
+    fig, axs = plt.subplots(2,1, sharex=True)
+    axs[0].stem(source[0:300])
+    axs[1].stem(mic_signals[0:1000])
+    plt.savefig('_zz.pdf')
+    from IPython import embed; embed(using=False); os._exit(0)
+
+    np.argmax(mic_signals)
+
+    # pad 40 in the beginning
+    # gain = 1/r
+
+    # 210
+    # 280
+
+
 if __name__ == '__main__':
 
     # add()
     # add2()
-    add3()
+    # add3()
+    add4()
