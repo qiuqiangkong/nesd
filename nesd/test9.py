@@ -274,7 +274,7 @@ def extend_look_direction(look_direction):
 
 
 class CrossFade:
-    def __init__(self):
+    def __init__(self, ):
 
         self.filter = self.calculate_filters()
 
