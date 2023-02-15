@@ -746,7 +746,7 @@ def inference_dcase2021_single_map(args):
     batch_size = configs['train']['batch_size']
     steps_per_epoch = configs['train']['steps_per_epoch']
 
-    task = "dcase2021_task3" 
+    task = "dcase2019_task3"  
     split = 'test'
 
     if task == "dcase2019_task3":

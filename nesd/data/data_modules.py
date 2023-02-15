@@ -6047,6 +6047,11 @@ class DatasetEigenmikeMovSrc:
             else:
                 source_position = expand_along_time(source_position, self.dcase_frames_num)
 
+            # plt.scatter(source_position[:, 0], source_position[:, 1], s=10, c='b')
+            # plt.xlim(0, 8)
+            # plt.ylim(0, 8)
+            # plt.savefig('_zz.pdf')
+
             h5s_num = len(self.hdf5_names)
             h5_index = random_state.randint(h5s_num)
             hdf5_path = os.path.join(self.hdf5s_dir, self.hdf5_names[h5_index])
@@ -6063,6 +6068,7 @@ class DatasetEigenmikeMovSrc:
 
         # --------- Fast simulate mic
 
+        # t1 = time.time()
         # Microphone signals
         for mic in mics:
 
@@ -6085,6 +6091,10 @@ class DatasetEigenmikeMovSrc:
                 
                 window_wavs = np.stack(window_wavs, axis=0)
                 mic.waveform += self.cross_fader.forward(window_wavs)
+
+        # print("t1: {:.3f}".format(time.time() - t1))
+        # from IPython import embed; embed(using=False); os._exit(0)
+        # soundfile.write(file='_zz.wav', data=mic.waveform, samplerate=self.sample_rate)
 
         # --------- Hard example new position agents
         
@@ -6148,36 +6158,36 @@ class DatasetEigenmikeMovSrc:
                 # soundfile.write(file='_zz.wav', data=a1, samplerate=self.sample_rate)
                 # from IPython import embed; embed(using=False); os._exit(0)
 
-            _agent_position = extend_dcase_frames_to_nesd_frames(
-                x=agent_position, 
-                dcase_fps=self.dcase_fps,
-                nesd_fps=self.nesd_fps,
-                dcase_segment_frames=self.nesd_frames_num,
-            )
+                _agent_position = extend_dcase_frames_to_nesd_frames(
+                    x=agent_position, 
+                    dcase_fps=self.dcase_fps,
+                    nesd_fps=self.nesd_fps,
+                    dcase_segment_frames=self.nesd_frames_num,
+                )
 
-            _agent_look_direction = extend_dcase_frames_to_nesd_frames(
-                x=agent_look_direction, 
-                dcase_fps=self.dcase_fps,
-                nesd_fps=self.nesd_fps,
-                dcase_segment_frames=self.nesd_frames_num,
-            )
+                _agent_look_direction = extend_dcase_frames_to_nesd_frames(
+                    x=agent_look_direction, 
+                    dcase_fps=self.dcase_fps,
+                    nesd_fps=self.nesd_fps,
+                    dcase_segment_frames=self.nesd_frames_num,
+                )
 
-            _agent_see_source = extend_dcase_frames_to_nesd_frames(
-                x=agent_see_source, 
-                dcase_fps=self.dcase_fps,
-                nesd_fps=self.nesd_fps,
-                dcase_segment_frames=self.nesd_frames_num,
-            )
+                _agent_see_source = extend_dcase_frames_to_nesd_frames(
+                    x=agent_see_source, 
+                    dcase_fps=self.dcase_fps,
+                    nesd_fps=self.nesd_fps,
+                    dcase_segment_frames=self.nesd_frames_num,
+                )
 
-            agent = Agent(
-                position=_agent_position, 
-                look_direction=_agent_look_direction, 
-                waveform=wav,
-                see_source=_agent_see_source,
-            )
+                agent = Agent(
+                    position=_agent_position, 
+                    look_direction=_agent_look_direction, 
+                    waveform=wav,
+                    see_source=_agent_see_source,
+                )
 
-            agents.append(agent)
-
+                agents.append(agent)
+        
         while len(agents) < self.agents_num:
 
             _direction_sampler = DirectionSampler(
