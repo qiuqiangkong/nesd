@@ -6,6 +6,7 @@ import pickle
 import datetime
 import logging
 from scipy.signal import fftconvolve
+from scipy import signal
 
 import torch
 import numpy as np
@@ -213,8 +214,12 @@ class SphereSource:
 '''
 
 def normalize(x):
-    assert x.ndim == 1
-    return x / np.linalg.norm(x)
+    if x.ndim == 1:
+        return x / np.linalg.norm(x)
+    elif x.ndim == 2:
+        return x / np.linalg.norm(x, axis=-1)[:, None]
+    else:
+        raise NotImplementedError
 
 
 def norm(x):
@@ -509,3 +514,52 @@ class StatisticsContainer(object):
         pickle.dump(self.statistics_dict, open(self.backup_statistics_path, "wb"))
         logging.info("    Dump statistics to {}".format(self.statistics_path))
         logging.info("    Dump statistics to {}".format(self.backup_statistics_path))
+
+
+class CrossFade:
+    def __init__(self, window_samples, segment_samples):
+
+        self.window_samples = window_samples
+        self.segment_samples = segment_samples
+        self.windows_num = self.segment_samples // self.window_samples
+
+        self.filters = self.calculate_filters()
+
+    def calculate_filters(self):
+
+        new_audios = []
+
+        filters = np.zeros((self.windows_num, self.segment_samples))
+
+        triangle = signal.windows.triang(self.window_samples * 2 + 1)
+
+        bgn_sample = self.window_samples // 2
+        end_sample = self.window_samples // 2 + self.window_samples
+        filters[0, 0 : bgn_sample] = 1
+        filters[0, bgn_sample : end_sample + 1] = triangle[self.window_samples :]
+
+        for frame_index in range(1, self.windows_num - 1):
+            bgn_sample = frame_index * self.window_samples - self.window_samples // 2
+            end_sample = bgn_sample + 2 * self.window_samples
+            filters[frame_index, bgn_sample : end_sample + 1] = triangle
+
+        bgn_sample = (self.windows_num - 1) * self.window_samples - self.window_samples // 2
+        end_sample = self.windows_num * self.window_samples - self.window_samples // 2
+        filters[-1, bgn_sample : end_sample] = triangle[0 : self.window_samples]
+        filters[-1, end_sample :] = 1
+
+        return filters
+
+    def forward(self, audios):
+        """
+        Args:
+            audios: (windows_num, segment_samples)
+        """
+
+        output_audio = np.sum(audios * self.filters, axis=0)
+
+        # import matplotlib.pyplot as plt
+        # plt.plot(self.filters.T)
+        # plt.savefig('_zz.pdf')
+
+        return output_audio

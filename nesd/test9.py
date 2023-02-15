@@ -274,44 +274,50 @@ def extend_look_direction(look_direction):
 
 
 class CrossFade:
-    def __init__(self, ):
+    def __init__(self, window_samples, segment_samples):
 
-        self.filter = self.calculate_filters()
+        self.window_samples = window_samples
+        self.segment_samples = segment_samples
+        self.windows_num = self.segment_samples // self.window_samples
+
+        self.filters = self.calculate_filters()
 
     def calculate_filters(self):
 
-        frame_samples = 2400
-        # frames_num, channels_num, audio_samples = audios.shape
-        frames_num = 10
-        audio_samples = 24000
         new_audios = []
 
-        filters = np.zeros((frames_num, audio_samples))
+        filters = np.zeros((self.windows_num, self.segment_samples))
 
-        triangle = signal.windows.triang(frame_samples * 2 + 1)
+        triangle = signal.windows.triang(self.window_samples * 2 + 1)
 
-        bgn_sample = frame_samples // 2
-        end_sample = frame_samples // 2 + frame_samples
+        bgn_sample = self.window_samples // 2
+        end_sample = self.window_samples // 2 + self.window_samples
         filters[0, 0 : bgn_sample] = 1
-        filters[0, bgn_sample : end_sample + 1] = triangle[frame_samples :]
+        filters[0, bgn_sample : end_sample + 1] = triangle[self.window_samples :]
 
-        for frame_index in range(1, frames_num - 1):
-            bgn_sample = frame_index * frame_samples - frame_samples // 2
-            end_sample = bgn_sample + 2 * frame_samples
+        for frame_index in range(1, self.windows_num - 1):
+            bgn_sample = frame_index * self.window_samples - self.window_samples // 2
+            end_sample = bgn_sample + 2 * self.window_samples
             filters[frame_index, bgn_sample : end_sample + 1] = triangle
 
-        bgn_sample = (frames_num - 1) * frame_samples - frame_samples // 2
-        end_sample = frames_num * frame_samples - frame_samples // 2
-        filters[-1, bgn_sample : end_sample] = triangle[0 : frame_samples]
+        bgn_sample = (self.windows_num - 1) * self.window_samples - self.window_samples // 2
+        end_sample = self.windows_num * self.window_samples - self.window_samples // 2
+        filters[-1, bgn_sample : end_sample] = triangle[0 : self.window_samples]
         filters[-1, end_sample :] = 1
 
         return filters
 
     def forward(self, audios):
+        """
+        Args:
+            audios: (windows_num, segment_samples)
+        """
 
-        np.sum(self.filter, axis=-1)
+        output_audio = np.sum(audios * self.filters, axis=0)
 
-        output_audio = np.sum(audios * self.filter[:, None, :], axis=0)
+        # import matplotlib.pyplot as plt
+        # plt.plot(self.filters.T)
+        # plt.savefig('_zz.pdf')
 
         return output_audio
 
@@ -395,7 +401,7 @@ def add4():
 
     audios = np.stack(audios, axis=0)
 
-    cross_fade = CrossFade()
+    cross_fade = CrossFade(window_samples=2400, segment_samples=24000)
     out_audio = cross_fade.forward(audios)
 
     soundfile.write(file='_zz.wav', data=out_audio.T, samplerate=sample_rate)
