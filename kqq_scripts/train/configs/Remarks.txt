@@ -16,6 +16,7 @@
 07a.yaml	freefield, loc_bce_sep_l1, src=2, eigenmike, Model01a
 07b.yaml	freefield, loc_bce_sep_l1, src=2, eigenmike, Model01_Rnn_classwise
 08a.yaml	freefield, mov src, loc_bce_sep_l1, src=2, eigenmike, Model01_Rnn_classwise
+08b.yaml	freefield, mov src, loc_bce_sep_l1, src=2, eigenmike, Model01
 
 + dcase2021_task3_01a.yaml	Model01
 dcase2021_task3_01b.yaml	Model01_Rnn
