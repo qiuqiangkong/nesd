@@ -430,9 +430,44 @@ def add4():
     # 280
 
 
+def get_random_silence_mask(frames_num, frames_per_sec, random_state):
+
+    mask_duration_dict = {
+        1: 3,
+        2: 1.5,
+        3: 1,
+        4: 0.75,
+    }
+
+    mask = np.ones(frames_num)
+    remove_num = random_state.randint(low=0, high=5)
+
+    for i in range(remove_num):
+        center = random_state.randint(low=0, high=frames_num)
+        radius = random_state.randint(low=0, high=frames_per_sec * mask_duration_dict[remove_num] // 2)
+        bgn = max(0, center - radius)
+        end = min(center + radius, frames_num - 1)
+        mask[bgn : end + 1] = 0
+
+    return mask
+
+
+def add5():
+    frames_num = 301
+    frames_per_sec = 100
+
+    random_state = np.random.RandomState(1234)
+
+    for _ in range(10):
+        mask = get_random_silence_mask(frames_num=frames_num, frames_per_sec=frames_per_sec, random_state=random_state)
+        print(mask)
+
+    from IPython import embed; embed(using=False); os._exit(0)
+
 if __name__ == '__main__':
 
     # add()
     # add2()
     # add3()
-    add4()
+    # add4()
+    add5()
