@@ -172,7 +172,7 @@ def train(args) -> NoReturn:
     config_yaml = args.config_yaml
     filename = args.filename
 
-    num_workers = 8 
+    num_workers = 8
     distributed = True if gpus > 1 else False
     evaluate_device = "cuda" if gpus > 0 else "cpu"
 

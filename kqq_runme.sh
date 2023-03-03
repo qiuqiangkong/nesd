@@ -93,3 +93,19 @@ CUDA_VISIBLE_DEVICES=3 python3 ./nesd/inference.py inference_dcase2021_single_ma
     --config_yaml="./kqq_scripts/train/configs/dcase2022_task3_01a.yaml" \
     --checkpoint_path="/home/tiger/workspaces/nesd2/checkpoints/train/config=dcase2022_task3_01a,gpus=1/step=10000.pth" \
     --gpus=1
+
+#### pack dcase2018task2, music data
+python3 ./nesd/dataset_creation/pack_audios_to_hdf5s/dcase2018_task2.py \
+    --dataset_dir="/home/tiger/datasets/dcase2018/task2/dataset_root/" \
+    --split="${SPLIT}" \
+    --hdf5s_dir="${WORKSPACE}/hdf5s/dcase2018_task2/sr=${SAMPLE_RATE}/${SPLIT}" \
+    --sample_rate=$SAMPLE_RATE \
+    --segment_seconds=3.0
+
+python3 ./nesd/dataset_creation/pack_audios_to_hdf5s/musdb18hq.py \
+    --dataset_dir="/home/tiger/datasets/musdb18hq" \
+    --split="${SPLIT}" \
+    --hdf5s_dir="${WORKSPACE}/hdf5s/musdb18hq/sr=${SAMPLE_RATE}/${SPLIT}" \
+    --sample_rate=$SAMPLE_RATE \
+    --segment_seconds=3.0
+    
