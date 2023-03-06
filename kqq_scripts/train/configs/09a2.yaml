@@ -2,14 +2,16 @@
 task_name: vctk
 speed_of_sound: 343.
 sampler_type: Sampler
-dataset_type: DatasetDcase2021Task3
+dataset_type: DatasetEigenmikeRandSil2
 sources:
-    train_hdf5s_dir: "hdf5s/dcase2019_task3/sr=24000/train"
-    test_hdf5s_dir: "hdf5s/dcase2019_task3/sr=24000/test"
+    train_hdf5s_dir: "hdf5s/vctk/sr=24000/train"
+    test_hdf5s_dir: "hdf5s/vctk/sr=24000/test"
+    min_sources_num: 2
+    max_sources_num: 2
     radius: 0.1
     random_position_type: "random_on_unit_sphere"
     projection_type: "parallel_projection"
-    classes_num: 11
+    classes_num: 1
 train:
     sample_rate: 24000
     input_channels: 1
@@ -17,9 +19,9 @@ train:
     segment_seconds: 3.0
     model_type: Model01_Rnn_classwise
     do_localization: True
-    do_sed: True
-    do_separation: False
-    loss_type: loc_bce_classwise_bce
+    do_sed: False
+    do_separation: True
+    loss_type: loc_bce_sep_l1
     optimizer_type: AdamW
     learning_rate: 1e-3
     batch_size: 16
@@ -32,6 +34,7 @@ train:
     reduce_lr_steps: 15000
     random_seed: 1234
     resume_checkpoint_path: ""
+    classes_num: 15
 
 test:
     segment_seconds: 3.0

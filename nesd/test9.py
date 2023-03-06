@@ -452,14 +452,28 @@ def get_random_silence_mask(frames_num, frames_per_sec, random_state):
     return mask
 
 
+def get_random_silence_mask2(frames_num, frames_per_sec, random_state):
+
+    mask = np.zeros(frames_num)
+
+    center = random_state.randint(low=0, high=frames_num)
+    radius = random_state.randint(low=0, high=frames_num // 2)
+
+    bgn = max(0, center - radius)
+    end = min(center + radius, frames_num - 1)
+    mask[bgn : end + 1] = 1
+
+    return mask
+
+
 def add5():
     frames_num = 301
     frames_per_sec = 100
 
-    random_state = np.random.RandomState(1234)
+    random_state = np.random.RandomState(1234) 
 
-    for _ in range(10):
-        mask = get_random_silence_mask(frames_num=frames_num, frames_per_sec=frames_per_sec, random_state=random_state)
+    for _ in range(20):
+        mask = get_random_silence_mask2(frames_num=frames_num, frames_per_sec=frames_per_sec, random_state=random_state)
         print(mask)
 
     from IPython import embed; embed(using=False); os._exit(0)

@@ -10,6 +10,7 @@ import pandas as pd
 import pickle
 
 from nesd.data.samplers import Sampler
+from nesd.data.samplers import *
 from nesd.data.data_modules import DataModule, Dataset
 from nesd.data.data_modules import *
 from nesd.utils import read_yaml, create_logging, sph2cart, get_cos, norm
@@ -52,7 +53,7 @@ def inference(args):
     device = 'cuda'
 
     frames_num = 301
-    classes_num = -1
+    # classes_num = -1
 
     Model = eval(model_type)
 
@@ -166,6 +167,39 @@ def inference(args):
         axs[i].yaxis.set_ticklabels(np.arange(0, 181, 10 * grid_deg))
 
     plt.savefig('_zz.pdf')
+
+    # Plot frame wise
+    pred_mat_framewise = output_dict['agent_see_source'].reshape(azimuth_grids, elevation_grids, -1)[:, :, 0 :: 10].transpose(2, 0, 1)
+
+    gt_mat_framewise = np.zeros_like(pred_mat_framewise)
+    for t in range(gt_mat_framewise.shape[0]):
+        for i in range(gt_mat_framewise.shape[1]):
+            for j in range(gt_mat_framewise.shape[2]):
+                _azi = np.deg2rad(i * grid_deg)
+                _zen = np.deg2rad(j * grid_deg)
+                plot_direction = np.array(sph2cart(1., _azi, _zen))
+
+                for k in range(sources_num):
+                    new_to_src = batch_data_dict['source_position'][0][k][0 :: 10, :][t, :] - batch_data_dict['agent_position'][0][0, 0 :: 10, :].data.cpu().numpy()[t, :]
+                    ray_angle = np.arccos(get_cos(new_to_src, plot_direction))
+
+                    if ray_angle < half_angle:
+                        gt_mat_framewise[t, i, j] = 1    
+
+    for t in range(pred_mat_framewise.shape[0]):
+        plt.figure(figsize=(20, 10))
+        fig, axs = plt.subplots(2, 1, sharex=True)
+        axs[0].matshow(pred_mat_framewise[t].T, origin='upper', aspect='equal', cmap='jet', vmin=0, vmax=1)
+        axs[1].matshow(gt_mat_framewise[t].T, origin='upper', aspect='equal', cmap='jet', vmin=0, vmax=1)
+        for i in range(2):
+            axs[i].grid(color='w', linestyle='--', linewidth=0.1)
+            axs[i].xaxis.set_ticks(np.arange(0, azimuth_grids+1, 10))
+            axs[i].yaxis.set_ticks(np.arange(0, elevation_grids+1, 10))
+            axs[i].xaxis.set_ticklabels(np.arange(0, 361, 10 * grid_deg), rotation=90)
+            axs[i].yaxis.set_ticklabels(np.arange(0, 181, 10 * grid_deg))
+
+        plt.savefig('_tmp/_zz_{:03d}.jpg'.format(t))
+
 
     ###
     if do_separation:
@@ -791,7 +825,7 @@ def inference_dcase2021_single_map(args):
     grid_deg = 2
     azimuth_grids = 360 // grid_deg
     elevation_grids = 180 // grid_deg
-    classwise = False
+    classwise = True
 
     total_frames_num = max(600, np.max(frame_indexes) + 1)
     
@@ -876,6 +910,9 @@ def inference_dcase2021_single_map(args):
     pointer = 0
 
     audio, _ = librosa.load(audio_path, sr=sample_rate, mono=False)
+    
+    # audio *= 100 
+    
     audio_samples = audio.shape[-1]
 
     for batch_data_dict in data_module.train_dataloader():
@@ -899,10 +936,11 @@ def inference_dcase2021_single_map(args):
     all_pred_mat_timelapse = []
     all_pred_mat_classwise_timelapse = []
 
-    while pointer + segment_samples <= audio_samples:
+    while pointer < audio_samples:
         print(global_t)
 
         segment = audio[:, pointer : pointer + segment_samples]
+        segment = librosa.util.fix_length(data=segment, size=segment_samples, axis=-1)
 
         input_dict['mic_waveform'] = torch.Tensor(segment[None, :, :]).to(device)
         input_dict['max_agents_contain_waveform'] = input_dict['agent_position'].shape[1]
@@ -960,12 +998,14 @@ def inference_dcase2021_single_map(args):
 
         if classwise:
             all_pred_mat_classwise_timelapse.append(pred_mat_classwise_timelapse)
-
+         
     all_pred_mat_timelapse = np.concatenate(all_pred_mat_timelapse, axis=0)
     all_pred_mat_classwise_timelapse = np.concatenate(all_pred_mat_classwise_timelapse, axis=0)
 
+    pickle.dump(strs, open('_gt_strs.pkl', 'wb'))
     pickle.dump(all_pred_mat_timelapse, open('_all_pred_mat_timelapse.pkl', 'wb'))
     pickle.dump(all_pred_mat_classwise_timelapse, open('_all_pred_mat_classwise_timelapse.pkl', 'wb'))
+    pickle.dump(gt_mat_timelapse, open('_all_gt_mat_timelapse.pkl', 'wb'))
 
     from IPython import embed; embed(using=False); os._exit(0)
 
