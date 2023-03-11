@@ -118,6 +118,7 @@ def process_mat_write_csv(args):
 
     # frames_per_sec = 10
 
+    task_type = args.task_type
     csv_path = args.csv_path
     
     pred_mat_timelapse = pickle.load(open('_all_pred_mat_timelapse.pkl', 'rb'))
@@ -149,8 +150,10 @@ def process_mat_write_csv(args):
                         dcase_azimuth -= 360
                     dcase_colatitude = 90 - col * grid_deg
 
-                    event = [t, pred_id, dcase_azimuth, dcase_colatitude]  # TODO
-                    events.append(event)
+                    if task_type == "dcase2019":
+                        for i in range(5):
+                            event = [t * 5 + i, pred_id, dcase_azimuth, dcase_colatitude]
+                            events.append(event)
 
     os.makedirs(os.path.dirname(csv_path), exist_ok=True)
 
@@ -174,6 +177,9 @@ if __name__ == '__main__':
     )
     
     parser_process_mat_write_csv = subparsers.add_parser("process_mat_write_csv")
+    parser_process_mat_write_csv.add_argument(
+        "--task_type", type=str, required=True, help="Directory of workspace."
+    )
     parser_process_mat_write_csv.add_argument(
         "--csv_path", type=str, required=True, help="Directory of workspace."
     )
