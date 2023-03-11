@@ -132,8 +132,6 @@ def process_mat_write_csv(args):
     # For debug
     # detect_max(pred_mat_timelapse[100, :, :])
 
-    from IPython import embed; embed(using=False); os._exit(0)
-    
     for t in range(frames_num):
         # print(t)
         loct_pairs = detect_max(pred_mat_timelapse[t, :, :])
