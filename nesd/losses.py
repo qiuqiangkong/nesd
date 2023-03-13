@@ -87,3 +87,13 @@ def loc_bce_sep_l1_depth_bce(model, output_dict, target_dict):
     print(loc_loss.item(), sep_loss.item(), depth_loss.item())
 
     return total_loss
+
+
+def classwise_bce(model, output_dict, target_dict):
+
+    classwise_loss = F.binary_cross_entropy(
+        input=output_dict['classwise_output'], 
+        target=target_dict['target'],
+    )
+    
+    return classwise_loss

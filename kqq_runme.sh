@@ -71,9 +71,18 @@ CUDA_VISIBLE_DEVICES=0 python3 ./nesd/inference.py inference_dcase2021_single_ma
 
 ffmpeg -framerate 10 -i '_tmp/_zz_%03d.jpg' -r 30 -pix_fmt yuv420p 123.mp4
 
-python3 nesd/evaluate_dcase2021_task3.py process_mat_write_csv --csv="./submissions/01_test/fold6_room1_mix001.csv"
+python3 nesd/evaluate_dcase2021_task3.py plot_predict --task_type="dcase2019"
+
+python3 nesd/evaluate_dcase2021_task3.py process_mat_write_csv \
+    --task_type="dcase2019" \
+    --csv="./submissions/01_test/fold6_room1_mix001.csv"
 
 python3 nesd/evaluate_yin.py
+
+#
+python3 nesd/d19t3_oracle_pred.py
+
+python3 nesd/test6.py
 
 ######## DCASE 2022
 SPLIT="train"
@@ -109,3 +118,14 @@ python3 ./nesd/dataset_creation/pack_audios_to_hdf5s/musdb18hq.py \
     --sample_rate=$SAMPLE_RATE \
     --segment_seconds=3.0
     
+######### DCASE2019 Task3 SED
+CUDA_VISIBLE_DEVICES=2 python3 ./nesd/train_sed.py train \
+    --workspace=$WORKSPACE \
+    --config_yaml="./kqq_scripts/train/configs/sed_dcase2019_task3_01a.yaml" \
+    --gpus=1 
+
+CUDA_VISIBLE_DEVICES=2 python3 ./nesd/inference_sed.py inference_dcase2021_single_map \
+    --workspace=$WORKSPACE \
+    --config_yaml="./kqq_scripts/train/configs/sed_dcase2019_task3_01a.yaml" \
+    --checkpoint_path="/home/tiger/workspaces/nesd2/checkpoints/train_sed/config=sed_dcase2019_task3_01a,gpus=1/step=10000.pth" \
+    --gpus=1

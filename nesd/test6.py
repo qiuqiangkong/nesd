@@ -93,4 +93,10 @@ for score_type in score_type_list:
         print('SED metrics: er: {}, f:{}'.format(er, f))
         print('DOA metrics: doa error: {}, frame recall:{}'.format(doa_err, frame_recall))
 
+        
+        import matplotlib.pyplot as plt
+        fig, axs = plt.subplots(2,1, sharex=True)
+        axs[0].matshow(pred_labels.max(2).T, origin='lower', aspect='auto', cmap='jet')
+        axs[1].matshow(gt_labels.max(2).T, origin='lower', aspect='auto', cmap='jet')
+        plt.savefig('_zz.pdf')
         from IPython import embed; embed(using=False); os._exit(0)
