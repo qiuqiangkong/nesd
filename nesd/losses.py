@@ -97,3 +97,13 @@ def classwise_bce(model, output_dict, target_dict):
     )
     
     return classwise_loss
+
+
+def classwise_bce_mul_agents(model, output_dict, target_dict):
+
+    classwise_loss = F.binary_cross_entropy(
+        input=output_dict['classwise_output'], 
+        target=target_dict['agent_see_source_classwise'],
+    )
+    
+    return classwise_loss

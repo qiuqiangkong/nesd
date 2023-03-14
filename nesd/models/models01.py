@@ -4801,7 +4801,9 @@ class Model01_Rnn_classwise(nn.Module, Base):
             # (bs * agents_num, T, 1024)
 
             x, _ = self.loc_gru(x)
-
+            agent_see_source_embedding = x.repeat_interleave(repeats=self.time_downsample_ratio, dim=1)[:, 0 : frames_num, :]
+            agent_see_source_embedding = rearrange(agent_see_source_embedding.squeeze(), '(b n) t c -> b n t c', b=batch_size)
+            
             x = torch.sigmoid(self.loc_fc_final(x))
             # (bs * agents_num, T=38, C=1)
 
@@ -4811,6 +4813,7 @@ class Model01_Rnn_classwise(nn.Module, Base):
             agent_see_source = rearrange(x.squeeze(), '(b n) t -> b n t', b=batch_size)
 
             output_dict['agent_see_source'] = agent_see_source
+            output_dict['agent_see_source_embedding'] = agent_see_source_embedding
 
         if do_sed:
             batch_size, agents_num, _T, _C = shared_feature.shape

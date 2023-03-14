@@ -25,11 +25,11 @@ from nesd.data.samplers import *
 from nesd.data.data_modules import DataModule, Dataset
 from nesd.data.data_modules import *
 from nesd.data.data_modules_sed import *
-from nesd.models.sed_models01 import *
-from nesd.models.lightning_modules import SedLitModel
+from nesd.models.sed_fz_loc_models01 import *
+from nesd.models.lightning_modules import LitModel
 from nesd.optimizers.lr_schedulers import get_lr_lambda
 from nesd.losses import *
-from nesd.callbacks.sed_callback import get_callback
+from nesd.callbacks.sed_fz_loc_callback import get_callback
 
 
 def get_dirs(
@@ -209,7 +209,8 @@ def train(args) -> NoReturn:
     Model = eval(model_type)
 
     model = Model(
-        classes_num=classes_num,
+        microphones_num=4, 
+        classes_num=classes_num, 
     )
 
     loss_function = eval(loss_type)
@@ -225,6 +226,7 @@ def train(args) -> NoReturn:
         loss_function=loss_function,
         evaluate_device=evaluate_device,
     )
+    # callbacks = []
 
     # learning rate reduce function
     lr_lambda = partial(
@@ -232,7 +234,7 @@ def train(args) -> NoReturn:
     )
 
     # pytorch-lightning model
-    pl_model = SedLitModel(
+    pl_model = LitModel(
         model=model,
         optimizer_type=optimizer_type,
         loss_function=loss_function,

@@ -82,7 +82,7 @@ class LitModel(pl.LightningModule):
 
         if 'agent_exist_source' in batch_data_dict.keys():
             target_dict['agent_exist_source'] = batch_data_dict['agent_exist_source']
-        
+
         output_dict = self.model(data_dict=input_dict)
 
         loss = self.loss_function(

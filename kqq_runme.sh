@@ -129,3 +129,15 @@ CUDA_VISIBLE_DEVICES=2 python3 ./nesd/inference_sed.py inference_dcase2021_singl
     --config_yaml="./kqq_scripts/train/configs/sed_dcase2019_task3_01a.yaml" \
     --checkpoint_path="/home/tiger/workspaces/nesd2/checkpoints/train_sed/config=sed_dcase2019_task3_01a,gpus=1/step=10000.pth" \
     --gpus=1
+
+######### DCASE2019 Task3 SED on freezed Loc model
+CUDA_VISIBLE_DEVICES=2 python3 ./nesd/train_sed_fz_loc.py train \
+    --workspace=$WORKSPACE \
+    --config_yaml="./kqq_scripts/train/configs/sed_fz_loc_dcase2019_task3_01a.yaml" \
+    --gpus=1
+
+CUDA_VISIBLE_DEVICES=2 python3 ./nesd/inference_sed_fz_loc.py inference_dcase2021_single_map \
+    --workspace=$WORKSPACE \
+    --config_yaml="./kqq_scripts/train/configs/sed_fz_loc_dcase2019_task3_01a.yaml" \
+    --checkpoint_path="/home/tiger/workspaces/nesd2/checkpoints/train_sed_fz_loc/config=sed_fz_loc_dcase2019_task3_01a,gpus=1/step=10000.pth" \
+    --gpus=1
