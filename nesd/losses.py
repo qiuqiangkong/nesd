@@ -1,11 +1,19 @@
 import torch.nn.functional as F
 import torch
 
-
+'''
 def loc_bce(model, output_dict, target_dict):
     loss = F.binary_cross_entropy(
         input=output_dict['agent_see_source'], 
         target=target_dict['agent_see_source'],
+    )
+    return loss
+'''
+
+def loc_bce(output_dict, target_dict):
+    loss = F.binary_cross_entropy(
+        input=output_dict['agent_look_directions_has_source'], 
+        target=target_dict['agent_look_directions_has_source'],
     )
     return loss
 

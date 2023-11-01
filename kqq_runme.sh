@@ -141,3 +141,20 @@ CUDA_VISIBLE_DEVICES=2 python3 ./nesd/inference_sed_fz_loc.py inference_dcase202
     --config_yaml="./kqq_scripts/train/configs/sed_fz_loc_dcase2019_task3_01a.yaml" \
     --checkpoint_path="/home/tiger/workspaces/nesd2/checkpoints/train_sed_fz_loc/config=sed_fz_loc_dcase2019_task3_01a,gpus=1/step=10000.pth" \
     --gpus=1
+
+
+###########################
+python nesd/test_room.py
+
+############# 2023.10 New ############
+python nesd/test5.py    # latest simulator
+python nesd/test_dataloader.py  # render iss data and plot simulator
+python nesd/test_plot.py    # Plot data simulator
+
+# train
+CUDA_VISIBLE_DEVICES=0 python nesd/train2.py train \
+    --workspace="" \
+    --config_yaml="./kqq_scripts/train/configs2/01a.yaml"
+
+
+

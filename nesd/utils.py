@@ -4,6 +4,7 @@ import math
 import os
 import pickle
 import datetime
+import time
 import logging
 from scipy.signal import fftconvolve
 from scipy import signal
@@ -104,6 +105,7 @@ class DirectionSampler:
         return azimuth, zenith
 '''
 
+'''
 class DirectionSampler:
     def __init__(self, low_colatitude, high_colatitude, sample_on_sphere_uniformly, random_state):
 
@@ -129,6 +131,33 @@ class DirectionSampler:
 
         else:
             colatitude = self.random_state.uniform(low=self.low_colatitude, high=self.high_colatitude, size=size)
+
+        return azimuth, colatitude
+'''
+
+class DirectionSampler:
+    def __init__(self, low_colatitude, high_colatitude, sample_on_sphere_uniformly):
+
+        # self.sample_on_sphere_uniformly = False # Always set to False.
+
+        self.low_colatitude = low_colatitude
+        self.high_colatitude = high_colatitude
+        self.sample_on_sphere_uniformly = sample_on_sphere_uniformly
+
+    def sample(self, size=None):
+
+        azimuth = np.random.uniform(low=0, high=2 * math.pi, size=size)
+
+        if self.sample_on_sphere_uniformly:
+
+            v = np.random.uniform(low=np.cos(self.high_colatitude), high=np.cos(self.low_colatitude), size=size)
+            
+            colatitude = np.arccos(v)
+            # Ref: https://mathworld.wolfram.com/SpherePointPicking.html
+            # Ref: https://zhuanlan.zhihu.com/p/26052376
+
+        else:
+            colatitude = np.random.uniform(low=self.low_colatitude, high=self.high_colatitude, size=size)
 
         return azimuth, colatitude
 
@@ -302,6 +331,117 @@ def fractional_delay(x, delayed_samples):
     return y
 
 
+def fractional_delay_filter(delayed_samples):
+    r"""Fractional delay with Whittaker–Shannon interpolation formula. 
+    Ref: https://tomroelandts.com/articles/how-to-create-a-fractional-delay-filter
+
+    Args:
+        x: np.array (1D), input signal
+        delay_samples: float >= 0., e.g., 3.3
+
+    Outputs:
+        y: np.array (1D), delayed signal
+    """
+    t1 = time.time()
+    integer = int(delayed_samples)
+    fraction = delayed_samples % 1
+
+    N = 21     # Filter length.
+    n = np.arange(N)
+
+    # Compute sinc filter.
+    h = np.sinc(n - (N - 1) // 2 - fraction)
+     
+    # Multiply sinc filter by window
+    h *= np.blackman(N)
+     
+    # Normalize to get unity gain.
+    h /= np.sum(h)
+
+    assert integer >= N // 2
+    new_h = np.zeros(integer + N // 2 + 1)
+    new_h[integer - N // 2 : integer + N // 2 + 1] = h
+    # print(time.time() - t1)
+    return new_h
+
+'''
+def fractional_delay_filter(delayed_samples):
+    r"""Fractional delay with Whittaker–Shannon interpolation formula. 
+    Ref: https://tomroelandts.com/articles/how-to-create-a-fractional-delay-filter
+
+    Args:
+        x: np.array (1D), input signal
+        delay_samples: float >= 0., e.g., 3.3
+
+    Outputs:
+        y: np.array (1D), delayed signal
+    """
+    t1 = time.time()
+    integer = int(delayed_samples)
+    fraction = delayed_samples % 1
+
+    N = 21     # Filter length.
+    n = np.arange(N)
+    print("c1", time.time() - t1)
+
+    t1 = time.time()
+    # Compute sinc filter.
+    h = np.sinc(n - (N - 1) / 2 - fraction)
+    print("c2", time.time() - t1)
+     
+    t1 = time.time()
+    # Multiply sinc filter by window
+    h *= np.blackman(N)
+    print("c3", time.time() - t1)
+    
+    t1 = time.time() 
+    np.sum(h)
+    print("d1", time.time() - t1)
+
+    t1 = time.time()
+    # Normalize to get unity gain.
+    h /= np.sum(h)
+    print("c4", time.time() - t1)
+
+    t1 = time.time()
+    assert integer >= N // 2
+    new_h = np.zeros(integer + N // 2 + 1)
+    new_h[integer - N // 2 : integer + N // 2 + 1] = h
+    # print(time.time() - t1)
+    print("c5", time.time() - t1)
+    return new_h
+'''
+
+
+class FractionalDelay:
+    def __init__(self):
+        
+        self.N = 21
+        self.n = np.arange(self.N)
+        self.blackman_window = np.blackman(self.N)
+
+        # t1 = time.time()
+        # Normalize to get unity gain.
+        # h /= np.sum(h)
+        # print("c4", time.time() - t1)
+
+    def __call__(self, delayed_samples):
+
+        N = self.N
+        integer = int(delayed_samples)
+        fraction = delayed_samples % 1
+
+        h = np.sinc(self.n - (N - 1) // 2 - fraction)
+        h *= self.blackman_window
+        h /= np.sum(h)
+
+        assert integer >= N // 2
+        new_h = np.zeros(integer + N // 2 + 1)
+        new_h[integer - N // 2 : integer + N // 2 + 1] = h
+
+        from IPython import embed; embed(using=False); os._exit(0)
+
+
 '''
 def cart2sph(x, y, z):
     azimuth = np.arctan2(y, x)
@@ -351,6 +491,16 @@ def cart2sph(x, y, z):
 
 def expand_along_time(x, frames_num):
     return np.tile(x[None, :], (frames_num, 1))
+
+
+def repeat_to_length(audio: np.ndarray, segment_samples: int) -> np.ndarray:
+    r"""Repeat audio to length."""
+    
+    repeats_num = (segment_samples // audio.shape[-1]) + 1
+    audio = np.tile(audio, repeats_num)[0 : segment_samples]
+
+    return audio
+
 
 # def sphere_to_cart(azimuth: np.ndarray, elevation: np.ndarray):
 #     r = 1.
@@ -412,6 +562,8 @@ class Agent:
         )
         assert is_unit_norm_direction
 '''
+
+'''
 class Agent:
     def __init__(self, position, look_direction, waveform, see_source, see_source_classwise=None):
         self.position = position
@@ -419,6 +571,24 @@ class Agent:
         self.waveform = waveform
         self.see_source = see_source
         self.see_source_classwise = see_source_classwise
+
+        frames_num = look_direction.shape[0]
+
+        is_unit_norm_direction = np.allclose(
+            a=np.sum(look_direction ** 2, axis=-1),
+            b=np.ones(frames_num),
+        )
+        assert is_unit_norm_direction
+'''
+class Agent:
+    def __init__(self, position, look_direction, waveform, look_direction_has_source=None, see_source=None, see_source_classwise=None, ray_type=None):
+        self.position = position
+        self.look_direction = look_direction
+        self.waveform = waveform
+        self.look_direction_has_source = look_direction_has_source
+        # self.see_source = see_source
+        # self.see_source_classwise = see_source_classwise
+        self.ray_type = ray_type
 
         frames_num = look_direction.shape[0]
 
@@ -563,3 +733,75 @@ class CrossFade:
         # plt.savefig('_zz.pdf')
 
         return output_audio
+
+
+'''
+def sample_agent_look_direction(agent_to_src, half_angle, random_state):
+
+    _, agent_to_src_azimuth, agent_to_src_colatitude = cart2sph(
+        x=agent_to_src[0], 
+        y=agent_to_src[1], 
+        z=agent_to_src[2],
+    )
+
+    rotation_matrix = Rotator3D.get_rotation_matrix_from_azimuth_colatitude(
+        azimuth=agent_to_src_azimuth,
+        colatitude=agent_to_src_colatitude,
+    )
+
+    _direction_sampler = DirectionSampler(
+        low_colatitude=0, 
+        high_colatitude=half_angle, 
+        sample_on_sphere_uniformly=False, 
+        random_state=random_state,
+    )
+    _azimuth, _colatitude = _direction_sampler.sample()
+
+    agent_look_azimuth, agent_look_colatitude = Rotator3D.rotate_azimuth_colatitude(
+        rotation_matrix=rotation_matrix,
+        azimuth=_azimuth,
+        colatitude=_colatitude,
+    )
+
+    agent_look_direction = np.array(sph2cart(
+        r=1., 
+        azimuth=agent_look_azimuth, 
+        colatitude=agent_look_colatitude
+    ))
+
+    return agent_look_direction
+'''
+
+def sample_agent_look_direction(agent_to_src, half_angle):
+
+    _, agent_to_src_azimuth, agent_to_src_colatitude = cart2sph(
+        x=agent_to_src[0], 
+        y=agent_to_src[1], 
+        z=agent_to_src[2],
+    )
+
+    rotation_matrix = Rotator3D.get_rotation_matrix_from_azimuth_colatitude(
+        azimuth=agent_to_src_azimuth,
+        colatitude=agent_to_src_colatitude,
+    )
+
+    _direction_sampler = DirectionSampler(
+        low_colatitude=0, 
+        high_colatitude=half_angle, 
+        sample_on_sphere_uniformly=False, 
+    )
+    _azimuth, _colatitude = _direction_sampler.sample()
+
+    agent_look_azimuth, agent_look_colatitude = Rotator3D.rotate_azimuth_colatitude(
+        rotation_matrix=rotation_matrix,
+        azimuth=_azimuth,
+        colatitude=_colatitude,
+    )
+
+    agent_look_direction = np.array(sph2cart(
+        r=1., 
+        azimuth=agent_look_azimuth, 
+        colatitude=agent_look_colatitude
+    ))
+
+    return agent_look_direction

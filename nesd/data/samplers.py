@@ -1,8 +1,9 @@
 from typing import List, Dict
 import numpy as np
 import os
+import torch.distributed as dist
 
-
+'''
 class Sampler:
     def __init__(
         self,
@@ -40,6 +41,19 @@ class Sampler:
 
     def __len__(self) -> int:
         return self.steps_per_epoch
+'''
+
+class BatchSampler:
+    def __init__(self, batch_size):
+        self.batch_size = batch_size
+
+    def __iter__(self):
+
+        while True:
+            yield range(self.batch_size)
+
+    def __len__(self):
+        return 100
 
 
 class Sampler_VctkMusdb18hqD18t2:
@@ -95,6 +109,7 @@ class Sampler_VctkMusdb18hqD18t2:
         return self.steps_per_epoch
 
 
+'''
 class DistributedSamplerWrapper:
     def __init__(self, sampler):
         r"""Distributed wrapper of sampler."""
@@ -109,6 +124,44 @@ class DistributedSamplerWrapper:
 
             # Yield a subset of batch_meta_list on one GPU.
             yield batch_meta_list[rank::num_replicas]
+
+    def __len__(self) -> int:
+        return len(self.sampler)
+'''
+
+class DistributedSamplerWrapper:
+    def __init__(self, sampler: object) -> None:
+        r"""Distributed wrapper of sampler.
+
+        Args:
+            sampler (Sampler object)
+
+        Returns:
+            None
+        """
+
+        self.sampler = sampler
+
+    def __iter__(self) -> List:
+        r"""Yield a part of mini-batch meta on each device.
+
+        Args:
+            None
+
+        Returns:
+            list_meta (List), a part of mini-batch meta.
+        """
+
+        if dist.is_initialized():
+            num_replicas = dist.get_world_size()
+            rank = dist.get_rank()
+
+        else:
+            num_replicas = 1
+            rank = 0
+
+        for list_meta in self.sampler:
+            yield list_meta[rank :: num_replicas]
 
     def __len__(self) -> int:
         return len(self.sampler)
