@@ -3,6 +3,7 @@ from typing import List, Dict, NoReturn, Callable, Union, Optional
 import torch
 from torch.utils.data import DataLoader
 import random
+import soundfile
 import numpy as np
 from nesd.image_source_simulator import ImageSourceSimulator
 from nesd.test_plot import plot_top_view
@@ -142,8 +143,8 @@ class Dataset3:
 
         return data
 
-    def __len__(self):
-        return 10000
+    # def __len__(self):
+    #     return 10000
 
 
 def collate_fn(list_data_dict):
@@ -154,7 +155,7 @@ def collate_fn(list_data_dict):
         data_dict[key] = [dd[key] for dd in list_data_dict]
 
         if key in ["mic_positions", "mic_look_directions", "mic_signals", "agent_positions", "agent_look_directions", "agent_signals", "agent_look_directions_has_source"]:
-            data_dict[key] = torch.Tensor(data_dict[key])
+            data_dict[key] = torch.Tensor(np.stack(data_dict[key], axis=0))
 
     return data_dict
 
@@ -246,6 +247,10 @@ def add3():
     for i, data in enumerate(data_loader):
         n = 0
         plot_top_view(data["room_length"][n], data["room_width"][n], data["room_height"][n], data["source_positions"][n], data["mic_positions"][n], data["agent_positions"][n], data["agent_look_directions"][n], data["agent_ray_types"][n])
+
+
+        x = data["mic_signals"][0][0].data.cpu().numpy()
+        soundfile.write(file="_zz.wav", data=x, samplerate=24000) 
         from IPython import embed; embed(using=False); os._exit(0)
         print(i)
 
@@ -272,6 +277,6 @@ if __name__ == "__main__":
 
     # add()
     # add2()
-    # add3()
+    add3()
 
-    add4()
+    # add4()

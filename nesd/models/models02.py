@@ -600,7 +600,7 @@ class Model02(nn.Module, Base):
         # (bs, agents_num, T=38, 1536)
 
         output_dict = {}
-        
+
         # if do_localization:
         if True:
             batch_size, agents_num, _T, _C = shared_feature.shape
@@ -626,6 +626,8 @@ class Model02(nn.Module, Base):
             agent_look_directions_has_source = rearrange(x.squeeze(), '(b n) t -> b n t', b=batch_size)
 
             output_dict['agent_look_directions_has_source'] = agent_look_directions_has_source
+
+        # from IPython import embed; embed(using=False); os._exit(0)
 
         return output_dict
         '''

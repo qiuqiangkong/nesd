@@ -151,10 +151,15 @@ python nesd/test5.py    # latest simulator
 python nesd/test_dataloader.py  # render iss data and plot simulator
 python nesd/test_plot.py    # Plot data simulator
 
+# Prepare data
+python nesd/process_vctk_dataset.py
+
 # train
 CUDA_VISIBLE_DEVICES=0 python nesd/train2.py train \
     --workspace="" \
     --config_yaml="./kqq_scripts/train/configs2/01a.yaml"
 
-
-
+# Inference
+CUDA_VISIBLE_DEVICES=0 python nesd/inference2.py inference \
+    --workspace="" \
+    --config_yaml="./kqq_scripts/train/configs2/01a.yaml"

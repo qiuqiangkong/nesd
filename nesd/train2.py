@@ -19,6 +19,7 @@ import pytorch_lightning as pl
 # from pytorch_lightning.plugins import DDPPlugin
 import torch 
 import torch.nn.functional as F
+from lightning.pytorch.callbacks import ModelCheckpoint
 
 from nesd.utils import read_yaml, create_logging
 from nesd.data.samplers import BatchSampler, DistributedSamplerWrapper
@@ -135,55 +136,27 @@ def get_data_module(
     steps_per_epoch = configs['train']['steps_per_epoch']
     batch_size = batch_size_per_device * devices_num
 
-    # _Sampler = eval(sampler_type)
-    # _Dataset = eval(dataset_type)
-    
-    # # sampler
-    # train_sampler = _Sampler(
-    #     batch_size=batch_size,
-    #     steps_per_epoch=steps_per_epoch,
-    #     random_seed=1234,
-    # )
-
-    # train_dataset = _Dataset(
-    #     hdf5s_dir=train_hdf5s_dir,
-    #     classes_num=classes_num,
-    # )
     train_dataset = Dataset3(expand_frames=201) 
     val_dataset = Dataset3(expand_frames=201) 
 
-    batch_sampler = BatchSampler(batch_size=batch_size)
-    batch_sampler = DistributedSamplerWrapper(batch_sampler)
+    train_batch_sampler = BatchSampler(batch_size=batch_size, iterations_per_epoch=1000)
+    train_batch_sampler = DistributedSamplerWrapper(train_batch_sampler)
 
-    '''
-    train_loader = DataLoader(
-        dataset=train_dataset, 
-        # batch_size=BATCH_SIZE, 
-        # sampler=sampler,
-        batch_sampler=batch_sampler, 
-        # shuffle=False,
-        num_workers=0,
-    )
-    '''
+    val_batch_sampler = BatchSampler(batch_size=batch_size, iterations_per_epoch=5)
+    val_batch_sampler = DistributedSamplerWrapper(val_batch_sampler)
 
     train_dataloader = torch.utils.data.DataLoader(
         dataset=train_dataset,
-        batch_sampler=batch_sampler, 
-        # batch_sampler=,
+        batch_sampler=train_batch_sampler, 
         collate_fn=collate_fn,
-        # batch_size=batch_size,
-        # shuffle=True,
         num_workers=num_workers,
         pin_memory=True
     )
 
     val_dataloader = torch.utils.data.DataLoader(
         dataset=val_dataset,
-        batch_sampler=batch_sampler, 
-        # batch_sampler=,
+        batch_sampler=val_batch_sampler, 
         collate_fn=collate_fn,
-        # batch_size=batch_size,
-        # shuffle=True,
         num_workers=num_workers,
         pin_memory=True
     )
@@ -191,16 +164,6 @@ def get_data_module(
     # for i, data in enumerate(train_loader):
     #     print(i)
         
-        # from IPython import embed; embed(using=False); os._exit(0)
-
-    # # data module
-    # data_module = DataModule(
-    #     train_sampler=train_sampler,
-    #     train_dataset=train_dataset,
-    #     num_workers=num_workers,
-    #     distributed=distributed,
-    # )
-
     # return data_module
     return train_dataloader, val_dataloader
 
@@ -214,13 +177,20 @@ class LitModel(L.LightningModule):
     def training_step(self, batch_dict, batch_idx):
         output_dict = self.net(batch_dict)
         loss = self.loss_function(output_dict=output_dict, target_dict=batch_dict)
-        # loss = F.cross_entropy(self.net(x), y)
         return loss
 
-    def validation_step(self, batch, batch_idx):
-        x, y = batch
-        loss = F.cross_entropy(self.net(x), y)
-        self.log("test_loss", loss)
+    def validation_step(self, batch_dict, batch_idx):
+        output_dict = self.net(batch_dict)
+        loss = self.loss_function(output_dict=output_dict, target_dict=batch_dict)
+        print(loss)
+        self.log("test_loss", loss.item())
+
+    def predict_step(self, batch_dict):
+        self.eval()
+        with torch.no_grad():
+            output_dict = self.net(batch_dict)
+        
+        return output_dict
 
     def configure_optimizers(self):
         optimizer = torch.optim.AdamW(
@@ -296,8 +266,6 @@ def train(args) -> NoReturn:
 
     distributed = True if devices_num > 1 else False
 
-    # from IPython import embed; embed(using=False); os._exit(0)
-
     # paths
     checkpoints_dir, logs_dir, statistics_path = get_dirs(
         workspace, filename, config_yaml,
@@ -313,29 +281,29 @@ def train(args) -> NoReturn:
     )
 
     # model
-    # classes_num = -1
-    # classes_num = configs['sources']['classes_num']
     Net = eval(model_type)
-
-    # model = Model(
-    #     microphones_num=4, 
-    #     classes_num=classes_num, 
-    #     do_localization=do_localization,
-    #     do_sed=do_sed,
-    #     do_separation=do_separation,
-    # )
 
     net = Net(mics_num=4)
 
     lit_model = LitModel(net=net, loss_function=loc_bce)
 
-    # loss_function = eval(loss_type)
+    # callbacks = []
 
-    callbacks = []
+    checkpoint_callback = ModelCheckpoint(
+        dirpath="./tmp",
+        filename="{epoch}-{step}-{test_loss:.3f}",
+        verbose=True,
+        save_last=False,
+        save_weights_only=True,
+        # every_n_train_steps=50,
+        save_top_k=3,
+        monitor="test_loss",
+    )
+
+    callbacks = [checkpoint_callback]
     
     trainer = L.Trainer(
         accelerator="auto",
-        # accelerator="cpu",
         devices=devices_num,
         max_epochs=10,
         num_nodes=1,
@@ -353,6 +321,7 @@ def train(args) -> NoReturn:
         val_dataloaders=val_dataloader,
         ckpt_path=None
     )
+
 
 
     '''

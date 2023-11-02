@@ -61,7 +61,8 @@ def plot_top_view(room_length, room_width, room_height, source_positions, mic_po
     # ax.plot(3, 4, 'ro')
     # ax.arrow(x=1, y=2, dx=0.5, dy=0.5, head_width=0.05, color="r")
     plt.savefig("_zz.pdf")
-    from IPython import embed; embed(using=False); os._exit(0)
+    print("Write out to _zz.pdf")
+    # from IPython import embed; embed(using=False); os._exit(0)
 
 
 

@@ -6,6 +6,7 @@ from room import Room
 from nesd.utils import norm, fractional_delay_filter, FractionalDelay, DirectionSampler, sph2cart, get_cos, Agent, repeat_to_length, cart2sph, Rotator3D, sample_agent_look_direction
 import time
 from pathlib import Path
+import yaml
 
 
 class ImageSourceSimulator:
@@ -25,16 +26,19 @@ class ImageSourceSimulator:
         self.exclude_raidus = 0.5
 
         self.sources_num = 2
-        self.mics_num = 2
+        # self.mics_num = 2
         self.expand_frames = expand_frames
 
         self.positive_rays = 4
         self.total_rays = 20
 
-        audios_dir = "./resources"
+        # audios_dir = "./resources"
+        audios_dir = "/home/qiuqiangkong/workspaces/nesd2/audios/vctk_2s_segments/train"
         self.audio_paths = list(Path(audios_dir).glob("*.wav"))
 
         debug = False
+
+        agent_in_center_of_mics = True
 
         if debug:
 
@@ -93,13 +97,19 @@ class ImageSourceSimulator:
             # (mics_num, ndim)
             # print("a4", time.time() - t1)
 
-            self.mic_look_directions = np.zeros((self.mics_num, 3))
+            mics_num = len(self.mic_positions)
+
+            self.mic_look_directions = np.ones((mics_num, 3))
 
             # t1 = time.time()
-            self.agent_position = self.sample_position_in_room(
-                exclude_positions=self.source_positions, 
-                exclude_raidus=self.exclude_raidus,
-            )
+            if agent_in_center_of_mics:
+                self.agent_position = np.mean(self.mic_positions, axis=0)
+
+            else:
+                self.agent_position = self.sample_position_in_room(
+                    exclude_positions=self.source_positions, 
+                    exclude_raidus=self.exclude_raidus,
+                )
             # (ndim,)
             # print("a5", time.time() - t1)
 
@@ -122,7 +132,7 @@ class ImageSourceSimulator:
         self.agents = self.sample_and_simulate_agent_signals()
         # print("a8", time.time() - t1)
 
-        self.mic_look_directions = np.stack(self.mic_positions, axis=0)
+        self.mic_look_directions = np.stack(self.mic_look_directions, axis=0)
         self.mic_positions = np.stack(self.mic_positions, axis=0)
         self.mic_signals = np.stack(self.mic_signals, axis=0)
 
@@ -139,11 +149,13 @@ class ImageSourceSimulator:
             self.mic_look_directions = expand_frame_dim(self.mic_look_directions, expand_frames)
             self.agent_positions = expand_frame_dim(self.agent_positions, expand_frames)
             self.agent_look_directions = expand_frame_dim(self.agent_look_directions, expand_frames)
+
+            for i in range(len(self.source_positions)):
+                self.source_positions[i] = expand_frame_dim(self.source_positions[i], expand_frames)
+            
             # self.agent_look_directions_has_source = expand_frame_dim(self.agent_look_directions_has_source, expand_frames)
 
         # self.agent_positions = np.stack(self.agent_positions)
-
-        # from IPython import embed; embed(using=False); os._exit(0)
 
     def sample_shoebox_room(self):
 
@@ -181,7 +193,8 @@ class ImageSourceSimulator:
 
         center_pos = self.sample_position_in_room(exclude_positions, exclude_raidus)
 
-        mic_array_type = "linear"
+        # mic_array_type = "linear"
+        mic_array_type = "eigenmike"
 
         if mic_array_type == "single":
             mics_pos = [center_pos]
@@ -189,14 +202,31 @@ class ImageSourceSimulator:
         elif mic_array_type == "linear":
             mics_pos = [center_pos, center_pos + 0.04, center_pos + 0.08, center_pos + 0.12]
 
-        elif mic_array_type == "tetra":
-            pass
+        elif mic_array_type == "eigenmike":
+
+            mics_pos = []
+
+            mics_yaml = "./nesd/microphones/eigenmike.yaml"
+
+            with open(mics_yaml, 'r') as f:
+                mics_meta = yaml.load(f, Loader=yaml.FullLoader)
+
+            for mic_meta in mics_meta:
+
+                relative_mic_pos = np.array(sph2cart(
+                    r=mic_meta['radius'], 
+                    azimuth=mic_meta['azimuth'], 
+                    colatitude=mic_meta['colatitude']
+                ))
+
+                mic_pos = center_pos + relative_mic_pos
+
+                mics_pos.append(mic_pos)
 
         elif mic_array_type == "mutli_array":
             center_pos = np.array([self.length / 2, self.width / 2, self.width / 2])
 
-            #todo
-
+        #todo
         return mics_pos
 
     def sample_position_in_room(self, exclude_positions=None, exclude_raidus=None):

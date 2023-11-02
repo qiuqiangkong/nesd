@@ -8,6 +8,7 @@ import time
 import logging
 from scipy.signal import fftconvolve
 from scipy import signal
+import librosa
 
 import torch
 import numpy as np
@@ -805,3 +806,43 @@ def sample_agent_look_direction(agent_to_src, half_angle):
     ))
 
     return agent_look_direction
+
+
+def remove_silence(audio, sample_rate):
+
+    window_size = int(sample_rate * 0.1)
+    threshold = 0.02
+
+    frames = librosa.util.frame(x=audio, frame_length=window_size, hop_length=window_size).T
+    # shape: (frames_num, window_size)
+
+    new_frames = get_active_frames(frames, threshold)
+    # shape: (new_frames_num, window_size)
+
+    new_audio = new_frames.flatten()
+    # shape: (new_audio_samples,)
+
+    return new_audio
+
+
+def get_active_frames(frames, threshold):
+    
+    energy = np.max(np.abs(frames), axis=-1)
+    # shape: (frames_num,)
+
+    active_indexes = np.where(energy > threshold)[0]
+    # shape: (new_frames_num,)
+
+    new_frames = frames[active_indexes]
+    # shape: (new_frames_num,)
+
+    return new_frames
+
+
+def repeat_to_length(audio: np.ndarray, segment_samples: int) -> np.ndarray:
+    r"""Repeat audio to length."""
+    
+    repeats_num = (segment_samples // audio.shape[-1]) + 1
+    audio = np.tile(audio, repeats_num)[0 : segment_samples]
+
+    return audio

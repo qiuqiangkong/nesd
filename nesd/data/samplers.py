@@ -44,8 +44,9 @@ class Sampler:
 '''
 
 class BatchSampler:
-    def __init__(self, batch_size):
+    def __init__(self, batch_size, iterations_per_epoch):
         self.batch_size = batch_size
+        self.iterations_per_epoch = iterations_per_epoch
 
     def __iter__(self):
 
@@ -53,7 +54,9 @@ class BatchSampler:
             yield range(self.batch_size)
 
     def __len__(self):
-        return 100
+        # return 100
+        # return 20
+        return self.iterations_per_epoch
 
 
 class Sampler_VctkMusdb18hqD18t2:
