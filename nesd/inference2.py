@@ -130,19 +130,20 @@ def inference(args):
 
         pickle.dump([agent_look_directions_has_source, source_positions, agent_position.data.cpu().numpy()], open("_zz.pkl", "wb"))
 
+        add(None)
         from IPython import embed; embed(using=False); os._exit(0)
 
 
 def forward_in_batch(model, input_dict):
 
     rays_num = input_dict['agent_positions'].shape[1]
-    batch_size = 200
+    batch_size = 1000
     pointer = 0
 
     output_dicts = []
 
     while pointer < rays_num:
-        print(pointer)
+        # print(pointer)
         
         batch_input_dict = {}
 

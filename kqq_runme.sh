@@ -163,3 +163,10 @@ CUDA_VISIBLE_DEVICES=0 python nesd/train2.py train \
 CUDA_VISIBLE_DEVICES=0 python nesd/inference2.py inference \
     --workspace="" \
     --config_yaml="./kqq_scripts/train/configs2/01a.yaml"
+
+python nesd/inference2.py add
+
+# Inference DCASE2019 Task3
+CUDA_VISIBLE_DEVICES=0 python nesd/inference2_dcase2019_task3.py inference \
+    --workspace="" \
+    --config_yaml="./kqq_scripts/train/configs2/01a.yaml"
