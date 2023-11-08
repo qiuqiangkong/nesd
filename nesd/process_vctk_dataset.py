@@ -9,7 +9,7 @@ def add():
 	sample_rate = 24000
 	segment_seconds = 2
 	segment_samples = int(sample_rate * segment_seconds) 
-	split = "train"
+	split = "test"
 
 	vctk_dataset = "/home/qiuqiangkong/datasets/vctk/downloaded_package/VCTK-Corpus/wav48"
 	out_audios_dir = Path("/home/qiuqiangkong/workspaces/nesd2/audios/vctk_2s_segments", split)
@@ -17,10 +17,12 @@ def add():
 
 	speakers_dir = sorted(list(Path(vctk_dataset).glob("*")))
 
-	train_speakers_dir = speakers_dir[0 : -10]
-	test_speakers_dir = speakers_dir[-10 :]
+	if split == "train":
+		speakers_dir = speakers_dir[0 : -10]
+	elif split == "test":
+		speakers_dir = speakers_dir[-10 :]
 
-	for speaker_dir in train_speakers_dir:
+	for speaker_dir in speakers_dir:
 
 		audio_paths = sorted(list(Path(speaker_dir).glob("*.wav")))
 

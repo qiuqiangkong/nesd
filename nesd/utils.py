@@ -359,6 +359,9 @@ def fractional_delay_filter(delayed_samples):
     # Normalize to get unity gain.
     h /= np.sum(h)
 
+    if integer < N // 2:
+        print(integer, N//2)
+
     assert integer >= N // 2
     new_h = np.zeros(integer + N // 2 + 1)
     new_h[integer - N // 2 : integer + N // 2 + 1] = h

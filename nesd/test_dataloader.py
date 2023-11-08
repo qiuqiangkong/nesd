@@ -117,13 +117,19 @@ class Dataset2:
 
 
 class Dataset3:
-    def __init__(self, expand_frames=None):
+    def __init__(self, audios_dir, expand_frames=None, simulator_configs=None):
+        self.audios_dir = audios_dir
         self.expand_frames = expand_frames
+        self.simulator_configs = simulator_configs
 
     def __getitem__(self, meta):
         # print(meta)
         
-        iss_data = ImageSourceSimulator(expand_frames=self.expand_frames)
+        iss_data = ImageSourceSimulator(
+            audios_dir=self.audios_dir, 
+            expand_frames=self.expand_frames,
+            simulator_configs=self.simulator_configs
+        )
 
         data = {
             "room_length": iss_data.length,

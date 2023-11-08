@@ -11,7 +11,7 @@ import yaml
 
 class ImageSourceSimulator:
 
-    def __init__(self, expand_frames=None): 
+    def __init__(self, audios_dir, expand_frames=None, simulator_configs=None): 
 
         self.ndim = 3
         self.margin = 0.2
@@ -20,25 +20,30 @@ class ImageSourceSimulator:
         self.sample_rate = 24000
         self.segment_samples = self.sample_rate * 2
         self.speed_of_sound = 343
-        self.max_order = 3
+        self.max_order = simulator_configs["image_source_max_order"]
         self.half_angle = math.atan2(0.1, 1)
 
         self.exclude_raidus = 0.5
 
-        self.sources_num = 2
-        # self.mics_num = 2
+        min_sources_num = simulator_configs["min_sources_num"]
+        max_sources_num = simulator_configs["max_sources_num"]
+        self.sources_num = np.random.randint(min_sources_num, max_sources_num + 1)
+        # self.sources_num = 2
+
         self.expand_frames = expand_frames
 
-        self.positive_rays = 4
-        self.total_rays = 20
+        self.positive_rays = simulator_configs["positive_rays"]
+        self.total_rays = simulator_configs["total_rays"]
 
         # audios_dir = "./resources"
-        audios_dir = "/home/qiuqiangkong/workspaces/nesd2/audios/vctk_2s_segments/train"
+        # audios_dir = "/home/qiuqiangkong/workspaces/nesd2/audios/vctk_2s_segments/train"
         self.audio_paths = list(Path(audios_dir).glob("*.wav"))
 
         debug = False
 
-        agent_in_center_of_mics = True
+        self.mics_position_type = simulator_configs["mics_position_type"]
+        agent_position_type = simulator_configs["agent_position_type"]
+        # agent_in_center_of_mics = True
 
         if debug:
 
@@ -69,12 +74,17 @@ class ImageSourceSimulator:
 
         else:
 
-            self.min_length = 4
-            self.max_length = 8
-            self.min_width = 4
-            self.max_width = 8
-            self.min_height = 2
-            self.max_height = 4
+            self.min_length = simulator_configs["room_min_length"]
+            self.max_length = simulator_configs["room_max_length"]
+            self.min_width = simulator_configs["room_min_width"]
+            self.max_width = simulator_configs["room_max_width"]
+            self.min_height = simulator_configs["room_min_height"]
+            self.max_height = simulator_configs["room_max_height"]
+            # self.max_length = 8
+            # self.min_width = 4
+            # self.max_width = 8
+            # self.min_height = 2
+            # self.max_height = 4
 
             # t1 = time.time()
             self.length, self.width, self.height = self.sample_shoebox_room()
@@ -85,15 +95,27 @@ class ImageSourceSimulator:
             # print("a2", time.time() - t1)
 
             # t1 = time.time()
-            self.source_positions = self.sample_source_positions()
+            # self.source_positions = self.sample_source_positions()
             # (sources_num, ndim)
             # print("a3", time.time() - t1)
 
             # t1 = time.time()
+            # if mics_position_type == "random":
+            # self.mic_positions = self.sample_mic_positions(
+            #     exclude_positions=self.source_positions, 
+            #     exclude_raidus=self.exclude_raidus,
+            # )
+
             self.mic_positions = self.sample_mic_positions(
-                exclude_positions=self.source_positions, 
-                exclude_raidus=self.exclude_raidus,
+                exclude_positions=None, 
+                exclude_raidus=None,
             )
+
+            self.source_positions = self.sample_source_positions(
+                exclude_positions=self.mic_positions, 
+                exclude_raidus=self.exclude_raidus
+            )
+            
             # (mics_num, ndim)
             # print("a4", time.time() - t1)
 
@@ -102,14 +124,16 @@ class ImageSourceSimulator:
             self.mic_look_directions = np.ones((mics_num, 3))
 
             # t1 = time.time()
-            if agent_in_center_of_mics:
+            if agent_position_type == "center_of_mics":
                 self.agent_position = np.mean(self.mic_positions, axis=0)
 
-            else:
+            elif agent_position_type == "random":
                 self.agent_position = self.sample_position_in_room(
                     exclude_positions=self.source_positions, 
                     exclude_raidus=self.exclude_raidus,
                 )
+            else:
+                raise NotImplementedError
             # (ndim,)
             # print("a5", time.time() - t1)
 
@@ -191,7 +215,14 @@ class ImageSourceSimulator:
 
     def sample_mic_positions(self, exclude_positions, exclude_raidus):
 
-        center_pos = self.sample_position_in_room(exclude_positions, exclude_raidus)
+        if self.mics_position_type == "random":
+            center_pos = self.sample_position_in_room(exclude_positions, exclude_raidus)
+
+        elif self.mics_position_type == "center_of_room":
+            center_pos = np.array([self.length / 2, self.width / 2, self.height / 2])
+
+        else:
+            raise NotImplementedError
 
         # mic_array_type = "linear"
         mic_array_type = "eigenmike"

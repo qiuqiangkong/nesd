@@ -129,15 +129,27 @@ def get_data_module(
 
     sampler_type = configs['sampler_type']
     dataset_type = configs['dataset_type']
-    train_hdf5s_dir = os.path.join(workspace, configs['sources']['train_hdf5s_dir'])
-    test_hdf5s_dir = os.path.join(workspace, configs['sources']['test_hdf5s_dir'])
-    classes_num = configs['sources']['classes_num']
+    simulator_configs = configs["simulator_configs"]
+    # train_hdf5s_dir = os.path.join(workspace, configs['sources']['train_hdf5s_dir'])
+    # test_hdf5s_dir = os.path.join(workspace, configs['sources']['test_hdf5s_dir'])
+    # classes_num = configs['sources']['classes_num']
     batch_size_per_device = configs['train']['batch_size_per_device']
     steps_per_epoch = configs['train']['steps_per_epoch']
     batch_size = batch_size_per_device * devices_num
 
-    train_dataset = Dataset3(expand_frames=201) 
-    val_dataset = Dataset3(expand_frames=201) 
+    train_audios_dir = "/home/qiuqiangkong/workspaces/nesd2/audios/vctk_2s_segments/train"
+    test_audios_dir = "/home/qiuqiangkong/workspaces/nesd2/audios/vctk_2s_segments/test"
+
+    train_dataset = Dataset3(
+        audios_dir=train_audios_dir, 
+        expand_frames=201, 
+        simulator_configs=simulator_configs
+    )
+    val_dataset = Dataset3(
+        audios_dir=test_audios_dir, 
+        expand_frames=201,
+        simulator_configs=simulator_configs
+    )
 
     train_batch_sampler = BatchSampler(batch_size=batch_size, iterations_per_epoch=1000)
     train_batch_sampler = DistributedSamplerWrapper(train_batch_sampler)
@@ -282,15 +294,16 @@ def train(args) -> NoReturn:
 
     # model
     Net = eval(model_type)
+    loss_function = eval(loss_type)
 
     net = Net(mics_num=4)
 
-    lit_model = LitModel(net=net, loss_function=loc_bce)
+    lit_model = LitModel(net=net, loss_function=loss_function)
 
     # callbacks = []
 
     checkpoint_callback = ModelCheckpoint(
-        dirpath="./tmp",
+        dirpath=checkpoints_dir,
         filename="{epoch}-{step}-{test_loss:.3f}",
         verbose=True,
         save_last=False,
@@ -305,7 +318,7 @@ def train(args) -> NoReturn:
     trainer = L.Trainer(
         accelerator="auto",
         devices=devices_num,
-        max_epochs=10,
+        max_epochs=50,
         num_nodes=1,
         precision="32-true",
         callbacks=callbacks,

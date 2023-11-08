@@ -40,6 +40,7 @@ from nesd.image_source_simulator import expand_frame_dim
 def inference(args):
 
     workspace = args.workspace
+    checkpoint_path = args.checkpoint_path
     config_yaml = args.config_yaml
     filename = args.filename
     device = "cuda"
@@ -50,13 +51,14 @@ def inference(args):
 
     # num_workers = configs["train"]["num_workers"]
     model_type = configs['train']['model_type']
+    simulator_configs = configs["simulator_configs"]
 
     num_workers = 0
     batch_size = 32
     frames_num = 201
 
     # Load checkpoint
-    checkpoint_path = "./tmp/epoch=8-step=9000-test_loss=0.094.ckpt"
+    # checkpoint_path = "./tmp/epoch=8-step=9000-test_loss=0.094.ckpt"
     checkpoint = torch.load(checkpoint_path)
     # device = "cuda"
 
@@ -70,7 +72,8 @@ def inference(args):
     )
 
     # Data
-    dataset = Dataset3(expand_frames=201)
+    test_audios_dir = "/home/qiuqiangkong/workspaces/nesd2/audios/vctk_2s_segments/test"
+    dataset = Dataset3(audios_dir=test_audios_dir, expand_frames=201, simulator_configs=simulator_configs)
     
     batch_sampler = BatchSampler(batch_size=batch_size, iterations_per_epoch=5)
     batch_sampler = DistributedSamplerWrapper(batch_sampler)
@@ -233,6 +236,9 @@ if __name__ == "__main__":
     parser_inference = subparsers.add_parser("inference")
     parser_inference.add_argument(
         "--workspace", type=str, required=True, help="Directory of workspace."
+    )
+    parser_inference.add_argument(
+        "--checkpoint_path", type=str, required=True, help="Directory of workspace."
     )
     parser_inference.add_argument(
         "--config_yaml",

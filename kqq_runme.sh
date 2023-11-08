@@ -155,18 +155,23 @@ python nesd/test_plot.py    # Plot data simulator
 python nesd/process_vctk_dataset.py
 
 # train
+WORKSPACE="~/workspaces/nesd2"
 CUDA_VISIBLE_DEVICES=0 python nesd/train2.py train \
-    --workspace="" \
+    --workspace=$WORKSPACE \
     --config_yaml="./kqq_scripts/train/configs2/01a.yaml"
 
 # Inference
 CUDA_VISIBLE_DEVICES=0 python nesd/inference2.py inference \
     --workspace="" \
-    --config_yaml="./kqq_scripts/train/configs2/01a.yaml"
+    --config_yaml="./kqq_scripts/train/configs2/01a.yaml" \
+    --checkpoint_path=""
 
 python nesd/inference2.py add
 
 # Inference DCASE2019 Task3
 CUDA_VISIBLE_DEVICES=0 python nesd/inference2_dcase2019_task3.py inference \
     --workspace="" \
-    --config_yaml="./kqq_scripts/train/configs2/01a.yaml"
+    --config_yaml="./kqq_scripts/train/configs2/02a.yaml" \
+    --checkpoint_path=""
+
+CUDA_VISIBLE_DEVICES=0 python nesd/inference2_dcase2019_task3.py plot

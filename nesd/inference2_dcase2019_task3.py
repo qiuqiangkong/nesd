@@ -50,11 +50,13 @@ def inference(args):
 
     workspace = args.workspace
     config_yaml = args.config_yaml
+    checkpoint_path = args.checkpoint_path
     filename = args.filename
     device = "cuda"
 
     configs = read_yaml(config_yaml)
     model_type = configs['train']['model_type']
+    simulator_configs = configs["simulator_configs"]
 
     num_workers = 0
     batch_size = 32
@@ -64,7 +66,7 @@ def inference(args):
     segment_samples = int(sample_rate * segment_seconds)
 
     # Load checkpoint
-    checkpoint_path = "./tmp/epoch=8-step=9000-test_loss=0.094.ckpt"
+    # checkpoint_path = "./tmp/epoch=8-step=9000-test_loss=0.094.ckpt"
     checkpoint = torch.load(checkpoint_path)
     # device = "cuda"
 
@@ -95,7 +97,11 @@ def inference(args):
 
     rays_num = agent_look_directions.shape[0]
 
-    center_pos = np.array([4, 4, 2])
+    center_pos = np.array([
+        simulator_configs["room_min_length"] / 2,
+        simulator_configs["room_min_width"] / 2,
+        simulator_configs["room_min_height"] / 2
+    ])
     agent_positions = center_pos[None, None, None, :]
     agent_positions = np.repeat(a=agent_positions, repeats=rays_num, axis=1)
     agent_positions = np.repeat(a=agent_positions, repeats=frames_num, axis=2)
@@ -139,7 +145,7 @@ def inference(args):
             "agent_positions": agent_positions,
             "agent_look_directions": agent_look_directions,
         }
-
+        
         for key in input_dict.keys():
             input_dict[key] = torch.Tensor(input_dict[key]).to(device)
 
@@ -422,6 +428,9 @@ if __name__ == "__main__":
         type=str,
         required=True,
         help="Path of config file for training.",
+    )
+    parser_inference.add_argument(
+        "--checkpoint_path", type=str, required=True, help="Directory of workspace."
     )
 
     parser_inference = subparsers.add_parser("plot")
