@@ -32,7 +32,8 @@ from nesd.optimizers.lr_schedulers import get_lr_lambda
 from nesd.losses import *
 # from nesd.callbacks.callback import get_callback
 
-from nesd.test_dataloader import Dataset3, collate_fn
+from nesd.test_dataloader import collate_fn
+from nesd.freefield_simulator import DatasetFreefield
 
 
 def get_dirs(
@@ -140,12 +141,12 @@ def get_data_module(
     train_audios_dir = "/home/qiuqiangkong/workspaces/nesd2/audios/vctk_2s_segments/train"
     test_audios_dir = "/home/qiuqiangkong/workspaces/nesd2/audios/vctk_2s_segments/test"
 
-    train_dataset = Dataset3(
+    train_dataset = DatasetFreefield(
         audios_dir=train_audios_dir, 
         expand_frames=201, 
         simulator_configs=simulator_configs
     )
-    val_dataset = Dataset3(
+    val_dataset = DatasetFreefield(
         audios_dir=test_audios_dir, 
         expand_frames=201,
         simulator_configs=simulator_configs
@@ -162,7 +163,8 @@ def get_data_module(
         batch_sampler=train_batch_sampler, 
         collate_fn=collate_fn,
         num_workers=num_workers,
-        pin_memory=True
+        # pin_memory=True
+        pin_memory=False
     )
 
     val_dataloader = torch.utils.data.DataLoader(

@@ -155,7 +155,7 @@ python nesd/test_plot.py    # Plot data simulator
 python nesd/process_vctk_dataset.py
 
 # train
-WORKSPACE="~/workspaces/nesd2"
+WORKSPACE="/home/qiuqiangkong/workspaces/nesd2"
 CUDA_VISIBLE_DEVICES=0 python nesd/train2.py train \
     --workspace=$WORKSPACE \
     --config_yaml="./kqq_scripts/train/configs2/01a.yaml"
@@ -175,3 +175,34 @@ CUDA_VISIBLE_DEVICES=0 python nesd/inference2_dcase2019_task3.py inference \
     --checkpoint_path=""
 
 CUDA_VISIBLE_DEVICES=0 python nesd/inference2_dcase2019_task3.py plot
+
+### --- dcase 2019 task 3 ---
+WORKSPACE="/home/qiuqiangkong/workspaces/nesd2"
+CUDA_VISIBLE_DEVICES=0 python nesd/train2_freefield.py train \
+    --workspace=$WORKSPACE \
+    --config_yaml="./kqq_scripts/train/configs2/freefield_01a.yaml"
+
+
+### --- dcase 2019 task 3 ---
+# Train
+SPLIT="train"
+python nesd/dataset_creation/pack_audios_to_hdf5s/dcase2019_task3.py \
+    --dataset_dir="/home/qiuqiangkong/datasets/dcase2019/task3/downloaded_package" \
+    --split=$SPLIT \
+    --hdf5s_dir="${WORKSPACE}/hdf5s/dcase2019_task3/${SPLIT}" \
+    --sample_rate=24000
+
+WORKSPACE="/home/qiuqiangkong/workspaces/nesd2"
+CUDA_VISIBLE_DEVICES=0 python nesd/train2_dcase2019_task3.py train \
+    --workspace=$WORKSPACE \
+    --config_yaml="./kqq_scripts/train/configs2/dcase2019_task3_01a.yaml"
+
+# Inference
+CUDA_VISIBLE_DEVICES=2 python nesd/inference2_dcase2019_task3.py inference \
+    --workspace="" \
+    --config_yaml="./kqq_scripts/train/configs2/dcase2019_task3_01a.yaml" \
+    --checkpoint_path="/home/qiuqiangkong/workspaces/nesd2/checkpoints/train2_dcase2019_task3/config=dcase2019_task3_01a/epoch=45-step=46000-test_loss=0.045.ckpt"
+
+python nesd/inference2_dcase2019_task3.py plot
+
+ffmpeg -framerate 10 -i '_tmp/_zz_%04d.png' -r 30 -pix_fmt yuv420p 123.mp4

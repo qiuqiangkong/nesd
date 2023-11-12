@@ -44,6 +44,7 @@ class ImageSourceSimulator:
         self.mics_position_type = simulator_configs["mics_position_type"]
         agent_position_type = simulator_configs["agent_position_type"]
         # agent_in_center_of_mics = True
+        sources_position_type = simulator_configs["sources_position_type"]
 
         if debug:
 
@@ -111,10 +112,16 @@ class ImageSourceSimulator:
                 exclude_raidus=None,
             )
 
-            self.source_positions = self.sample_source_positions(
-                exclude_positions=self.mic_positions, 
-                exclude_raidus=self.exclude_raidus
-            )
+            if sources_position_type == "unit_sphere":
+                mics_center_pos = np.mean(self.mic_positions, axis=0)
+                self.source_positions = self.sample_source_positions_on_unit_sphere(mics_center_pos)
+                # from IPython import embed; embed(using=False); os._exit(0)
+
+            else:
+                self.source_positions = self.sample_source_positions(
+                    exclude_positions=self.mic_positions, 
+                    exclude_raidus=self.exclude_raidus
+                )
             
             # (mics_num, ndim)
             # print("a4", time.time() - t1)
@@ -165,7 +172,7 @@ class ImageSourceSimulator:
         self.agent_look_directions_has_source = np.stack([agent.look_direction_has_source for agent in self.agents], axis=0)
         # from IPython import embed; embed(using=False); os._exit(0)
         self.agent_waveforms = np.stack([agent.waveform for agent in self.agents], axis=0)
-        self.agent_look_direction_has_source = np.stack([agent.waveform for agent in self.agents], axis=0)
+        # self.agent_look_direction_has_source = np.stack([agent.look_direction_has_source for agent in self.agents], axis=0)
         self.agent_ray_types = np.stack([agent.ray_type for agent in self.agents], axis=0)
 
         if expand_frames:
@@ -180,6 +187,7 @@ class ImageSourceSimulator:
             # self.agent_look_directions_has_source = expand_frame_dim(self.agent_look_directions_has_source, expand_frames)
 
         # self.agent_positions = np.stack(self.agent_positions)
+        # from IPython import embed; embed(using=False); os._exit(0)
 
     def sample_shoebox_room(self):
 
@@ -210,6 +218,31 @@ class ImageSourceSimulator:
         for _ in range(self.sources_num):
             position = self.sample_position_in_room(exclude_positions, exclude_raidus)
             source_positions.append(position)
+
+        return source_positions
+
+    def sample_source_positions_on_unit_sphere(self, mics_center_pos):
+
+        _direction_sampler = DirectionSampler(
+            low_colatitude=0, 
+            high_colatitude=math.pi, 
+            sample_on_sphere_uniformly=False, 
+        )
+
+        source_positions = []
+
+        for _ in range(self.sources_num):
+            
+            agent_look_azimuth, agent_look_colatitude = _direction_sampler.sample()
+
+            agent_look_direction = np.array(sph2cart(
+                r=1., 
+                azimuth=agent_look_azimuth, 
+                colatitude=agent_look_colatitude
+            ))
+
+            source_position = mics_center_pos + agent_look_direction
+            source_positions.append(source_position)
 
         return source_positions
 
@@ -255,7 +288,7 @@ class ImageSourceSimulator:
                 mics_pos.append(mic_pos)
 
         elif mic_array_type == "mutli_array":
-            center_pos = np.array([self.length / 2, self.width / 2, self.width / 2])
+            center_pos = np.array([self.length / 2, self.width / 2, self.height / 2])
 
         #todo
         return mics_pos

@@ -56,7 +56,7 @@ def inference(args):
 
     configs = read_yaml(config_yaml)
     model_type = configs['train']['model_type']
-    simulator_configs = configs["simulator_configs"]
+    # simulator_configs = configs["simulator_configs"]
 
     num_workers = 0
     batch_size = 32
@@ -76,12 +76,19 @@ def inference(args):
     model = LitModel.load_from_checkpoint(
         net=net, 
         loss_function=None,
-        checkpoint_path=checkpoint_path
+        learning_rate=None,
+        checkpoint_path=checkpoint_path,
+
     )
 
     # Load audio
-    audio_path = "/home/qiuqiangkong/datasets/dcase2019/task3/downloaded_package/mic_dev/split1_ir0_ov1_1.wav"
+    # audio_path = "/home/qiuqiangkong/datasets/dcase2019/task3/downloaded_package/mic_dev/split1_ir0_ov1_1.wav"
+    audio_path = "/home/qiuqiangkong/datasets/dcase2019/task3/downloaded_package/mic_eval/split0_1.wav"
     audio, fs = librosa.load(path=audio_path, sr=sample_rate, mono=False)
+
+    # audio *= 50
+    # soundfile.write(file="_zz.wav", data=audio.T, samplerate=sample_rate)
+    # from IPython import embed; embed(using=False); os._exit(0)
 
     audio_samples = audio.shape[1]
 
@@ -97,11 +104,12 @@ def inference(args):
 
     rays_num = agent_look_directions.shape[0]
 
-    center_pos = np.array([
-        simulator_configs["room_min_length"] / 2,
-        simulator_configs["room_min_width"] / 2,
-        simulator_configs["room_min_height"] / 2
-    ])
+    # center_pos = np.array([
+    #     simulator_configs["room_min_length"] / 2,
+    #     simulator_configs["room_min_width"] / 2,
+    #     simulator_configs["room_min_height"] / 2
+    # ])
+    center_pos = np.array([4, 4, 2])
     agent_positions = center_pos[None, None, None, :]
     agent_positions = np.repeat(a=agent_positions, repeats=rays_num, axis=1)
     agent_positions = np.repeat(a=agent_positions, repeats=frames_num, axis=2)
@@ -145,7 +153,7 @@ def inference(args):
             "agent_positions": agent_positions,
             "agent_look_directions": agent_look_directions,
         }
-        
+
         for key in input_dict.keys():
             input_dict[key] = torch.Tensor(input_dict[key]).to(device)
 
@@ -258,7 +266,8 @@ def plot(args):
 
 def plot(args):
 
-    csv_path = "/home/qiuqiangkong/datasets/dcase2019/task3/downloaded_package/metadata_dev/split1_ir0_ov1_1.csv"
+    # csv_path = "/home/qiuqiangkong/datasets/dcase2019/task3/downloaded_package/metadata_dev/split1_ir0_ov1_1.csv"
+    csv_path = "/home/qiuqiangkong/datasets/dcase2019/task3/downloaded_package/metadata_eval/split0_1.csv"
 
     frame_indexes, class_indexes, azimuths, colatitudes = read_dcase2019_task3_csv(csv_path=csv_path)
 
@@ -285,6 +294,9 @@ def plot(args):
 
         param = (frame_index, class_index, source_azi, source_col, azimuth_grids, elevation_grids, grid_deg, half_angle)
         params.append(param)
+
+    # for param in params:
+    #     _multiple_process_gt_mat(param)
 
     with ProcessPoolExecutor(max_workers=None) as pool: # Maximum workers on the machine.
         results = pool.map(_multiple_process_gt_mat, params)
@@ -319,6 +331,8 @@ def _multiple_process_gt_mat(param):
 
     source_direction = np.array(sph2cart(1., source_azi, source_col))
 
+    tmp = []
+
     for i in range(gt_mat.shape[0]):
         for j in range(gt_mat.shape[1]):
             _azi = np.deg2rad(i * grid_deg)
@@ -330,6 +344,10 @@ def _multiple_process_gt_mat(param):
 
             if ray_angle < half_angle:
                 gt_mat[i, j] = 1
+                tmp.append((i, j))
+
+    # if class_index == 0:
+    #     from IPython import embed; embed(using=False); os._exit(0)
 
     return frame_index, class_index, gt_mat
 
@@ -386,8 +404,8 @@ def read_dcase2019_task3_csv(csv_path):
             _azimuths.append(azimuths[n])
             _elevations.append(elevations[n])
 
-    azimuths = np.array(_azimuths) % 360
-    colatitudes = 90 - np.array(_elevations)
+    azimuths = np.deg2rad(np.array(_azimuths) % 360)
+    colatitudes = np.deg2rad(90 - np.array(_elevations))
 
     return frame_indexes, class_indexes, azimuths, colatitudes
 

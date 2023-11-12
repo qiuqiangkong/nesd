@@ -30,6 +30,7 @@ from nesd.models.models02 import *
 from nesd.models.lightning_modules import LitModel
 from nesd.optimizers.lr_schedulers import get_lr_lambda
 from nesd.losses import *
+from nesd.data.dcase2019_task3 import DCASE2019Task3Dataset
 # from nesd.callbacks.callback import get_callback
 
 from nesd.test_dataloader import Dataset3, collate_fn
@@ -129,7 +130,7 @@ def get_data_module(
 
     sampler_type = configs['sampler_type']
     dataset_type = configs['dataset_type']
-    simulator_configs = configs["simulator_configs"]
+    # simulator_configs = configs["simulator_configs"]
     # train_hdf5s_dir = os.path.join(workspace, configs['sources']['train_hdf5s_dir'])
     # test_hdf5s_dir = os.path.join(workspace, configs['sources']['test_hdf5s_dir'])
     # classes_num = configs['sources']['classes_num']
@@ -137,19 +138,23 @@ def get_data_module(
     steps_per_epoch = configs['train']['steps_per_epoch']
     batch_size = batch_size_per_device * devices_num
 
-    train_audios_dir = "/home/qiuqiangkong/workspaces/nesd2/audios/vctk_2s_segments/train"
-    test_audios_dir = "/home/qiuqiangkong/workspaces/nesd2/audios/vctk_2s_segments/test"
+    train_hdf5s_dir = "/home/qiuqiangkong/workspaces/nesd2/hdf5s/dcase2019_task3/train"
+    val_hdf5s_dir = "/home/qiuqiangkong/workspaces/nesd2/hdf5s/dcase2019_task3/test"
 
-    train_dataset = Dataset3(
-        audios_dir=train_audios_dir, 
-        expand_frames=201, 
-        simulator_configs=simulator_configs
-    )
-    val_dataset = Dataset3(
-        audios_dir=test_audios_dir, 
-        expand_frames=201,
-        simulator_configs=simulator_configs
-    )
+    train_dataset = DCASE2019Task3Dataset(hdf5s_dir=train_hdf5s_dir)
+    val_dataset = DCASE2019Task3Dataset(hdf5s_dir=val_hdf5s_dir)
+    # val_dataset = DCASE2019Task3Dataset(hdf5s_dir=train_hdf5s_dir)
+
+    # train_dataset = Dataset3(
+    #     audios_dir=train_audios_dir, 
+    #     expand_frames=201, 
+    #     simulator_configs=simulator_configs
+    # )
+    # val_dataset = Dataset3(
+    #     audios_dir=test_audios_dir, 
+    #     expand_frames=201,
+    #     simulator_configs=simulator_configs
+    # )
 
     train_batch_sampler = BatchSampler(batch_size=batch_size, iterations_per_epoch=1000)
     train_batch_sampler = DistributedSamplerWrapper(train_batch_sampler)

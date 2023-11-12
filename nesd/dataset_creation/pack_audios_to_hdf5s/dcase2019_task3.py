@@ -112,40 +112,66 @@ def write_single_audio_to_hdf5(param: List) -> NoReturn:
     offsets = df['end_time'].values
     azimuths = df['azi'].values
     elevations = df['ele'].values
+    distances = df['dist'].values
 
     events_num = len(labels)
-    frames_per_sec = 10
+    frames_per_sec = 100
 
-    frame_indexes = []
-    class_indexes = []
-    event_indexes = []
-    _azimuths = []
-    _elevations = []
+    audio_samples = audio.shape[-1]
+    audio_duration = audio_samples / sample_rate
+    frames_num = int(audio_duration * frames_per_sec) + 1
+
+    # frame_indexes = []
+    # class_indexes = []
+    # event_indexes = []
+    # _azimuths = []
+    # _elevations = []
+    # _distances = []
+
+    max_sources_num = 3
+    has_sources_array = np.zeros((max_sources_num, frames_num))
+    # class_indexes_array = np.zeros((max_sources_num, frames_num), dtype=np.int32)
+    # azimuths_array = np.zeros((max_sources_num, frames_num))
+    # elevations_array = np.zeros((max_sources_num, frames_num))
+    # distances_array = np.zeros((max_sources_num, frames_num))
+
+    class_indexes_array = -65535 * np.ones((max_sources_num, frames_num), dtype=np.int32)
+    azimuths_array = -65535 * np.ones((max_sources_num, frames_num))
+    elevations_array = -65535 * np.ones((max_sources_num, frames_num))
+    distances_array = -65535 * np.ones((max_sources_num, frames_num))
 
     for n in range(events_num):
 
-        onset_frame = int(onsets[n] * frames_per_sec)
-        offset_frame = int(offsets[n] * frames_per_sec)
+        bgn_frame = int(onsets[n] * frames_per_sec)
+        end_frame = int(offsets[n] * frames_per_sec)
 
-        for frame_index in np.arange(onset_frame, offset_frame + 1):
-            frame_indexes.append(frame_index)
-            class_indexes.append(LB_TO_ID[labels[n]])
-            event_indexes.append(n)
-            _azimuths.append(azimuths[n])
-            _elevations.append(elevations[n])
+        source_id = 0
+        while np.sum(has_sources_array[source_id, bgn_frame : end_frame + 1]) != 0:
+            source_id += 1
 
-    duration = audio.shape[-1] / sample_rate
+        for frame_index in np.arange(bgn_frame, end_frame + 1):
+
+            has_sources_array[source_id, frame_index] = 1
+            class_indexes_array[source_id, frame_index] = LB_TO_ID[labels[n]]
+            azimuths_array[source_id, frame_index] = azimuths[n]
+            elevations_array[source_id, frame_index] = elevations[n]
+            distances_array[source_id, frame_index] = distances[n]
 
     with h5py.File(hdf5_path, "w") as hf:
         hf.create_dataset(name="waveform", data=float32_to_int16(audio), dtype=np.int16)
-        hf.create_dataset(name="frame_index", data=frame_indexes, dtype=np.int32)
-        hf.create_dataset(name="class_index", data=class_indexes, dtype=np.int32)
-        hf.create_dataset(name="event_index", data=event_indexes, dtype=np.int32)
-        hf.create_dataset(name="azimuth", data=_azimuths, dtype=np.float32)
-        hf.create_dataset(name="elevation", data=_elevations, dtype=np.float32)
+        hf.create_dataset(name="has_source", data=has_sources_array, dtype=np.int32)
+        hf.create_dataset(name="class_index", data=class_indexes_array, dtype=np.int32)
+        hf.create_dataset(name="azimuth", data=azimuths_array, dtype=np.int32)
+        hf.create_dataset(name="elevation", data=elevations_array, dtype=np.int32)
+        hf.create_dataset(name="distance", data=distances_array, dtype=np.int32)
+        # hf.create_dataset(name="class_index", data=class_indexes, dtype=np.int32)
+        # hf.create_dataset(name="event_index", data=event_indexes, dtype=np.int32)
+        # hf.create_dataset(name="azimuth", data=_azimuths, dtype=np.float32)
+        # hf.create_dataset(name="elevation", data=_elevations, dtype=np.float32)
+        # hf.create_dataset(name="distance", data=_distances, dtype=np.float32)
         hf.attrs.create("audio_name", data=bare_name.encode(), dtype="S100")
         hf.attrs.create("sample_rate", data=sample_rate, dtype=np.int32)
-        hf.attrs.create("duration", data=duration, dtype=np.float32)
+        hf.attrs.create("duration", data=audio_duration, dtype=np.float32)
 
     print('{} Write hdf5 to {}'.format(audio_index, hdf5_path))
 

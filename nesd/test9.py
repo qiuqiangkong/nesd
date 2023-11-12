@@ -478,10 +478,19 @@ def add5():
 
     from IPython import embed; embed(using=False); os._exit(0)
 
+def add6():
+
+    audio_path = "/home/qiuqiangkong/datasets/dcase2019/task3/downloaded_package/mic_dev/split1_ir2_ov1_47.wav"
+
+    t1 = time.time()
+    audio, fs = librosa.load(path=audio_path, sr=24000, offset=12, duration=2, mono=False)
+    print(time.time() - t1)
+
 if __name__ == '__main__':
 
     # add()
     # add2()
     # add3()
     # add4()
-    add5()
+    # add5()
+    add6()
