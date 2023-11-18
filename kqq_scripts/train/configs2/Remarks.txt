@@ -1,2 +1,8 @@
 01a.yaml	random room size, random mics pos
-02a.yaml	
+02a.yaml	fix room, fix mic, fix agent, img=3
+03a.yaml	random room, random mic, center agent, source=1-2, lowpass=500, works
+
+freefield_01a.yaml	fix pos, 4.2cm, omni
+freefield_01b.yaml	fix pos, 0cm, cardioid
+freefield_01c.yaml	fix pos, 4.2cm, cardioid
+freefield_02a.yaml	lowpass=500, others same as freefield_01a, much better

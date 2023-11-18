@@ -17,6 +17,7 @@ import lightning as L
 from pathlib import Path
 from concurrent.futures import ProcessPoolExecutor
 
+import torchaudio
 import pytorch_lightning as pl
 # from pytorch_lightning.plugins import DDPPlugin
 import torch 
@@ -56,7 +57,9 @@ def inference(args):
 
     configs = read_yaml(config_yaml)
     model_type = configs['train']['model_type']
-    # simulator_configs = configs["simulator_configs"]
+    simulator_configs = configs["simulator_configs"]
+    mics_yaml = simulator_configs["mics_yaml"]
+    lowpass_freq = configs["lowpass_freq"] if "lowpass_freq" in configs.keys() else None
 
     num_workers = 0
     batch_size = 32
@@ -89,6 +92,13 @@ def inference(args):
     # audio *= 50
     # soundfile.write(file="_zz.wav", data=audio.T, samplerate=sample_rate)
     # from IPython import embed; embed(using=False); os._exit(0)
+
+    if lowpass_freq is not None:
+        audio = torchaudio.functional.lowpass_biquad(
+            waveform=torch.Tensor(audio),
+            sample_rate=sample_rate,
+            cutoff_freq=500,
+        ).data.cpu().numpy()
 
     audio_samples = audio.shape[1]
 
@@ -129,7 +139,7 @@ def inference(args):
         axis=-2
     )
 
-    mic_positions = get_mic_positions(center_pos)
+    mic_positions = get_mic_positions(center_pos, mics_yaml)
     mic_positions = np.repeat(
         a=mic_positions[None, :, None, :],
         repeats=frames_num,
@@ -180,11 +190,11 @@ def inference(args):
     from IPython import embed; embed(using=False); os._exit(0)
 
 
-def get_mic_positions(center_pos):
+def get_mic_positions(center_pos, mics_yaml):
 
     mics_pos = []
 
-    mics_yaml = "./nesd/microphones/eigenmike.yaml"
+    # mics_yaml = "./microphones/eigenmike.yaml"
 
     with open(mics_yaml, 'r') as f:
         mics_meta = yaml.load(f, Loader=yaml.FullLoader)

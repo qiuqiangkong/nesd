@@ -1,5 +1,6 @@
 import math
 import numpy as np
+import os
 import pyroomacoustics as pra
 import librosa
 from room import Room
@@ -117,7 +118,7 @@ class ImageSourceSimulator:
                 self.source_positions = self.sample_source_positions_on_unit_sphere(mics_center_pos)
                 # from IPython import embed; embed(using=False); os._exit(0)
 
-            else:
+            elif sources_position_type == "random":
                 self.source_positions = self.sample_source_positions(
                     exclude_positions=self.mic_positions, 
                     exclude_raidus=self.exclude_raidus
@@ -270,7 +271,7 @@ class ImageSourceSimulator:
 
             mics_pos = []
 
-            mics_yaml = "./nesd/microphones/eigenmike.yaml"
+            mics_yaml = "./microphones/eigenmike.yaml"
 
             with open(mics_yaml, 'r') as f:
                 mics_meta = yaml.load(f, Loader=yaml.FullLoader)
@@ -348,7 +349,12 @@ class ImageSourceSimulator:
             room.extrude(height=self.height)
 
             source_position = self.source_positions[source_index]
-            room.add_source(source_position)
+            try:
+                room.add_source(source_position)
+            except:
+                print(self.length, self.width, self.height)
+                print(source_position)
+                from IPython import embed; embed(using=False); os._exit(0)
 
             room.add_microphone([0.1, 0.1, 0.1])    # dummy
 

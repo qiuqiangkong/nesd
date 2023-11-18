@@ -4,25 +4,26 @@ speed_of_sound: 343.
 sampler_type: Sampler
 dataset_type: Dataset
 simulator_configs:
-    image_source_max_order: 0
+    image_source_max_order: 3
     min_sources_num: 1
-    max_sources_num: 1
+    max_sources_num: 2
     positive_rays: 4
     total_rays: 20
-    room_min_length: 8
+    room_min_length: 4
     room_max_length: 8
-    room_min_width: 8
+    room_min_width: 4
     room_max_width: 8
-    room_min_height: 4
+    room_min_height: 2
     room_max_height: 4
-    mics_position_type: "center_of_room"
+    mics_position_type: "random"
     agent_position_type: "center_of_mics"
-    sources_position_type: "unit_sphere"
+    sources_position_type: "random"
     mics_yaml: "./microphones/eigenmike_4.2cm_omni.yaml"
 
 train:
     device: "gpu"
     # devices_num: 1
+    # num_workers: 0
     num_workers: 16
     # num_workers: 56
     sample_rate: 24000

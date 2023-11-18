@@ -3,6 +3,7 @@ task_name: vctk
 speed_of_sound: 343.
 sampler_type: Sampler
 dataset_type: Dataset
+lowpass_freq: 500
 simulator_configs:
     image_source_max_order: 0
     min_sources_num: 1

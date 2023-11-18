@@ -18,7 +18,7 @@ simulator_configs:
     mics_position_type: "center_of_room"
     agent_position_type: "center_of_mics"
     sources_position_type: "unit_sphere"
-    mics_yaml: "./microphones/eigenmike_4.2cm_omni.yaml"
+    mics_yaml: "./microphones/eigenmike_0cm_cardioid.yaml"
 
 train:
     device: "gpu"

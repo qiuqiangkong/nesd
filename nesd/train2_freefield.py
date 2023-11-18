@@ -131,6 +131,7 @@ def get_data_module(
     sampler_type = configs['sampler_type']
     dataset_type = configs['dataset_type']
     simulator_configs = configs["simulator_configs"]
+    lowpass_freq = configs["lowpass_freq"] if "lowpass_freq" in configs.keys() else None
     # train_hdf5s_dir = os.path.join(workspace, configs['sources']['train_hdf5s_dir'])
     # test_hdf5s_dir = os.path.join(workspace, configs['sources']['test_hdf5s_dir'])
     # classes_num = configs['sources']['classes_num']
@@ -144,12 +145,14 @@ def get_data_module(
     train_dataset = DatasetFreefield(
         audios_dir=train_audios_dir, 
         expand_frames=201, 
-        simulator_configs=simulator_configs
+        simulator_configs=simulator_configs,
+        lowpass_freq=lowpass_freq
     )
     val_dataset = DatasetFreefield(
         audios_dir=test_audios_dir, 
         expand_frames=201,
-        simulator_configs=simulator_configs
+        simulator_configs=simulator_configs,
+        lowpass_freq=lowpass_freq
     )
 
     train_batch_sampler = BatchSampler(batch_size=batch_size, iterations_per_epoch=1000)

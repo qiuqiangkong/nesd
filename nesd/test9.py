@@ -6,6 +6,8 @@ import librosa
 import soundfile
 import time
 from scipy import signal
+import torchaudio
+import torch
 
 from nesd.utils import normalize
 
@@ -486,6 +488,38 @@ def add6():
     audio, fs = librosa.load(path=audio_path, sr=24000, offset=12, duration=2, mono=False)
     print(time.time() - t1)
 
+# low pass filter
+def add7():
+
+    sample_rate = 24000
+
+    audio_path = "/home/qiuqiangkong/workspaces/nesd2/audios/vctk_2s_segments/test/p347_001.wav"
+    audio, fs = librosa.load(path=audio_path, sr=sample_rate, mono=True)
+
+    t1 = time.time()
+    audio = torchaudio.functional.lowpass_biquad(
+        waveform=torch.Tensor(audio),
+        sample_rate=sample_rate,
+        cutoff_freq=500,
+    ).data.cpu().numpy()
+    print(time.time() - t1)
+
+    soundfile.write(file="_zz.wav", data=audio, samplerate=sample_rate)
+    from IPython import embed; embed(using=False); os._exit(0)
+
+# eigenmike response
+def add8():
+
+    import scipy
+
+    n = 0
+    cos = 0.3
+
+    scipy.special.eval_legendre(n, cos)
+
+    from IPython import embed; embed(using=False); os._exit(0)
+
+
 if __name__ == '__main__':
 
     # add()
@@ -493,4 +527,6 @@ if __name__ == '__main__':
     # add3()
     # add4()
     # add5()
-    add6()
+    # add6()
+    # add7()
+    add8()

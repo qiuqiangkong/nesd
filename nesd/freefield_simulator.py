@@ -9,6 +9,7 @@ import math
 import numpy as np
 import pyroomacoustics as pra
 import librosa
+import torchaudio
 from room import Room
 from nesd.utils import norm, fractional_delay_filter, FractionalDelay, DirectionSampler, sph2cart, get_cos, Agent, repeat_to_length, cart2sph, Rotator3D, sample_agent_look_direction, fractional_delay, calculate_microphone_gain
 import time
@@ -17,7 +18,7 @@ import yaml
 
 
 class DatasetFreefield:
-    def __init__(self, audios_dir, expand_frames=None, simulator_configs=None):
+    def __init__(self, audios_dir, expand_frames=None, simulator_configs=None, lowpass_freq=None):
         self.audios_dir = audios_dir
         self.expand_frames = expand_frames
         self.simulator_configs = simulator_configs
@@ -25,36 +26,20 @@ class DatasetFreefield:
         self.simulator = FreefieldSimulator(
             audios_dir=self.audios_dir, 
             expand_frames=self.expand_frames,
-            simulator_configs=self.simulator_configs
+            simulator_configs=self.simulator_configs,
+            lowpass_freq=lowpass_freq
         )
 
     def __getitem__(self, meta):
-        # print(meta)
         
         data = self.simulator.sample()
-
-        # data = {
-        #     "room_length": iss_data.length,
-        #     "room_width": iss_data.width,
-        #     "room_height": iss_data.height,
-        #     "source_positions": iss_data.source_positions,
-        #     "source_signals": iss_data.sources,
-        #     "mic_positions": iss_data.mic_positions,
-        #     "mic_look_directions": iss_data.mic_look_directions,
-        #     "mic_signals": iss_data.mic_signals,
-        #     "agent_positions": iss_data.agent_positions,
-        #     "agent_look_directions": iss_data.agent_look_directions,
-        #     "agent_signals": iss_data.agent_waveforms,
-        #     "agent_look_directions_has_source": iss_data.agent_look_directions_has_source,
-        #     "agent_ray_types": iss_data.agent_ray_types
-        # }
 
         return data
 
 
 class FreefieldSimulator:
 
-    def __init__(self, audios_dir, expand_frames=None, simulator_configs=None): 
+    def __init__(self, audios_dir, expand_frames=None, simulator_configs=None, lowpass_freq=None): 
 
         self.expand_frames = expand_frames
         self.simulator_configs = simulator_configs
@@ -66,6 +51,9 @@ class FreefieldSimulator:
         self.exclude_raidus = 0.5
 
         self.audio_paths = list(Path(audios_dir).glob("*.wav"))
+        self.mics_yaml = simulator_configs["mics_yaml"]
+
+        self.lowpass_freq = lowpass_freq
 
     def sample(self):
 
@@ -88,30 +76,30 @@ class FreefieldSimulator:
             pass
         else:
 
-            # t1 = time.time()
-            self.sources = self.sample_sources()
-            # print("a2", time.time() - t1)
-
-            # t1 = time.time()
-            # self.source_positions = self.sample_source_positions()
-            # (sources_num, ndim)
-            # print("a3", time.time() - t1)
-
-            # t1 = time.time()
-            # if mics_position_type == "random":
-            # self.mic_positions = self.sample_mic_positions(
-            #     exclude_positions=self.source_positions, 
-            #     exclude_raidus=self.exclude_raidus,
-            # )
             self.length = 8
             self.width = 8
             self.height = 4
 
-            self.mic_positions, _mic_look_directions = self.sample_mic_positions(
+            # Sample mic
+            self.mic_positions, _mic_look_directions, mic_directivities = self.sample_mic_positions(
                 exclude_positions=None, 
                 exclude_raidus=None,
             )
 
+            # Sample source
+            self.sources = self.sample_sources()
+
+            if self.lowpass_freq is not None:
+
+                # for source in self.sources:
+                for i in range(len(self.sources)):
+                    self.sources[i] = torchaudio.functional.lowpass_biquad(
+                        waveform=torch.Tensor(self.sources[i]),
+                        sample_rate=self.sample_rate,
+                        cutoff_freq=500,
+                    ).data.cpu().numpy()
+
+            # Sample source positions
             if sources_position_type == "unit_sphere":
                 mics_center_pos = np.mean(self.mic_positions, axis=0)
                 self.source_positions = self.sample_source_positions_on_unit_sphere(mics_center_pos)
@@ -121,16 +109,11 @@ class FreefieldSimulator:
                     exclude_positions=self.mic_positions, 
                     exclude_raidus=self.exclude_raidus
                 )
-            
-            # (mics_num, ndim)
-            # print("a4", time.time() - t1)
-
 
             mics_num = len(self.mic_positions)
 
             self.mic_look_directions = np.ones((mics_num, 3))
 
-            # t1 = time.time()
             if agent_position_type == "center_of_mics":
                 self.agent_position = np.mean(self.mic_positions, axis=0)
 
@@ -141,54 +124,35 @@ class FreefieldSimulator:
                 )
             else:
                 raise NotImplementedError
-            # (ndim,)
-            # print("a5", time.time() - t1)
-            # print("b1", time.time() - t1)
 
         self.mic_signals = []
 
-        # t1 = time.time()
-
         # TODO, mic signals
-        for mic_position, _mic_look_direction in zip(self.mic_positions, _mic_look_directions):
+        for mic_position, _mic_look_direction, mic_directivity in zip(self.mic_positions, _mic_look_directions, mic_directivities):
 
             mic_signal = 0
 
-            # total = 0
             for source, source_position in zip(self.sources, self.source_positions):
                 mic_to_src = source_position - mic_position
                 delayed_seconds = norm(mic_to_src) / self.speed_of_sound
                 delayed_samples = self.sample_rate * delayed_seconds
 
-                
-                # cos = get_cos(_mic_look_direction, mic_to_src)
-                # gain = calculate_microphone_gain(cos=cos, directivity="cardioid")
-                gain = 1
+                cos = get_cos(_mic_look_direction, mic_to_src)
+                gain = calculate_microphone_gain(cos=cos, directivity=mic_directivity)
 
                 y = fractional_delay(x=source, delayed_samples=delayed_samples)
                 y *= gain
 
                 mic_signal += y
-                # from IPython import embed; embed(using=False); os._exit(0)
 
             self.mic_signals.append(mic_signal)
 
         self.mic_signals = np.stack(self.mic_signals, axis=0)
         # soundfile.write(file="_zz.wav", data=self.mic_signals.T, samplerate=self.sample_rate)
-        # print("c1", time.time() - t1)
-
-        # from IPython import embed; embed(using=False); os._exit(0)
-
-        # Simulate microphone signals
-        # t1 = time.time()
-        # self.mic_signals = self.simulate_microphone_signals(self.mic_positions)
-        # print("a7", time.time() - t1)
 
         # Simluate agent signals
-        # t1 = time.time()
         self.agents = self.sample_and_simulate_agent_signals()
-        # print("a8", time.time() - t1)
-
+        
         self.mic_look_directions = np.stack(self.mic_look_directions, axis=0)
         self.mic_positions = np.stack(self.mic_positions, axis=0)
         self.mic_signals = np.stack(self.mic_signals, axis=0)
@@ -196,9 +160,7 @@ class FreefieldSimulator:
         self.agent_positions = np.stack([agent.position for agent in self.agents], axis=0)
         self.agent_look_directions = np.stack([agent.look_direction for agent in self.agents], axis=0)
         self.agent_look_directions_has_source = np.stack([agent.look_direction_has_source for agent in self.agents], axis=0)
-        # from IPython import embed; embed(using=False); os._exit(0)
         self.agent_waveforms = np.stack([agent.waveform for agent in self.agents], axis=0)
-        # self.agent_look_direction_has_source = np.stack([agent.look_direction_has_source for agent in self.agents], axis=0)
         self.agent_ray_types = np.stack([agent.ray_type for agent in self.agents], axis=0)
 
         if self.expand_frames:
@@ -209,12 +171,6 @@ class FreefieldSimulator:
 
             for i in range(len(self.source_positions)):
                 self.source_positions[i] = expand_frame_dim(self.source_positions[i], self.expand_frames)
-            
-            # self.agent_look_directions_has_source = expand_frame_dim(self.agent_look_directions_has_source, expand_frames)
-
-        # self.agent_positions = np.stack(self.agent_positions)
-        # from IPython import embed; embed(using=False); os._exit(0)
-        # print("d1", time.time() - t1)
 
         data = {
             "room_length": self.length,
@@ -303,6 +259,7 @@ class FreefieldSimulator:
             raise NotImplementedError
 
         mic_look_directions = []
+        directivities = []
 
         # mic_array_type = "linear"
         mic_array_type = "eigenmike"
@@ -317,9 +274,9 @@ class FreefieldSimulator:
 
             mics_pos = []
 
-            mics_yaml = "./nesd/microphones/eigenmike.yaml"
+            # mics_yaml = "./nesd/microphones/eigenmike.yaml"
 
-            with open(mics_yaml, 'r') as f:
+            with open(self.mics_yaml, 'r') as f:
                 mics_meta = yaml.load(f, Loader=yaml.FullLoader)
 
             for mic_meta in mics_meta:
@@ -334,12 +291,13 @@ class FreefieldSimulator:
 
                 mics_pos.append(mic_pos)
                 mic_look_directions.append(relative_mic_pos)
+                directivities.append(mic_meta["directivity"])
 
         elif mic_array_type == "mutli_array":
             center_pos = np.array([self.length / 2, self.width / 2, self.height / 2])
 
         #todo
-        return mics_pos, mic_look_directions
+        return mics_pos, mic_look_directions, directivities
 
     def sample_position_in_room(self, exclude_positions=None, exclude_raidus=None):
 

@@ -4,7 +4,7 @@ speed_of_sound: 343.
 sampler_type: Sampler
 dataset_type: Dataset
 simulator_configs:
-    image_source_max_order: 0
+    image_source_max_order: 3
     min_sources_num: 1
     max_sources_num: 1
     positive_rays: 4
@@ -24,8 +24,8 @@ train:
     device: "gpu"
     # devices_num: 1
     # num_workers: 0
-    # num_workers: 16
-    num_workers: 56
+    num_workers: 16
+    # num_workers: 56
     sample_rate: 24000
     input_channels: 1
     output_channels: 1
