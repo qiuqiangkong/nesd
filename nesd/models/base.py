@@ -312,7 +312,26 @@ class LookDirectionEncoder:
         return positional_embedding
 
 
-class DepthEncoder:
+# class DepthEncoder:
+#     def __init__(self, factor):
+#         self.factor = factor
+#         self.room_scaler = 10 / math.pi
+
+#     def __call__(self, depth):
+
+#         angles = []
+        
+#         for i in range(self.factor):
+#             angles.append((2 ** i) * (depth / self.room_scaler))
+
+#         angles = torch.stack(angles, dim=-1)
+
+#         depth_embedding = torch.cat((torch.cos(angles), torch.sin(angles)), dim=-1)
+
+#         return depth_embedding
+
+
+class LookDepthEncoder:
     def __init__(self, factor):
         self.factor = factor
         self.room_scaler = 10 / math.pi
@@ -330,6 +349,7 @@ class DepthEncoder:
 
         return depth_embedding
 
+DepthEncoder = LookDepthEncoder
 
 # class PositionalEncoderRoomR:
 #     def __init__(self, factor):

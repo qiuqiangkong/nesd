@@ -9,9 +9,12 @@ import logging
 from scipy.signal import fftconvolve
 from scipy import signal
 import librosa
+import random
 
 import torch
 import numpy as np
+
+PAD = -9999
 
 
 def float32_to_int16(x: np.float32) -> np.int16:
@@ -585,11 +588,13 @@ class Agent:
         assert is_unit_norm_direction
 '''
 class Agent:
-    def __init__(self, position, look_direction, waveform, look_direction_has_source=None, see_source=None, see_source_classwise=None, ray_type=None):
+    def __init__(self, position, look_direction, waveform, look_direction_has_source=None, look_depth_has_source=None, see_source=None, see_source_classwise=None, ray_type=None, look_depth=None):
         self.position = position
         self.look_direction = look_direction
+        self.look_depth = [look_depth]
         self.waveform = waveform
         self.look_direction_has_source = look_direction_has_source
+        self.look_depth_has_source = look_depth_has_source
         # self.see_source = see_source
         # self.see_source_classwise = see_source_classwise
         self.ray_type = ray_type
@@ -601,6 +606,12 @@ class Agent:
             b=np.ones(frames_num),
         )
         assert is_unit_norm_direction
+
+        if look_depth is None:
+            self.look_depth = [PAD]
+
+        if look_depth_has_source is None:
+            self.look_depth_has_source = PAD *np.ones(look_direction_has_source.shape[0])
 
 class Rotator3D:
     def __init__(self):
@@ -849,3 +860,18 @@ def repeat_to_length(audio: np.ndarray, segment_samples: int) -> np.ndarray:
     audio = np.tile(audio, repeats_num)[0 : segment_samples]
 
     return audio
+
+
+def sample_positive_depth(x, radius, max_length):
+    depth = random.uniform(max(0, x - radius), min(x + radius, max_length))
+    return depth
+
+
+def sample_negative_depth(x, radius, max_length):
+    while True:
+        depth = random.uniform(0, max_length)
+        if x - radius < depth < x + radius:
+            continue
+        else:
+            break
+    return depth

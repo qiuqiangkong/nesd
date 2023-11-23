@@ -142,9 +142,14 @@ class Dataset3:
             "mic_signals": iss_data.mic_signals,
             "agent_positions": iss_data.agent_positions,
             "agent_look_directions": iss_data.agent_look_directions,
-            "agent_signals": iss_data.agent_waveforms,
+            "agent_look_depths": iss_data.agent_look_depths,
+            # "agent_signals": iss_data.agent_waveforms,
             "agent_look_directions_has_source": iss_data.agent_look_directions_has_source,
-            "agent_ray_types": iss_data.agent_ray_types
+            "agent_look_depths_has_source": iss_data.agent_look_depths_has_source,
+            "agent_ray_types": iss_data.agent_ray_types,
+            "agent_active_indexes": iss_data.active_indexes,
+            "agent_active_indexes_mask": iss_data.active_indexes_mask,
+            "agent_signals": iss_data.agent_waveforms
         }
 
         return data
@@ -160,8 +165,11 @@ def collate_fn(list_data_dict):
         
         data_dict[key] = [dd[key] for dd in list_data_dict]
 
-        if key in ["mic_positions", "mic_look_directions", "mic_signals", "agent_positions", "agent_look_directions", "agent_signals", "agent_look_directions_has_source"]:
+        if key in ["mic_positions", "mic_look_directions", "mic_signals", "agent_positions", "agent_look_directions", "agent_look_depths", "agent_look_directions_has_source", "agent_look_depths_has_source", "agent_active_indexes_mask", "agent_signals"]:
             data_dict[key] = torch.Tensor(np.stack(data_dict[key], axis=0))
+
+        elif key in ["agent_active_indexes"]:
+            data_dict[key] = torch.LongTensor(np.stack(data_dict[key], axis=0))
 
     return data_dict
 

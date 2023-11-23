@@ -5,6 +5,7 @@ import math
 import librosa
 import soundfile
 import time
+import random
 from scipy import signal
 import torchaudio
 import torch
@@ -515,9 +516,35 @@ def add8():
     n = 0
     cos = 0.3
 
-    scipy.special.eval_legendre(n, cos)
+    (2 * n + 1) * scipy.special.eval_legendre(n, cos)
 
     from IPython import embed; embed(using=False); os._exit(0)
+
+
+def add9():
+    depth = sample_positive_depth(x=3, radius=0.5, max_length=10)
+    depth = sample_negative_depth(x=3, radius=0.5, max_length=10)
+    from IPython import embed; embed(using=False); os._exit(0)
+
+
+def sample_positive_depth(x, radius, max_length):
+    depth = random.uniform(max(0, x - radius), min(x + radius, max_length))
+    return depth
+
+
+def sample_negative_depth(x, radius, max_length):
+    while True:
+        depth = random.uniform(0, max_length)
+        if x - radius < depth < x + radius:
+            continue
+        else:
+            break
+    return depth
+
+
+def add10():
+
+    a1 = np.arange(10)
 
 
 if __name__ == '__main__':
@@ -529,4 +556,6 @@ if __name__ == '__main__':
     # add5()
     # add6()
     # add7()
-    add8()
+    # add8()
+    # add9()
+    add10()

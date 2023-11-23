@@ -312,7 +312,8 @@ def train(args) -> NoReturn:
         filename="{epoch}-{step}-{test_loss:.3f}",
         verbose=True,
         save_last=False,
-        save_weights_only=True,
+        # save_weights_only=True,
+        save_weights_only=False,
         # every_n_train_steps=50,
         save_top_k=3,
         monitor="test_loss",
@@ -337,7 +338,8 @@ def train(args) -> NoReturn:
         model=lit_model, 
         train_dataloaders=train_dataloader,
         val_dataloaders=val_dataloader,
-        ckpt_path=None
+        ckpt_path=None, 
+        # ckpt_path="/home/qiuqiangkong/workspaces/nesd2/checkpoints/train2/config=06a/epoch=8-step=9000-test_loss=0.194.ckpt"
     )
 
 
