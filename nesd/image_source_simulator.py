@@ -749,6 +749,9 @@ class ImageSourceSimulator:
         self.agent_waveforms = np.stack(self.agent_waveforms, axis=0)
 
         # from IPython import embed; embed(using=False); os._exit(0)
+        # import soundfile
+        # soundfile.write(file="_zz.wav", data=self.mic_signals[0], samplerate=24000)
+        # soundfile.write(file="_zz2.wav", data=self.agent_waveforms[0], samplerate=24000)
 
     def sample_shoebox_room(self):
 

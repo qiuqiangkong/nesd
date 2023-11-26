@@ -447,6 +447,7 @@ class Model02(nn.Module, Base):
         self, 
         data_dict: Dict, 
         do_separation=None,
+        mode="train",
     ):
 
         mic_positions = data_dict["mic_positions"]
@@ -1046,6 +1047,7 @@ class Model02_depth(nn.Module, Base):
         self, 
         data_dict: Dict, 
         do_separation=None,
+        mode="train",
     ):
 
         mic_positions = data_dict["mic_positions"]

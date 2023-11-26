@@ -3,7 +3,7 @@
 03a.yaml	random room, random mic, center agent, sources=1-2, lowpass=500, works
 04a.yaml	random room, random mic, random agent, sources=1-2, lowpass=500, works
 05a.yaml	depth, others same as 03a
-06a.yaml	sep, others same as 03a, sources=2
+06a.yaml	sep, others same as 03a, sources=2, max_order=0
 
 
 freefield_01a.yaml	fix pos, 4.2cm, omni

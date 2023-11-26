@@ -41,7 +41,21 @@ from nesd.image_source_simulator import expand_frame_dim
 from nesd.inference2 import get_all_agent_look_directions, forward_in_batch
 
 
-LABELS = ['clearthroat', 'cough', 'doorslam', 'drawer', 'keyboard', 'keysDrop', 'knock', 'laughter', 'pageturn', 'phone', 'speech']
+# LABELS = ['clearthroat', 'cough', 'doorslam', 'drawer', 'keyboard', 'keysDrop', 'knock', 'laughter', 'pageturn', 'phone', 'speech']
+LABELS = ["alarm",
+"crying baby",
+"crash",
+"barking dog",
+"running engine",
+"female scream",
+"female speech",
+"burning fire",
+"footsteps",
+"knocking on door",
+"male scream",
+"male speech",
+"ringing phone",
+"piano"]
 
 LB_TO_ID = {lb: id for id, lb in enumerate(LABELS)}
 ID_TO_LB = {id: lb for id, lb in enumerate(LABELS)}
@@ -85,8 +99,7 @@ def inference(args):
     )
 
     # Load audio
-    # audio_path = "/home/qiuqiangkong/datasets/dcase2019/task3/downloaded_package/mic_dev/split1_ir0_ov1_1.wav"
-    audio_path = "/home/qiuqiangkong/datasets/dcase2019/task3/downloaded_package/mic_eval/split0_1.wav"
+    audio_path = "/home/qiuqiangkong/datasets/dcase2020/task3/part_mic_dev/fold6_room1_mix100_ov2.wav"
     audio, fs = librosa.load(path=audio_path, sr=sample_rate, mono=False)
 
     # audio *= 50
@@ -279,9 +292,9 @@ def plot(args):
 def plot(args):
 
     # csv_path = "/home/qiuqiangkong/datasets/dcase2019/task3/downloaded_package/metadata_dev/split1_ir0_ov1_1.csv"
-    csv_path = "/home/qiuqiangkong/datasets/dcase2019/task3/downloaded_package/metadata_eval/split0_1.csv"
+    csv_path = "/home/qiuqiangkong/datasets/dcase2020/task3/metadata_dev/fold6_room1_mix100_ov2.csv"
 
-    frame_indexes, class_indexes, azimuths, colatitudes, distances = read_dcase2019_task3_csv(csv_path=csv_path)
+    frame_indexes, class_indexes, azimuths, colatitudes, distances = read_dcase2020_task3_csv(csv_path=csv_path)
 
     #
     pred_tensor = pickle.load(open("_zz2.pkl", "rb"))
@@ -384,44 +397,53 @@ def _multiple_process_plot(param):
     plt.savefig('_tmp/_zz_{:04d}.png'.format(n))
 
 
-def read_dcase2019_task3_csv(csv_path):
+def read_dcase2020_task3_csv(csv_path):
 
-    df = pd.read_csv(csv_path, sep=',')
-    labels = df['sound_event_recording'].values
-    onsets = df['start_time'].values
-    offsets = df['end_time'].values
-    azimuths = df['azi'].values
-    elevations = df['ele'].values
-    distances = df['dist'].values
+    df = pd.read_csv(csv_path, sep=',', header=None)
 
-    events_num = len(labels)
-    frames_per_sec = 10
+    frame_indexes = df[0].values
+    class_indexes = df[1].values
+    azimuths = df[3].values
+    elevations = df[4].values
+    distances = np.zeros(len(frame_indexes))
 
-    frame_indexes = []
-    class_indexes = []
-    event_indexes = []
-    _azimuths = []
-    _elevations = []
-    _distances = []
+    # labels = df['sound_event_recording'].values
+    # onsets = df['start_time'].values
+    # offsets = df['end_time'].values
+    # azimuths = df['azi'].values
+    # elevations = df['ele'].values
+    # distances = df['dist'].values
 
-    # from nesd.dataset_creation.pack_audios_to_hdf5s.dcase2019_task3 import LB_TO_ID
+    # events_num = len(labels)
+    # frames_per_sec = 10
 
-    for n in range(events_num):
+    # frame_indexes = []
+    # class_indexes = []
+    # event_indexes = []
+    # _azimuths = []
+    # _elevations = []
+    # _distances = []
 
-        onset_frame = int(onsets[n] * frames_per_sec)
-        offset_frame = int(offsets[n] * frames_per_sec)
+    # # from nesd.dataset_creation.pack_audios_to_hdf5s.dcase2019_task3 import LB_TO_ID
 
-        for frame_index in np.arange(onset_frame, offset_frame + 1):
-            frame_indexes.append(frame_index)
-            class_indexes.append(LB_TO_ID[labels[n]])
-            event_indexes.append(n)
-            _azimuths.append(azimuths[n])
-            _elevations.append(elevations[n])
-            _distances.append(distances[n])
+    # for n in range(events_num):
 
-    azimuths = np.deg2rad(np.array(_azimuths) % 360)
-    colatitudes = np.deg2rad(90 - np.array(_elevations))
-    distances = np.array(_distances)
+    #     onset_frame = int(onsets[n] * frames_per_sec)
+    #     offset_frame = int(offsets[n] * frames_per_sec)
+
+    #     for frame_index in np.arange(onset_frame, offset_frame + 1):
+    #         frame_indexes.append(frame_index)
+    #         class_indexes.append(LB_TO_ID[labels[n]])
+    #         event_indexes.append(n)
+    #         _azimuths.append(azimuths[n])
+    #         _elevations.append(elevations[n])
+    #         _distances.append(distances[n])
+
+    azimuths = np.deg2rad(np.array(azimuths) % 360)
+    colatitudes = np.deg2rad(90 - np.array(elevations))
+    # distances = np.array(distances)
+
+    # from IPython import embed; embed(using=False); os._exit(0)
 
     return frame_indexes, class_indexes, azimuths, colatitudes, distances
 
@@ -463,12 +485,12 @@ def inference_depth(args):
 
     )
 
-    csv_path = "/home/qiuqiangkong/datasets/dcase2019/task3/downloaded_package/metadata_eval/split0_1.csv"
-    frame_indexes, class_indexes, azimuths, colatitudes, distances = read_dcase2019_task3_csv(csv_path=csv_path)
+    csv_path = "/home/qiuqiangkong/datasets/dcase2020/task3/metadata_dev/fold6_room1_mix100_ov2.csv"
+    frame_indexes, class_indexes, azimuths, colatitudes, distances = read_dcase2020_task3_csv(csv_path=csv_path)
 
     # Load audio
     # audio_path = "/home/qiuqiangkong/datasets/dcase2019/task3/downloaded_package/mic_dev/split1_ir0_ov1_1.wav"
-    audio_path = "/home/qiuqiangkong/datasets/dcase2019/task3/downloaded_package/mic_eval/split0_1.wav"
+    audio_path = "/home/qiuqiangkong/datasets/dcase2020/task3/part_mic_dev/fold6_room1_mix100_ov2.wav"
     audio, fs = librosa.load(path=audio_path, sr=sample_rate, mono=False)
 
     # audio *= 50
@@ -599,9 +621,12 @@ def inference_depth(args):
 def plot_depth(args):
 
     # csv_path = "/home/qiuqiangkong/datasets/dcase2019/task3/downloaded_package/metadata_dev/split1_ir0_ov1_1.csv"
-    csv_path = "/home/qiuqiangkong/datasets/dcase2019/task3/downloaded_package/metadata_eval/split0_1.csv"
+    # csv_path = "/home/qiuqiangkong/datasets/dcase2019/task3/downloaded_package/metadata_eval/split0_1.csv"
 
-    frame_indexes, class_indexes, azimuths, colatitudes, distances = read_dcase2019_task3_csv(csv_path=csv_path)
+    # frame_indexes, class_indexes, azimuths, colatitudes, distances = read_dcase2019_task3_csv(csv_path=csv_path)
+
+    # csv_path = "/home/qiuqiangkong/datasets/dcase2020/task3/metadata_dev/fold6_room1_mix100_ov2.csv"
+    # frame_indexes, class_indexes, azimuths, colatitudes, distances = read_dcase2020_task3_csv(csv_path=csv_path)
 
     #
     pred_tensor = pickle.load(open("_zz2_depth.pkl", "rb"))
@@ -610,6 +635,196 @@ def plot_depth(args):
     fig, ax = plt.subplots(1, 1, sharex=True)
     ax.matshow(pred_tensor.T, origin='lower', aspect='auto', cmap='jet')
     plt.savefig('_zz.pdf')
+
+    from IPython import embed; embed(using=False); os._exit(0)
+
+
+def inference_sep(args):
+
+    workspace = args.workspace
+    config_yaml = args.config_yaml
+    checkpoint_path = args.checkpoint_path
+    filename = args.filename
+    device = "cuda"
+
+    configs = read_yaml(config_yaml)
+    model_type = configs['train']['model_type']
+    simulator_configs = configs["simulator_configs"]
+    mics_yaml = simulator_configs["mics_yaml"]
+    lowpass_freq = configs["lowpass_freq"] if "lowpass_freq" in configs.keys() else None
+
+    num_workers = 0
+    batch_size = 32
+    frames_num = 201
+    sample_rate = 24000
+    segment_seconds = 2
+    segment_samples = int(sample_rate * segment_seconds)
+
+    # Load checkpoint
+    # checkpoint_path = "./tmp/epoch=8-step=9000-test_loss=0.094.ckpt"
+    checkpoint = torch.load(checkpoint_path)
+    # device = "cuda"
+
+    Net = eval(model_type)
+    net = Net(mics_num=4)
+
+    model = LitModel.load_from_checkpoint(
+        net=net, 
+        loss_function=None,
+        learning_rate=None,
+        checkpoint_path=checkpoint_path,
+
+    )
+
+    csv_path = "/home/qiuqiangkong/datasets/dcase2020/task3/metadata_dev/fold6_room1_mix100_ov2.csv"
+    frame_indexes, class_indexes, azimuths, colatitudes, distances = read_dcase2020_task3_csv(csv_path=csv_path)
+
+    # Load audio
+    # audio_path = "/home/qiuqiangkong/datasets/dcase2019/task3/downloaded_package/mic_dev/split1_ir0_ov1_1.wav"
+    audio_path = "/home/qiuqiangkong/datasets/dcase2020/task3/part_mic_dev/fold6_room1_mix100_ov2.wav"
+    audio, fs = librosa.load(path=audio_path, sr=sample_rate, mono=False)
+
+    # audio *= 50
+    # soundfile.write(file="_zz.wav", data=audio.T, samplerate=sample_rate)
+    # from IPython import embed; embed(using=False); os._exit(0)
+
+    if lowpass_freq is not None:
+        audio = torchaudio.functional.lowpass_biquad(
+            waveform=torch.Tensor(audio),
+            sample_rate=sample_rate,
+            cutoff_freq=500,
+        ).data.cpu().numpy()
+
+    audio_samples = audio.shape[1]
+
+    # agents
+    grid_deg = 2
+    azimuth_grids = 360 // grid_deg
+    elevation_grids = 180 // grid_deg
+
+    # agent_look_azimuths, agent_look_colatitudes = get_all_agent_look_directions(grid_deg)
+
+    # agent_look_directions = np.stack(sph2cart(
+    #     r=1., azimuth=agent_look_azimuths, colatitude=agent_look_colatitudes), axis=-1)
+
+    # rays_num = agent_look_directions.shape[0]
+
+    # agent_look_depths = np.arange(0, 10, 0.01)
+    # agent_look_depths = agent_look_depths[None, :, None, None]
+    # agent_look_depths = np.repeat(a=agent_look_depths, repeats=frames_num, axis=2)
+    # rays_num = agent_look_depths.shape[1]
+
+    # center_pos = np.array([
+    #     simulator_configs["room_min_length"] / 2,
+    #     simulator_configs["room_min_width"] / 2,
+    #     simulator_configs["room_min_height"] / 2
+    # ])
+
+    # from IPython import embed; embed(using=False); os._exit(0)
+    rays_num = 4
+
+    center_pos = np.array([4, 4, 2])
+    agent_positions = center_pos[None, None, None, :]
+    agent_positions = np.repeat(a=agent_positions, repeats=rays_num, axis=1)
+    agent_positions = np.repeat(a=agent_positions, repeats=frames_num, axis=2)
+
+    # agent_look_directions = np.repeat(
+    #     a=agent_look_directions[None, :, None, :],
+    #     repeats=frames_num,
+    #     axis=-2
+    # )
+
+    #
+    mics_num = 4
+    mic_look_directions = np.ones((mics_num, 3))
+    mic_look_directions = np.repeat(
+        a=mic_look_directions[None, :, None, :],
+        repeats=frames_num,
+        axis=-2
+    )
+
+    mic_positions = get_mic_positions(center_pos, mics_yaml)
+    mic_positions = np.repeat(
+        a=mic_positions[None, :, None, :],
+        repeats=frames_num,
+        axis=-2
+    )
+
+    pointer = 0
+
+    pred_tensor = []
+
+    while pointer + segment_samples < audio_samples:
+
+        print(pointer / sample_rate)
+
+        curr_sec = pointer / sample_rate
+        curr_frame = curr_sec * 10
+
+        _azis, _cols = [], []
+        tmp2 = []
+
+        for i in range(len(frame_indexes)):
+            if curr_frame < frame_indexes[i] < curr_frame + 20:
+                # tmp.append((i, class_indexes[i]))
+                if class_indexes[i] not in tmp2:
+                    _azis.append(azimuths[i])
+                    _cols.append(colatitudes[i])
+                    tmp2.append(class_indexes[i])
+
+        # azis = np.array(azis)
+        # cols = np.array(cols)
+        azis = np.zeros(rays_num)
+        cols = np.zeros(rays_num)
+        azis[0 : len(_azis)] = np.array(_azis)
+        cols[0 : len(_cols)] = np.array(_cols)
+
+        # azis = azimuths[i]
+        # col = colatitudes[i]
+        # dist = distances[i]
+        
+        agent_look_directions = np.array(sph2cart(r=1., azimuth=azis, colatitude=cols))
+        agent_look_directions = agent_look_directions.T[None, :, None, :]
+        # agent_look_directions = np.repeat(a=agent_look_directions, repeats=rays_num, axis=1)
+        agent_look_directions = np.repeat(a=agent_look_directions, repeats=frames_num, axis=2)
+
+        segment = audio[:, pointer : pointer + segment_samples]
+
+        input_dict = {
+            "mic_positions": mic_positions,
+            "mic_look_directions": mic_look_directions,
+            "mic_signals": segment[None, ...],
+            "agent_positions": agent_positions,
+            # "agent_look_depths": agent_look_depths,
+            "agent_look_directions": agent_look_directions,
+        }
+
+        input_dict["agent_look_depths"] = PAD * np.ones(agent_look_directions.shape[0:-1] + (1,))
+
+        for key in input_dict.keys():
+            input_dict[key] = torch.Tensor(input_dict[key]).to(device)
+
+        output_dict = forward_in_batch(model=model, input_dict=input_dict, mode="inference")
+
+        tmp = output_dict["agent_signals"]
+
+        pred_tensor.append(tmp)
+
+        pointer += segment_samples
+
+        # agent_look_directions_has_source = np.mean(output_dict["agent_look_directions_has_source"], axis=1)
+
+        # source_positions = [e[0] for e in data_dict["source_positions"][i]] # (sources_num, 3)
+        # agent_position = data_dict["agent_positions"][i][0, 0]  # (3,)
+
+        # pickle.dump([agent_look_directions_has_source, source_positions, agent_position.data.cpu().numpy()], open("_zz.pkl", "wb"))
+
+        # add(None)
+
+    pred_tensor = np.concatenate(pred_tensor, axis=-1)
+
+    for i in range(pred_tensor.shape[0]):
+        soundfile.write(file="_zz_{}.wav".format(i), data=pred_tensor[i], samplerate=sample_rate)
 
     from IPython import embed; embed(using=False); os._exit(0)
 
@@ -669,6 +884,20 @@ if __name__ == "__main__":
         "--checkpoint_path", type=str, required=True, help="Directory of workspace."
     )
 
+    parser_inference_sep = subparsers.add_parser("inference_sep")
+    parser_inference_sep.add_argument(
+        "--workspace", type=str, required=True, help="Directory of workspace."
+    )
+    parser_inference_sep.add_argument(
+        "--config_yaml",
+        type=str,
+        required=True,
+        help="Path of config file for training.",
+    )
+    parser_inference_sep.add_argument(
+        "--checkpoint_path", type=str, required=True, help="Directory of workspace."
+    )
+
     parser_inference = subparsers.add_parser("plot")
     parser_inference = subparsers.add_parser("plot_depth")
 
@@ -682,6 +911,9 @@ if __name__ == "__main__":
 
     elif args.mode == "inference_depth":
         inference_depth(args)
+
+    elif args.mode == "inference_sep":
+        inference_sep(args)
 
     elif args.mode == "plot": 
         plot(args)

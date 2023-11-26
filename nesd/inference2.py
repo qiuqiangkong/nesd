@@ -515,7 +515,7 @@ def inference_sep(args):
         out_wavs = output_dict["agent_signals"]
 
         for i in range(len(out_wavs)):
-            soundfile.write(file="_zz_{:2d}.wav".format(i), data=out_wavs[i], samplerate=sample_rate)
+            soundfile.write(file="_zz_{:02d}.wav".format(i), data=out_wavs[i], samplerate=sample_rate)
 
         from IPython import embed; embed(using=False); os._exit(0)
 

@@ -54,7 +54,7 @@ def loc_bce_depth_bce(output_dict, target_dict):
         target=target_dict['agent_look_depths_has_source'], 
         mask=agent_look_depths_mask
     )
-
+    # from IPython import embed; embed(using=False); os._exit(0)
     loss = loc_bce_loss + depth_bce_loss
 
     return loss
@@ -74,9 +74,10 @@ def loc_bce_sep_l1(output_dict, target_dict):
         mask=target_dict["agent_active_indexes_mask"]
     )
 
-    # soundfile.write(file="_zz.wav", data=target_dict["agent_signals"].data.cpu().numpy()[0, 0], samplerate=24000)
+    # soundfile.write(file="_zz.wav", data=output_dict["agent_signals"].data.cpu().numpy()[0, 2], samplerate=24000)
+    # from IPython import embed; embed(using=False); os._exit(0)
 
-    sep_l1_loss *= 50
+    sep_l1_loss *= 10
     loss = loc_bce_loss + sep_l1_loss
     return loss
 

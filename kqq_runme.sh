@@ -198,7 +198,7 @@ CUDA_VISIBLE_DEVICES=0 python nesd/train2_dcase2019_task3.py train \
     --workspace=$WORKSPACE \
     --config_yaml="./kqq_scripts/train/configs2/dcase2019_task3_01a.yaml"
 
-# Inference
+# Inference dcase 2019 task 3
 CUDA_VISIBLE_DEVICES=2 python nesd/inference2_dcase2019_task3.py inference \
     --workspace="" \
     --config_yaml="./kqq_scripts/train/configs2/dcase2019_task3_01a.yaml" \
@@ -207,3 +207,19 @@ CUDA_VISIBLE_DEVICES=2 python nesd/inference2_dcase2019_task3.py inference \
 python nesd/inference2_dcase2019_task3.py plot
 
 ffmpeg -framerate 10 -i '_tmp/_zz_%04d.png' -r 30 -pix_fmt yuv420p 123.mp4
+
+
+# Inference dcase 2020 task 3
+
+CUDA_VISIBLE_DEVICES=2 python nesd/inference2_dcase2020_task3.py inference \
+    --workspace="" \
+    --config_yaml="./kqq_scripts/train/configs2/03a.yaml" \
+    --checkpoint_path="/home/qiuqiangkong/workspaces/nesd2/checkpoints/train2/config=03a/epoch=23-step=24000-test_loss=0.031.ckpt"
+python nesd/inference2_dcase2020_task3.py plot
+
+CUDA_VISIBLE_DEVICES=2 python nesd/inference2_dcase2020_task3.py inference_depth     --workspace=""     --config_yaml="./kqq_scripts/train/configs2/05a.yaml"     --checkpoint_path="/home/qiuqiangkong/workspaces/nesd2/checkpoints/train2/config=05a/epoch=34-step=35000-test_loss=0.025.ckpt"
+python nesd/inference2_dcase2020_task3.py plot_depth
+
+CUDA_VISIBLE_DEVICES=2 python nesd/inference2_dcase2020_task3.py inference_sep     --workspace=""     --config_yaml="./kqq_scripts/train/configs2/06a.yaml"     --checkpoint_path="/home/qiuqiangkong/workspaces/nesd2/checkpoints/train2/config=06a/epoch=49-step=50000-test_loss=0.129.ckpt"
+
+# Inference dcase 2022 task 3

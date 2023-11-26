@@ -339,7 +339,7 @@ def train(args) -> NoReturn:
         train_dataloaders=train_dataloader,
         val_dataloaders=val_dataloader,
         ckpt_path=None, 
-        # ckpt_path="/home/qiuqiangkong/workspaces/nesd2/checkpoints/train2/config=06a/epoch=8-step=9000-test_loss=0.194.ckpt"
+        # ckpt_path="/home/qiuqiangkong/workspaces/nesd2/checkpoints/train2/config=05a/epoch=23-step=24000-test_loss=0.025.ckpt"
     )
 
 

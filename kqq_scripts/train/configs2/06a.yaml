@@ -4,7 +4,7 @@ speed_of_sound: 343.
 sampler_type: Sampler
 dataset_type: Dataset
 simulator_configs:
-    image_source_max_order: 3
+    image_source_max_order: 0
     min_sources_num: 2
     max_sources_num: 2
     positive_rays: 4
