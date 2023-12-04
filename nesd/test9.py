@@ -542,9 +542,29 @@ def sample_negative_depth(x, radius, max_length):
     return depth
 
 
+class AA:
+    def __init__(self):
+        pass
+
+    def __getitem__(self, meta):
+        return 1
+
+
 def add10():
 
-    a1 = np.arange(10)
+    a1 = random.choices(population=[1, 2, 3], weights=(0.1, 0.1, 0.8))
+    print(a1)
+
+
+def cos_similarity(x, y):
+    return np.sum(x * y, axis=-1) / (np.linalg.norm(x, axis=-1) * np.linalg.norm(y, axis=-1))
+
+
+def add11():
+    x = np.ones((3, 4))
+    y = np.ones((3, 4)) + 1
+    print(cos_similarity(x, y))
+
 
 
 if __name__ == '__main__':
@@ -558,4 +578,5 @@ if __name__ == '__main__':
     # add7()
     # add8()
     # add9()
-    add10()
+    # add10()
+    add11()

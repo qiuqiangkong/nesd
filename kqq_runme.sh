@@ -198,6 +198,47 @@ CUDA_VISIBLE_DEVICES=0 python nesd/train2_dcase2019_task3.py train \
     --workspace=$WORKSPACE \
     --config_yaml="./kqq_scripts/train/configs2/dcase2019_task3_01a.yaml"
 
+### --- dcase 2020 task 3 ---
+SPLIT="train"
+python nesd/dataset_creation/pack_audios_to_hdf5s/dcase2020_task3.py \
+    --dataset_dir="/home/qiuqiangkong/datasets/dcase2020/task3" \
+    --split=$SPLIT \
+    --hdf5s_dir="${WORKSPACE}/hdf5s/dcase2020_task3/${SPLIT}" \
+    --sample_rate=24000
+
+### --- dcase 2021 task 3 ---
+SPLIT="train"
+python nesd/dataset_creation/pack_audios_to_hdf5s/dcase2021_task3.py \
+    --dataset_dir="/home/qiuqiangkong/datasets/dcase2021/task3/downloaded_package" \
+    --split=$SPLIT \
+    --hdf5s_dir="${WORKSPACE}/hdf5s/dcase2021_task3/${SPLIT}" \
+    --sample_rate=24000
+
+
+### --- dcase 2022 task 3 ---
+SPLIT="train"
+python nesd/dataset_creation/pack_audios_to_hdf5s/dcase2022_task3.py \
+    --dataset_dir="/home/qiuqiangkong/datasets/dcase2022/task3" \
+    --split=$SPLIT \
+    --hdf5s_dir="${WORKSPACE}/hdf5s/dcase2022_task3/${SPLIT}" \
+    --sample_rate=24000
+
+### --- dcase 2023 task 3 ---
+SPLIT="train"
+python nesd/dataset_creation/pack_audios_to_hdf5s/dcase2023_task3.py \
+    --dataset_dir="/home/qiuqiangkong/datasets/dcase2023/task3" \
+    --split=$SPLIT \
+    --hdf5s_dir="${WORKSPACE}/hdf5s/dcase2023_task3/${SPLIT}" \
+    --sample_rate=24000
+
+### --- concatenate datasets ---
+WORKSPACE="/home/qiuqiangkong/workspaces/nesd2"
+CUDA_VISIBLE_DEVICES=1 python nesd/train2_concat.py train \
+    --workspace=$WORKSPACE \
+    --config_yaml="./kqq_scripts/train/configs2/07a.yaml"
+
+
+#########################
 # Inference dcase 2019 task 3
 CUDA_VISIBLE_DEVICES=2 python nesd/inference2_dcase2019_task3.py inference \
     --workspace="" \
@@ -223,3 +264,11 @@ python nesd/inference2_dcase2020_task3.py plot_depth
 CUDA_VISIBLE_DEVICES=2 python nesd/inference2_dcase2020_task3.py inference_sep     --workspace=""     --config_yaml="./kqq_scripts/train/configs2/06a.yaml"     --checkpoint_path="/home/qiuqiangkong/workspaces/nesd2/checkpoints/train2/config=06a/epoch=49-step=50000-test_loss=0.129.ckpt"
 
 # Inference dcase 2022 task 3
+CUDA_VISIBLE_DEVICES=2 python nesd/inference2_dcase2022_task3.py inference \
+    --workspace="" \
+    --config_yaml="./kqq_scripts/train/configs2/03a.yaml" \
+    --checkpoint_path="/home/qiuqiangkong/workspaces/nesd2/checkpoints/train2/config=03a/epoch=23-step=24000-test_loss=0.031.ckpt"
+python nesd/inference2_dcase2022_task3.py plot
+
+######## Create RIR
+python nesd/test_rir.py

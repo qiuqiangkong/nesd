@@ -99,6 +99,111 @@ def write_single_audio_to_hdf5(param: List) -> NoReturn:
 
     audio, _ = librosa.load(audio_path, sr=sample_rate, mono=False)
     
+    frames_per_sec = 100
+
+    audio_samples = audio.shape[-1]
+    audio_duration = audio_samples / sample_rate
+    frames_num = int(audio_duration * frames_per_sec) + 1
+
+    # frames_num = np.max(frame_indexes)
+    max_sources_num = 5
+    has_sources_array = np.zeros((max_sources_num, frames_num))
+    class_indexes_array = -65535 * np.ones((max_sources_num, frames_num), dtype=np.int32)
+    azimuths_array = -65535 * np.ones((max_sources_num, frames_num))
+    elevations_array = -65535 * np.ones((max_sources_num, frames_num))
+    distances_array = -65535 * np.ones((max_sources_num, frames_num))
+
+    event_list = meta_file_to_event_list(metadata_path)
+
+    for event in event_list:
+
+        frame_indexes = event["frame_indexes"]
+
+        source_id = 0
+        while np.sum(has_sources_array[source_id, frame_indexes]) != 0:
+            source_id += 1
+
+        has_sources_array[source_id, frame_indexes] = 1
+        class_indexes_array[source_id, frame_indexes] = event["class_indexes"]
+        azimuths_array[source_id, frame_indexes] = event["azimuths"]
+        elevations_array[source_id, frame_indexes] = event["elevations"]
+        # distances_array[source_id, onset_frame : offset_frame + 1] = distances[n]
+
+    duration = audio.shape[-1] / sample_rate
+
+    with h5py.File(hdf5_path, "w") as hf:
+        hf.create_dataset(name="waveform", data=float32_to_int16(audio), dtype=np.int16)
+        hf.create_dataset(name="has_source", data=has_sources_array, dtype=np.int32)
+        hf.create_dataset(name="class_index", data=class_indexes_array, dtype=np.int32)
+        hf.create_dataset(name="azimuth", data=azimuths_array, dtype=np.int32)
+        hf.create_dataset(name="elevation", data=elevations_array, dtype=np.int32)
+        # hf.create_dataset(name="distance", data=distances_array, dtype=np.int32)
+        hf.attrs.create("audio_name", data=bare_name.encode(), dtype="S100")
+        hf.attrs.create("sample_rate", data=sample_rate, dtype=np.int32)
+        hf.attrs.create("duration", data=audio_duration, dtype=np.float32)
+
+    print('{} Write hdf5 to {}'.format(audio_index, hdf5_path))
+
+
+def meta_file_to_event_list(metadata_path):
+
+    df = pd.read_csv(metadata_path, sep=',', header=None)
+    frame_indexes = df[0].values
+    class_indexes = df[1].values
+    event_indexes = df[2].values
+    azimuths = df[3].values
+    elevations = df[4].values
+
+    repeats = 10
+    # frame_indexes = np.repeat(frame_indexes, repeats=repeats)
+    class_indexes = np.repeat(class_indexes, repeats=repeats)
+    event_indexes = np.repeat(event_indexes, repeats=repeats)
+    azimuths = np.repeat(azimuths, repeats=repeats)
+    elevations = np.repeat(elevations, repeats=repeats)
+
+    tmp = []
+    for frame_index in frame_indexes:
+        for i in range(repeats):
+            tmp.append(frame_index * repeats + i)
+
+    frame_indexes = np.array(tmp)
+
+    unique_class_indexes = list(set(event_indexes))
+
+    event_list = []
+
+    for class_index in unique_class_indexes:
+        event_frame_indexes = frame_indexes[event_indexes == class_index]
+
+        event = {
+            # "onset_frame": event_frame_indexes[0],
+            # "offset_frame": event_frame_indexes[-1],
+            "frame_indexes": frame_indexes[event_indexes == class_index],
+            "azimuths": azimuths[event_indexes == class_index],
+            "elevations": elevations[event_indexes == class_index],
+            "class_indexes": class_indexes[event_indexes == class_index],
+        }
+        
+        event_list.append(event)
+
+    return event_list
+
+
+'''
+def write_single_audio_to_hdf5(param: List) -> NoReturn:
+    r"""Write single audio into hdf5 file."""
+
+    (
+        audio_index,
+        bare_name,
+        audio_path,
+        metadata_path,
+        sample_rate,
+        hdf5_path,
+    ) = param
+
+    audio, _ = librosa.load(audio_path, sr=sample_rate, mono=False)
+    
     df = pd.read_csv(metadata_path, sep=',', header=None)
     frame_indexes = df[0].values
     class_indexes = df[1].values
@@ -120,7 +225,7 @@ def write_single_audio_to_hdf5(param: List) -> NoReturn:
         hf.attrs.create("duration", data=duration, dtype=np.float32)
 
     print('{} Write hdf5 to {}'.format(audio_index, hdf5_path))
-
+'''
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

@@ -12,21 +12,22 @@ import librosa
 from nesd.utils import float32_to_int16
 
 
-# LABELS = ['alarm', 'crying baby', 'crash', 'barking dog', 'female scream', 'female speech', 'footsteps', 'knocking on door', 'male scream', 'male speech', 'ringing phone', 'piano']
-
-LABELS = ['Female speech, woman speaking', 
-'Male speech, man speaking', 
-'Clapping', 
-'Telephone', 
-'Laughter', 
-'Domestic sounds', 
-'Walk, footsteps' ,
-'Door, open or close', 
-'Music', 
-'Musical instrument', 
-'Water tap, faucet', 
-'Bell', 
-'Knock']
+LABELS = [
+"alarm",
+"crying baby",
+"crash",
+"barking dog",
+"running engine",
+"female scream",
+"female speech",
+"burning fire",
+"footsteps",
+"knocking on door",
+"male scream",
+"male speech",
+"ringing phone",
+"piano",
+]
 
 LB_TO_ID = {lb: id for id, lb in enumerate(LABELS)}
 ID_TO_LB = {id: lb for id, lb in enumerate(LABELS)}
@@ -53,44 +54,53 @@ def pack_audios_to_hdf5s(args) -> NoReturn:
     hdf5s_dir = args.hdf5s_dir
     sample_rate = args.sample_rate
 
+    audios_dir = os.path.join(dataset_dir, "mic_dev")
+    metadatas_dir = os.path.join(dataset_dir, "metadata_dev")
+
     os.makedirs(hdf5s_dir, exist_ok=True)
+
+    tmp = sorted(os.listdir(audios_dir))
+
+    if split == "train":
+        fold_candidates = ["1", "2", "3", "4"]
+    elif split == "test":
+        fold_candidates = ["6"]
+
+    audio_names = []
+    for audio_name in tmp:
+        if audio_name[4] in fold_candidates:
+            audio_names.append(audio_name)
+
     params = []
     audio_index = 0
 
-    for data_source in ["sony", "tau"]:
+    for audio_name in audio_names:
 
-        audios_dir = os.path.join(dataset_dir, "mic_dev", "dev-{}-{}".format(split, data_source))
-        metadatas_dir = os.path.join(dataset_dir, "metadata_dev", "dev-{}-{}".format(split, data_source))
+        audio_path = os.path.join(audios_dir, audio_name)
 
-        audio_names = sorted(os.listdir(audios_dir))
+        bare_name = pathlib.Path(audio_name).stem
+        metadata_path = os.path.join(metadatas_dir, "{}.csv".format(bare_name))
 
-        for audio_name in audio_names:
+        hdf5_path = os.path.join(hdf5s_dir, "{}.h5".format(bare_name))
 
-            audio_path = os.path.join(audios_dir, audio_name)
+        param = (
+            audio_index,
+            bare_name,
+            audio_path,
+            metadata_path,
+            sample_rate,
+            hdf5_path,
+        )
+        params.append(param)
 
-            bare_name = pathlib.Path(audio_name).stem
-            metadata_path = os.path.join(metadatas_dir, "{}.csv".format(bare_name))
-
-            hdf5_path = os.path.join(hdf5s_dir, "{}.h5".format(bare_name))
-
-            param = (
-                audio_index,
-                bare_name,
-                audio_path,
-                metadata_path,
-                sample_rate,
-                hdf5_path,
-            )
-            params.append(param)
-
-            audio_index += 1
+        audio_index += 1
 
     # Uncomment for debug.
     # write_single_audio_to_hdf5(params[0])
     # os._exit(0)
-    for param in params:
-        write_single_audio_to_hdf5(param)
-    # asdf
+    # for param in params:
+    #     write_single_audio_to_hdf5(param)
+
     pack_hdf5s_time = time.time()
 
     with ProcessPoolExecutor(max_workers=16) as pool:
@@ -113,22 +123,15 @@ def write_single_audio_to_hdf5(param: List) -> NoReturn:
     ) = param
 
     audio, _ = librosa.load(audio_path, sr=sample_rate, mono=False)
-
-    # df = pd.read_csv(metadata_path, sep=',', header=None)
-    # frame_indexes = df[0].values
-    # class_indexes = df[1].values
-    # event_indexes = df[2].values
-    # azimuths = df[3].values
-    # elevations = df[4].values
-
+    
     frames_per_sec = 100
 
     audio_samples = audio.shape[-1]
     audio_duration = audio_samples / sample_rate
-    frames_num = int(audio_duration * frames_per_sec) + 10
+    frames_num = int(audio_duration * frames_per_sec) + 1
 
     # frames_num = np.max(frame_indexes)
-    max_sources_num = 10
+    max_sources_num = 5
     has_sources_array = np.zeros((max_sources_num, frames_num))
     class_indexes_array = -65535 * np.ones((max_sources_num, frames_num), dtype=np.int32)
     azimuths_array = -65535 * np.ones((max_sources_num, frames_num))
@@ -169,15 +172,30 @@ def write_single_audio_to_hdf5(param: List) -> NoReturn:
 
 def meta_file_to_event_list(metadata_path):
 
+    # metadata_path = "/home/qiuqiangkong/datasets/dcase2020/task3/metadata_dev/fold1_room1_mix026_ov2.csv"
+
     df = pd.read_csv(metadata_path, sep=',', header=None)
     frame_indexes = df[0].values
     class_indexes = df[1].values
-    event_indexes = df[2].values
+    track_indexes = df[2].values
     azimuths = df[3].values
     elevations = df[4].values
 
+    tmp = []
+
+    for i in range(len(frame_indexes)):
+
+        tmp.append("{},{}".format(class_indexes[i], track_indexes[i]))
+
+    unique_tmp = list(set(tmp))
+
+    event_indexes = []
+    for a1 in tmp:
+        event_indexes.append(unique_tmp.index(a1))
+
+    event_indexes = np.array(event_indexes)
+
     repeats = 10
-    # frame_indexes = np.repeat(frame_indexes, repeats=repeats)
     class_indexes = np.repeat(class_indexes, repeats=repeats)
     event_indexes = np.repeat(event_indexes, repeats=repeats)
     azimuths = np.repeat(azimuths, repeats=repeats)
@@ -194,22 +212,58 @@ def meta_file_to_event_list(metadata_path):
 
     event_list = []
 
-    for event_index in unique_class_indexes:
-        event_frame_indexes = frame_indexes[event_indexes == event_index]
+    for class_index in unique_class_indexes:
+        event_frame_indexes = frame_indexes[event_indexes == class_index]
 
         event = {
-            # "onset_frame": event_frame_indexes[0],
-            # "offset_frame": event_frame_indexes[-1],
-            "frame_indexes": frame_indexes[event_indexes == event_index],
-            "azimuths": azimuths[event_indexes == event_index],
-            "elevations": elevations[event_indexes == event_index],
-            "class_indexes": class_indexes[event_indexes == event_index],
+            "frame_indexes": frame_indexes[event_indexes == class_index],
+            "azimuths": azimuths[event_indexes == class_index],
+            "elevations": elevations[event_indexes == class_index],
+            "class_indexes": class_indexes[event_indexes == class_index],
         }
         
         event_list.append(event)
 
     return event_list
 
+
+'''
+def write_single_audio_to_hdf5(param: List) -> NoReturn:
+    r"""Write single audio into hdf5 file."""
+
+    (
+        audio_index,
+        bare_name,
+        audio_path,
+        metadata_path,
+        sample_rate,
+        hdf5_path,
+    ) = param
+
+    audio, _ = librosa.load(audio_path, sr=sample_rate, mono=False)
+    
+    df = pd.read_csv(metadata_path, sep=',', header=None)
+    frame_indexes = df[0].values
+    class_indexes = df[1].values
+    event_indexes = df[2].values
+    azimuths = df[3].values
+    elevations = df[4].values
+
+    duration = audio.shape[-1] / sample_rate
+
+    with h5py.File(hdf5_path, "w") as hf:
+        hf.create_dataset(name="waveform", data=float32_to_int16(audio), dtype=np.int16)
+        hf.create_dataset(name="frame_index", data=frame_indexes, dtype=np.int32)
+        hf.create_dataset(name="class_index", data=class_indexes, dtype=np.int32)
+        hf.create_dataset(name="event_index", data=event_indexes, dtype=np.int32)
+        hf.create_dataset(name="azimuth", data=azimuths, dtype=np.float32)
+        hf.create_dataset(name="elevation", data=elevations, dtype=np.float32)
+        hf.attrs.create("audio_name", data=bare_name.encode(), dtype="S100")
+        hf.attrs.create("sample_rate", data=sample_rate, dtype=np.int32)
+        hf.attrs.create("duration", data=duration, dtype=np.float32)
+
+    print('{} Write hdf5 to {}'.format(audio_index, hdf5_path))
+'''
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

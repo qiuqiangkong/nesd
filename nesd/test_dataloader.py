@@ -6,6 +6,7 @@ import random
 import soundfile
 import numpy as np
 from nesd.image_source_simulator import ImageSourceSimulator
+from nesd.data.em_rir import _DatasetEmRir
 from nesd.test_plot import plot_top_view
 
 
@@ -146,7 +147,7 @@ class Dataset3:
             # "agent_signals": iss_data.agent_waveforms,
             "agent_look_directions_has_source": iss_data.agent_look_directions_has_source,
             "agent_look_depths_has_source": iss_data.agent_look_depths_has_source,
-            "agent_ray_types": iss_data.agent_ray_types,
+            # "agent_ray_types": iss_data.agent_ray_types,
             "agent_active_indexes": iss_data.active_indexes,
             "agent_active_indexes_mask": iss_data.active_indexes_mask,
             "agent_signals": iss_data.agent_waveforms
@@ -156,6 +157,47 @@ class Dataset3:
 
     # def __len__(self):
     #     return 10000
+
+
+class DatasetEmRir:
+    def __init__(self, audios_dir, rir_hdf5s_dir, expand_frames=None, simulator_configs=None):
+        self.audios_dir = audios_dir
+        self.rir_hdf5s_dir = rir_hdf5s_dir
+        self.expand_frames = expand_frames
+        self.simulator_configs = simulator_configs
+
+    def __getitem__(self, meta):
+        # print(meta)
+        
+        iss_data = _DatasetEmRir(
+            audios_dir=self.audios_dir, 
+            rir_hdf5s_dir=self.rir_hdf5s_dir,
+            expand_frames=201, 
+            simulator_configs=self.simulator_configs
+        )
+
+        data = {
+            "room_length": iss_data.length,
+            "room_width": iss_data.width,
+            "room_height": iss_data.height,
+            "source_positions": iss_data.source_positions,
+            "source_signals": iss_data.sources,
+            "mic_positions": iss_data.mic_positions,
+            "mic_look_directions": iss_data.mic_look_directions,
+            "mic_signals": iss_data.mic_signals,
+            "agent_positions": iss_data.agent_positions,
+            "agent_look_directions": iss_data.agent_look_directions,
+            "agent_look_depths": iss_data.agent_look_depths,
+            # "agent_signals": iss_data.agent_waveforms,
+            "agent_look_directions_has_source": iss_data.agent_look_directions_has_source,
+            "agent_look_depths_has_source": iss_data.agent_look_depths_has_source,
+            # "agent_ray_types": iss_data.agent_ray_types,
+            "agent_active_indexes": iss_data.active_indexes,
+            "agent_active_indexes_mask": iss_data.active_indexes_mask,
+            "agent_signals": iss_data.agent_waveforms
+        }
+
+        return data
 
 
 def collate_fn(list_data_dict):
@@ -170,7 +212,7 @@ def collate_fn(list_data_dict):
 
         elif key in ["agent_active_indexes"]:
             data_dict[key] = torch.LongTensor(np.stack(data_dict[key], axis=0))
-
+    
     return data_dict
 
 

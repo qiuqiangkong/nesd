@@ -5,12 +5,13 @@ import h5py
 import soundfile
 import yaml
 import math
+import random
 
-from nesd.utils import int16_to_float32, sph2cart, sample_agent_look_direction, Agent, DirectionSampler, get_cos
+from nesd.utils import int16_to_float32, sph2cart, sample_agent_look_direction, Agent, DirectionSampler, get_cos, cos_similarity
 from nesd.image_source_simulator import expand_frame_dim
 
 
-class DCASE2019Task3Dataset:
+class DCASE2021Task3Dataset:
     # def __init__(self, audios_dir, expand_frames=None, simulator_configs=None):
     def __init__(self, hdf5s_dir):
         self.hdf5s_dir = hdf5s_dir
@@ -20,8 +21,9 @@ class DCASE2019Task3Dataset:
         self.segment_seconds = 2
         self.segment_samples = int(self.sample_rate * self.segment_seconds)
         self.frames_per_sec = 100
-        self.segment_frames = int(self.segment_seconds * self.frames_per_sec)
+        # self.segment_frames = int(self.segment_seconds * self.frames_per_sec)
         self.expand_frames = 201
+        self.segment_frames = 201
 
         self.mics_position_type = "center_of_room"
 
@@ -32,9 +34,9 @@ class DCASE2019Task3Dataset:
         self.total_rays = 20
 
         # self.hdf5_paths = self.hdf5_paths[0:1]
+        # from IPython import embed; embed(using=False); os._exit(0)
         
     def __getitem__(self, meta):
-
 
         hdf5_path = np.random.choice(self.hdf5_paths)
 
@@ -56,7 +58,7 @@ class DCASE2019Task3Dataset:
             # event_indexes = hf["event_index"][:]
             azimuths_array = hf["azimuth"][:]
             elevations_array = hf["elevation"][:]
-            distances_array = hf["distance"][:]
+            # distances_array = hf["distance"][:]
 
             # soundfile.write(file="_zz.wav", data=segment.T, samplerate=self.sample_rate)
 
@@ -82,11 +84,14 @@ class DCASE2019Task3Dataset:
 
         for source_id in range(max_sources_num):
 
-            has_sources = has_sources_array[source_id, bgn_frame : end_frame + 1]
-            class_indexes = class_indexes_array[source_id, bgn_frame : end_frame + 1]
-            azimuths = np.deg2rad(azimuths_array[source_id, bgn_frame : end_frame + 1] % 360)
-            colatitudes = np.deg2rad(90 - np.array(elevations_array[source_id, bgn_frame : end_frame + 1]))
-            distances = distances_array[source_id, bgn_frame : end_frame + 1]
+            has_sources = has_sources_array[source_id, bgn_frame : end_frame]
+            class_indexes = class_indexes_array[source_id, bgn_frame : end_frame]
+            azimuths = np.deg2rad(azimuths_array[source_id, bgn_frame : end_frame] % 360)
+            colatitudes = np.deg2rad(90 - np.array(elevations_array[source_id, bgn_frame : end_frame]))
+            # distances = distances_array[source_id, bgn_frame : end_frame]
+
+            # soundfile.write(file="_zz.wav", data=np.mean(mic_signals, axis=0), samplerate=self.sample_rate)
+            # from IPython import embed; embed(using=False); os._exit(0)
 
             sound_classes = []
 
@@ -98,35 +103,65 @@ class DCASE2019Task3Dataset:
 
             for class_index in unique_sound_classes:
 
-                active_indexes = np.where(class_indexes == class_index)[0]
-
-                avg_azi = np.mean(azimuths[active_indexes])
-                avg_col = np.mean(colatitudes[active_indexes])
-
-                agent_to_source = np.array(sph2cart(
-                    r=1., 
-                    azimuth=avg_azi, 
-                    colatitude=avg_col
-                ))
-                source_position = agent_position + agent_to_source
-                source_positions.append(source_position)
-
-                agent_look_direction = sample_agent_look_direction(
-                    agent_to_src=agent_to_source, 
-                    half_angle=self.half_angle, 
-                )
-
-                look_direction_has_source = np.zeros(self.expand_frames)
-                look_direction_has_source[active_indexes] = 1
+                legal_frame_indexes = np.where(has_sources == 1)[0]
                 
-                agent = Agent(
-                    position=agent_position, 
-                    look_direction=agent_look_direction, 
-                    waveform=np.zeros(self.segment_samples),
-                    look_direction_has_source=look_direction_has_source,
-                    ray_type="positive",
-                )
-                agents.append(agent)
+                if len(set(azimuths[legal_frame_indexes])) == 1:
+                    source_moving = False
+                    positive_rays_num2 = 1
+                else:
+                    source_moving = True
+                    positive_rays_num2 = 3
+
+
+                for _ in range(positive_rays_num2):
+
+                    frame_index = random.choice(legal_frame_indexes)
+
+                    azi = azimuths[frame_index]
+                    col = colatitudes[frame_index]
+
+                    agent_to_source = np.array(sph2cart(
+                        r=1., 
+                        azimuth=azi, 
+                        colatitude=col
+                    ))
+    
+                    if source_moving:
+
+                        agent_look_direction = agent_to_source
+                        
+                    else:
+                        agent_look_direction = sample_agent_look_direction(
+                            agent_to_src=agent_to_source, 
+                            half_angle=self.half_angle, 
+                        )
+
+                    agent_look_directions = np.repeat(
+                        a=agent_look_direction[None, :], 
+                        repeats=self.segment_frames, 
+                        axis=0
+                    )
+
+                    source_directions = np.stack(sph2cart(
+                            r=1.,
+                            azimuth=azimuths,
+                            colatitude=colatitudes
+                        ), axis=-1)
+
+                    look_direction_has_source = cos_similarity(agent_look_directions, source_directions) > np.cos(self.half_angle)
+                    look_direction_has_source = (has_sources & look_direction_has_source).astype(np.float32)
+                    
+                    
+                    agent = Agent(
+                        position=agent_position, 
+                        look_direction=agent_look_direction, 
+                        waveform=np.zeros(self.segment_samples),
+                        look_direction_has_source=look_direction_has_source,
+                        ray_type="positive",
+                    )
+                    agents.append(agent)
+                    # from IPython import embed; embed(using=False); os._exit(0)
+
 
             # soundfile.write(file="_zz.wav", data=mic_signals.T, samplerate=self.sample_rate) 
             # from IPython import embed; embed(using=False); os._exit(0)

@@ -12,6 +12,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import librosa
+import random
 import pickle
 import lightning as L
 
@@ -30,9 +31,13 @@ from nesd.models.models02 import *
 from nesd.models.lightning_modules import LitModel
 from nesd.optimizers.lr_schedulers import get_lr_lambda
 from nesd.losses import *
+from nesd.data.dcase2019_task3 import DCASE2019Task3Dataset
+from nesd.data.dcase2020_task3 import DCASE2020Task3Dataset
+from nesd.data.dcase2021_task3 import DCASE2021Task3Dataset
+from nesd.data.dcase2022_task3 import DCASE2022Task3Dataset
 # from nesd.callbacks.callback import get_callback
 
-from nesd.test_dataloader import Dataset3, collate_fn
+from nesd.test_dataloader import Dataset3, collate_fn, DatasetEmRir
 
 
 def get_dirs(
@@ -98,6 +103,72 @@ def get_dirs(
     return checkpoints_dir, logs_dir, statistics_path
 
 
+class DatasetConcat:
+    def __init__(self, dataset_probs, simulator_configs):
+        self.datasets = []
+
+        dataset_names = list(dataset_probs.keys())
+        self.probs = []
+
+        if "pyroomacoustics" in dataset_names:
+            train_audios_dir = "/home/qiuqiangkong/workspaces/nesd2/audios/vctk_2s_segments/train"
+            dataset = Dataset3(
+                audios_dir=train_audios_dir, 
+                expand_frames=201, 
+                simulator_configs=simulator_configs
+            )
+            self.datasets.append(dataset)
+            self.probs.append(dataset_probs["pyroomacoustics"])
+
+        if "dcase2019_task3" in dataset_names:
+            train_hdf5s_dir = "/home/qiuqiangkong/workspaces/nesd2/hdf5s/dcase2019_task3/train"
+            dataset = DCASE2019Task3Dataset(hdf5s_dir=train_hdf5s_dir)
+            self.datasets.append(dataset)
+            self.probs.append(dataset_probs["dcase2019_task3"])
+
+        if "dcase2020_task3" in dataset_names:
+            train_hdf5s_dir = "/home/qiuqiangkong/workspaces/nesd2/hdf5s/dcase2020_task3/train"
+            dataset = DCASE2020Task3Dataset(hdf5s_dir=train_hdf5s_dir)
+            self.datasets.append(dataset)
+            self.probs.append(dataset_probs["dcase2020_task3"])
+
+        if "dcase2021_task3" in dataset_names:
+            train_hdf5s_dir = "/home/qiuqiangkong/workspaces/nesd2/hdf5s/dcase2021_task3/train"
+            dataset = DCASE2021Task3Dataset(hdf5s_dir=train_hdf5s_dir)
+            self.datasets.append(dataset)
+            self.probs.append(dataset_probs["dcase2021_task3"])
+
+        if "dcase2022_task3" in dataset_names:
+            train_hdf5s_dir = "/home/qiuqiangkong/workspaces/nesd2/hdf5s/dcase2022_task3/train"
+            dataset = DCASE2022Task3Dataset(hdf5s_dir=train_hdf5s_dir)
+            self.datasets.append(dataset)
+            self.probs.append(dataset_probs["dcase2022_task3"])
+
+        if "em_rir" in dataset_names:
+            train_audios_dir = "/home/qiuqiangkong/workspaces/nesd2/audios/vctk_2s_segments/train"
+            rir_hdf5s_dir = "/home/qiuqiangkong/workspaces/nesd2/tau-srir"
+            dataset = DatasetEmRir(
+                audios_dir=train_audios_dir, 
+                rir_hdf5s_dir=rir_hdf5s_dir,
+                expand_frames=201, 
+                simulator_configs=simulator_configs
+            )
+            self.datasets.append(dataset)
+            self.probs.append(dataset_probs["em_rir"])
+
+        print("Datasets length: {}".format(len(self.datasets)))
+
+    def __getitem__(self, meta):
+
+        # dataset_index = random.randint(0, len(self.datasets) - 1)
+        dataset = random.choices(
+            population=self.datasets,
+            weights=self.probs
+        )[0]
+        
+        return dataset[0]
+
+
 def get_data_module(
     workspace: str,
     config_yaml: str,
@@ -129,6 +200,7 @@ def get_data_module(
 
     sampler_type = configs['sampler_type']
     dataset_type = configs['dataset_type']
+    dataset_probs = configs["dataset_probs"]
     simulator_configs = configs["simulator_configs"]
     # train_hdf5s_dir = os.path.join(workspace, configs['sources']['train_hdf5s_dir'])
     # test_hdf5s_dir = os.path.join(workspace, configs['sources']['test_hdf5s_dir'])
@@ -137,17 +209,27 @@ def get_data_module(
     steps_per_epoch = configs['train']['steps_per_epoch']
     batch_size = batch_size_per_device * devices_num
 
-    train_audios_dir = "/home/qiuqiangkong/workspaces/nesd2/audios/vctk_2s_segments/train"
+    # train_audios_dir = "/home/qiuqiangkong/workspaces/nesd2/audios/vctk_2s_segments/train"
     test_audios_dir = "/home/qiuqiangkong/workspaces/nesd2/audios/vctk_2s_segments/test"
 
-    train_dataset = Dataset3(
-        audios_dir=train_audios_dir, 
-        expand_frames=201, 
+    # train_dataset = Dataset3(
+    #     audios_dir=train_audios_dir, 
+    #     expand_frames=201, 
+    #     simulator_configs=simulator_configs
+    # )
+    train_dataset = DatasetConcat(
+        dataset_probs=dataset_probs, 
         simulator_configs=simulator_configs
     )
+    '''
     val_dataset = Dataset3(
         audios_dir=test_audios_dir, 
         expand_frames=201,
+        simulator_configs=simulator_configs
+    )
+    '''
+    val_dataset = DatasetConcat(
+        dataset_probs=dataset_probs, 
         simulator_configs=simulator_configs
     )
 

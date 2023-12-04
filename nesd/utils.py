@@ -875,3 +875,7 @@ def sample_negative_depth(x, radius, max_length):
         else:
             break
     return depth
+
+
+def cos_similarity(x, y):
+    return np.sum(x * y, axis=-1) / (np.linalg.norm(x, axis=-1) * np.linalg.norm(y, axis=-1))

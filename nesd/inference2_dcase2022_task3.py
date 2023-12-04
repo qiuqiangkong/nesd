@@ -61,6 +61,22 @@ LABELS = [
 LB_TO_ID = {lb: id for id, lb in enumerate(LABELS)}
 ID_TO_LB = {id: lb for id, lb in enumerate(LABELS)}
 
+_split = "train"
+
+if _split == "train":
+    # audio_path = "/home/qiuqiangkong/datasets/dcase2022/task3/mic_dev/dev-train-tau/fold3_room4_mix001.wav"
+
+    # csv_path = "/home/qiuqiangkong/datasets/dcase2022/task3/metadata_dev/dev-train-tau/fold3_room4_mix001.csv"
+
+    audio_path = "/home/qiuqiangkong/datasets/dcase2022/task3/mic_dev/dev-train-sony/fold3_room21_mix001.wav"
+
+    csv_path = "/home/qiuqiangkong/datasets/dcase2022/task3/metadata_dev/dev-train-sony/fold3_room21_mix001.csv"
+
+elif _split == "test":
+    audio_path = "/home/qiuqiangkong/datasets/dcase2022/task3/mic_dev/dev-test-sony/fold4_room24_mix016.wav"
+
+    csv_path = "/home/qiuqiangkong/datasets/dcase2022/task3/metadata_dev/dev-test-sony/fold4_room24_mix016.csv"
+
 
 def inference(args):
 
@@ -100,7 +116,6 @@ def inference(args):
     )
 
     # Load audio
-    audio_path = "/home/qiuqiangkong/datasets/dcase2022/task3/mic_dev/dev-test-sony/fold4_room24_mix016.wav"
     audio, fs = librosa.load(path=audio_path, sr=sample_rate, mono=False)
 
     # audio *= 50
@@ -293,7 +308,6 @@ def plot(args):
 def plot(args):
 
     # csv_path = "/home/qiuqiangkong/datasets/dcase2019/task3/downloaded_package/metadata_dev/split1_ir0_ov1_1.csv"
-    csv_path = "/home/qiuqiangkong/datasets/dcase2022/task3/metadata_dev/dev-test-sony/fold4_room24_mix016.csv"
 
     frame_indexes, class_indexes, azimuths, colatitudes, distances = read_dcase2020_task3_csv(csv_path=csv_path)
 
@@ -486,12 +500,9 @@ def inference_depth(args):
 
     )
 
-    csv_path = "/home/qiuqiangkong/datasets/dcase2022/task3/metadata_dev/dev-test-sony/fold4_room24_mix016.csv"
     frame_indexes, class_indexes, azimuths, colatitudes, distances = read_dcase2020_task3_csv(csv_path=csv_path)
 
     # Load audio
-    # audio_path = "/home/qiuqiangkong/datasets/dcase2019/task3/downloaded_package/mic_dev/split1_ir0_ov1_1.wav"
-    audio_path = "/home/qiuqiangkong/datasets/dcase2020/task3/part_mic_dev/fold6_room1_mix100_ov2.wav"
     audio, fs = librosa.load(path=audio_path, sr=sample_rate, mono=False)
 
     # audio *= 50
@@ -677,12 +688,9 @@ def inference_sep(args):
 
     )
 
-    csv_path = "/home/qiuqiangkong/datasets/dcase2022/task3/metadata_dev/dev-test-sony/fold4_room24_mix016.csv"
     frame_indexes, class_indexes, azimuths, colatitudes, distances = read_dcase2020_task3_csv(csv_path=csv_path)
 
     # Load audio
-    # audio_path = "/home/qiuqiangkong/datasets/dcase2019/task3/downloaded_package/mic_dev/split1_ir0_ov1_1.wav"
-    audio_path = "/home/qiuqiangkong/datasets/dcase2020/task3/part_mic_dev/fold6_room1_mix100_ov2.wav"
     audio, fs = librosa.load(path=audio_path, sr=sample_rate, mono=False)
 
     # audio *= 50

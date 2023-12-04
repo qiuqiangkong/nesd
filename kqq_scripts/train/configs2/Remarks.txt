@@ -4,6 +4,11 @@
 04a.yaml	random room, random mic, random agent, sources=1-2, lowpass=500, works
 05a.yaml	depth, others same as 03a
 06a.yaml	sep, others same as 03a, sources=2, max_order=0
+07a.yaml	concatenate pra and dcase2019 data
+07a2.yaml	concatenate pra and dcase2020 data
+07b.yaml	concatenate pra and dcase2021 data
+07c.yaml	concatenate pra and dcase2022 data
+08.yaml		EM rir
 
 
 freefield_01a.yaml	fix pos, 4.2cm, omni

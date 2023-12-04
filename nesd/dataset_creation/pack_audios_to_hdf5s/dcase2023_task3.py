@@ -88,8 +88,8 @@ def pack_audios_to_hdf5s(args) -> NoReturn:
     # Uncomment for debug.
     # write_single_audio_to_hdf5(params[0])
     # os._exit(0)
-    for param in params:
-        write_single_audio_to_hdf5(param)
+    # for param in params:
+    #     write_single_audio_to_hdf5(param)
     # asdf
     pack_hdf5s_time = time.time()
 
@@ -175,13 +175,15 @@ def meta_file_to_event_list(metadata_path):
     event_indexes = df[2].values
     azimuths = df[3].values
     elevations = df[4].values
-
+    distances = df[5].values / 100
+    
     repeats = 10
     # frame_indexes = np.repeat(frame_indexes, repeats=repeats)
     class_indexes = np.repeat(class_indexes, repeats=repeats)
     event_indexes = np.repeat(event_indexes, repeats=repeats)
     azimuths = np.repeat(azimuths, repeats=repeats)
     elevations = np.repeat(elevations, repeats=repeats)
+    distances = np.repeat(distances, repeats=repeats)
 
     tmp = []
     for frame_index in frame_indexes:
@@ -203,6 +205,7 @@ def meta_file_to_event_list(metadata_path):
             "frame_indexes": frame_indexes[event_indexes == event_index],
             "azimuths": azimuths[event_indexes == event_index],
             "elevations": elevations[event_indexes == event_index],
+            "distances": distances[event_indexes == event_index],
             "class_indexes": class_indexes[event_indexes == event_index],
         }
         

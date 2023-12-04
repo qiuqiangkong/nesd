@@ -3,8 +3,28 @@ task_name: vctk
 speed_of_sound: 343.
 sampler_type: Sampler
 dataset_type: Dataset
+dataset_probs:
+    # pyroomacoustics: 0.5
+    # dcase2019_task3: 0.5
+    # dcase2022_task3: 1
+    em_rir: 1.
 simulator_configs:
+    image_source_max_order: 3
+    min_sources_num: 1
+    max_sources_num: 2
+    positive_rays: 4
+    total_rays: 20
+    room_min_length: 4
+    room_max_length: 8
+    room_min_width: 4
+    room_max_width: 8
+    room_min_height: 2
+    room_max_height: 4
+    mics_position_type: "random"
+    agent_position_type: "center_of_mics"
+    sources_position_type: "random"
     mics_yaml: "./microphones/eigenmike_4.2cm_omni.yaml"
+
 train:
     device: "gpu"
     # devices_num: 1
