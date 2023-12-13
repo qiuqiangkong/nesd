@@ -272,3 +272,13 @@ python nesd/inference2_dcase2022_task3.py plot
 
 ######## Create RIR
 python nesd/test_rir.py
+
+python nesd/dataset_creation/pack_audios_to_hdf5s/tau_noise.py \
+    --dataset_dir="/home/qiuqiangkong/datasets/dcase2022/tau-srir/TAU-SNoise_DB" \
+    --split="train" \
+    --hdf5s_dir="/home/qiuqiangkong/workspaces/nesd2/hdf5s/tau-noise" \
+    --sample_rate=24000
+
+####
+# write rigid IR to h5
+python nesd2/rigid.py

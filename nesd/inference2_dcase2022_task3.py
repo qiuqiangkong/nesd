@@ -14,6 +14,7 @@ import matplotlib.pyplot as plt
 import librosa
 import pickle
 import lightning as L
+from sklearn.cluster import KMeans
 from pathlib import Path
 from concurrent.futures import ProcessPoolExecutor
 
@@ -396,6 +397,10 @@ def _multiple_process_plot(param):
 
     n, gt_text, gt_mat, pred_mat, azimuth_grids, elevation_grids, grid_deg = param
     print("Plot: {}".format(n))
+
+    if True:
+        centers = calculate_centers(x=pred_mat)
+        pred_mat = plot_center_to_mat(centers=centers, x=pred_mat)
 
     plt.figure(figsize=(20, 10))
     fig, axs = plt.subplots(2, 1, sharex=True)
@@ -860,6 +865,85 @@ def add(args):
     from IPython import embed; embed(using=False); os._exit(0)
 
 
+def add2(args):
+    
+    frame_indexes, class_indexes, azimuths, colatitudes, distances = read_dcase2020_task3_csv(csv_path=csv_path)
+
+    #
+    pred_tensor = pickle.load(open("_zz2.pkl", "rb"))
+    frames_num = pred_tensor.shape[0]
+
+    grid_deg = 2
+    azimuth_grids = 360 // grid_deg
+    elevation_grids = 180 // grid_deg
+    
+    # gt_tensor = np.zeros((frames_num + 20, azimuth_grids, elevation_grids))
+    # half_angle = math.atan2(0.1, 1) 
+
+    n = 100
+    if False:        
+        plt.matshow(pred_tensor[n].T, origin='lower', aspect='auto', cmap='jet')
+        plt.savefig("_zz.pdf")
+
+    a1 = pred_tensor[n]
+    a1[0:3, 10:20] = 1
+    # a1[10:20, 10:20] = 1
+
+    centers = calculate_centers(x=a1)
+    a1 = plot_center_to_mat(centers=centers, x=a1)
+    
+    plt.matshow(a1.T, origin='lower', aspect='auto', cmap='jet')
+    plt.savefig("_zz.pdf")
+
+    from IPython import embed; embed(using=False); os._exit(0)
+
+    for n in range(frames_num):
+        print(n)
+        centers = calculate_centers(x=pred_tensor[n])
+        
+    from IPython import embed; embed(using=False); os._exit(0)
+
+    # tmp = np.stack(np.where(pred_tensor[n] > 0.5), axis=1)
+    # errors = []
+
+    # for n_clusters in range(1, 10):
+    #     kmeans = KMeans(n_clusters=n_clusters, random_state=0, n_init="auto").fit(tmp)
+    #     error = np.mean(np.abs(tmp - kmeans.cluster_centers_[kmeans.labels_]))
+    #     errors.append(error)
+    #     if error < 10:
+    #         break
+    
+    # kmeans.cluster_centers_
+    # from IPython import embed; embed(using=False); os._exit(0)
+
+
+def calculate_centers(x):
+
+    tmp = np.stack(np.where(x > 0.5), axis=1)
+
+    if len(tmp) == 0:
+        return []
+    
+    for n_clusters in range(1, 10):
+        kmeans = KMeans(n_clusters=n_clusters, random_state=0, n_init="auto").fit(tmp)
+        error = np.mean(np.abs(tmp - kmeans.cluster_centers_[kmeans.labels_]))
+        if error < 10:
+            break
+    
+    return kmeans.cluster_centers_
+
+
+def plot_center_to_mat(centers, x):
+    
+    for center in centers:
+        center_azi = int(center[0])
+        center_col = int(center[1])
+        x[center_azi - 5 : center_azi + 6, center_col] = np.nan
+        x[center_azi, center_col - 5 : center_col + 6] = np.nan
+
+    return x
+
+
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="")
@@ -911,6 +995,7 @@ if __name__ == "__main__":
     parser_inference = subparsers.add_parser("plot_depth")
 
     parser_inference = subparsers.add_parser("add")
+    parser_inference = subparsers.add_parser("add2")
     
     args = parser.parse_args()
     args.filename = pathlib.Path(__file__).stem 
@@ -932,6 +1017,9 @@ if __name__ == "__main__":
 
     elif args.mode == "add": 
         add(args)
+
+    elif args.mode == "add2":
+        add2(args)
 
     else:
         raise Exception("Error argument!")

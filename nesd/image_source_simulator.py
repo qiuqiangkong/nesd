@@ -4,10 +4,14 @@ import os
 import pyroomacoustics as pra
 import librosa
 from room import Room
-from nesd.utils import norm, fractional_delay_filter, FractionalDelay, DirectionSampler, sph2cart, get_cos, Agent, repeat_to_length, cart2sph, Rotator3D, sample_agent_look_direction, sample_positive_depth, sample_negative_depth
+from nesd.utils import norm, fractional_delay_filter, FractionalDelay, DirectionSampler, sph2cart, get_cos, Agent, repeat_to_length, cart2sph, Rotator3D, sample_agent_look_direction, sample_positive_depth, sample_negative_depth, int16_to_float32
 import time
+import h5py
+import random
 from pathlib import Path
 import yaml
+import torchaudio
+import torch
 
 '''
 class ImageSourceSimulator:
@@ -576,11 +580,19 @@ class ImageSourceSimulator:
         self.sources_num = np.random.randint(min_sources_num, max_sources_num + 1)
         # self.sources_num = 2
 
+        if "add_noise" in simulator_configs.keys():
+            add_noise = simulator_configs["add_noise"]
+        else:
+            add_noise = None
+
         self.expand_frames = expand_frames
 
         self.positive_rays = simulator_configs["positive_rays"]
         self.depth_rays = simulator_configs["depth_rays"] if "depth_rays" in simulator_configs.keys() else None
         self.total_rays = simulator_configs["total_rays"]
+
+        self.rigid = simulator_configs["rigid"] if "rigid" in simulator_configs.keys() else None
+        self.lowpass = simulator_configs["lowpass"] if "lowpass" in simulator_configs.keys() else None
 
         # audios_dir = "./resources"
         # audios_dir = "/home/qiuqiangkong/workspaces/nesd2/audios/vctk_2s_segments/train"
@@ -654,6 +666,16 @@ class ImageSourceSimulator:
             #     exclude_raidus=self.exclude_raidus,
             # )
 
+            if self.lowpass:
+                for i in range(len(self.sources)):
+                    self.sources[i] = torchaudio.functional.lowpass_biquad(
+                        waveform=torch.Tensor(self.sources[i]),
+                        sample_rate=self.sample_rate,
+                        cutoff_freq=self.lowpass,
+                    ).data.cpu().numpy()
+                # soundfile.write(file="_zz.wav", data=self.sources[i], samplerate=24000)
+                # from IPython import embed; embed(using=False); os._exit(0)
+
             self.mic_positions = self.sample_mic_positions(
                 exclude_positions=None, 
                 exclude_raidus=None,
@@ -705,6 +727,28 @@ class ImageSourceSimulator:
         self.mic_signals = self.simulate_microphone_signals(self.mic_positions)
         # print("a7", time.time() - t1)
 
+        self.mic_signals = np.stack(self.mic_signals, axis=0)
+
+        if add_noise == "tau-noise":
+
+            noise_hdf5s_dir = "/home/qiuqiangkong/workspaces/nesd2/hdf5s/tau-noise"
+
+            hdf5_paths = sorted(list(Path(noise_hdf5s_dir).glob("*.h5")))
+
+            hdf5_path = random.choice(hdf5_paths)
+
+            with h5py.File(hdf5_path, 'r') as hf:
+                bgn_sample = random.randint(0, hf['waveform'].shape[-1] - self.segment_samples - 1)
+                end_sample = bgn_sample + self.segment_samples
+                noise = int16_to_float32(hf['waveform'][:, bgn_sample : end_sample])
+
+            noise *= 20
+
+            # soundfile.write(file="_zz.wav", data=self.mic_signals[0], samplerate=24000)
+            # soundfile.write(file="_zz2.wav", data=noise[0], samplerate=24000)
+            self.mic_signals += noise
+            # from IPython import embed; embed(using=False); os._exit(0)
+
         # Simluate agent signals
         # t1 = time.time()
         self.agents = self.sample_and_simulate_agent_signals()
@@ -712,7 +756,7 @@ class ImageSourceSimulator:
 
         self.mic_look_directions = np.stack(self.mic_look_directions, axis=0)
         self.mic_positions = np.stack(self.mic_positions, axis=0)
-        self.mic_signals = np.stack(self.mic_signals, axis=0)
+        # self.mic_signals = np.stack(self.mic_signals, axis=0)
 
         self.agent_positions = np.stack([agent.position for agent in self.agents], axis=0)
         self.agent_look_directions = np.stack([agent.look_direction for agent in self.agents], axis=0)
@@ -980,7 +1024,10 @@ class ImageSourceSimulator:
 
             decay_factor = 1 / distance
 
-            angle_factor = 1.
+            if self.rigid:
+                from IPython import embed; embed(using=False); os._exit(0)
+            else:
+                angle_factor = 1.
 
             normalized_direction = direction / distance
 

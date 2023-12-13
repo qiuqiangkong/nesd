@@ -614,6 +614,180 @@ def plot_depth(args):
     from IPython import embed; embed(using=False); os._exit(0)
 
 
+def inference_sep(args):
+
+    workspace = args.workspace
+    config_yaml = args.config_yaml
+    checkpoint_path = args.checkpoint_path
+    filename = args.filename
+    device = "cuda"
+
+    configs = read_yaml(config_yaml)
+    model_type = configs['train']['model_type']
+    simulator_configs = configs["simulator_configs"]
+    mics_yaml = simulator_configs["mics_yaml"]
+    lowpass_freq = configs["lowpass_freq"] if "lowpass_freq" in configs.keys() else None
+
+    num_workers = 0
+    batch_size = 32
+    frames_num = 201
+    sample_rate = 24000
+    segment_seconds = 2
+    segment_samples = int(sample_rate * segment_seconds)
+
+    # Load checkpoint
+    # checkpoint_path = "./tmp/epoch=8-step=9000-test_loss=0.094.ckpt"
+    checkpoint = torch.load(checkpoint_path)
+    # device = "cuda"
+
+    Net = eval(model_type)
+    net = Net(mics_num=4)
+
+    model = LitModel.load_from_checkpoint(
+        net=net, 
+        loss_function=None,
+        learning_rate=None,
+        checkpoint_path=checkpoint_path,
+
+    )
+
+    csv_path = "/home/qiuqiangkong/datasets/dcase2019/task3/downloaded_package/metadata_eval/split0_1.csv"
+    frame_indexes, class_indexes, azimuths, colatitudes, distances = read_dcase2019_task3_csv(csv_path=csv_path)
+
+    # Load audio
+    # audio_path = "/home/qiuqiangkong/datasets/dcase2019/task3/downloaded_package/mic_dev/split1_ir0_ov1_1.wav"
+    audio_path = "/home/qiuqiangkong/datasets/dcase2019/task3/downloaded_package/mic_eval/split0_1.wav"
+    audio, fs = librosa.load(path=audio_path, sr=sample_rate, mono=False)
+
+    # audio *= 50
+    # soundfile.write(file="_zz.wav", data=audio.T, samplerate=sample_rate)
+    # from IPython import embed; embed(using=False); os._exit(0)
+
+    if lowpass_freq is not None:
+        audio = torchaudio.functional.lowpass_biquad(
+            waveform=torch.Tensor(audio),
+            sample_rate=sample_rate,
+            cutoff_freq=500,
+        ).data.cpu().numpy()
+
+    audio_samples = audio.shape[1]
+
+    # agents
+    grid_deg = 2
+    azimuth_grids = 360 // grid_deg
+    elevation_grids = 180 // grid_deg
+
+    # agent_look_azimuths, agent_look_colatitudes = get_all_agent_look_directions(grid_deg)
+
+    # agent_look_directions = np.stack(sph2cart(
+    #     r=1., azimuth=agent_look_azimuths, colatitude=agent_look_colatitudes), axis=-1)
+
+    # rays_num = agent_look_directions.shape[0]
+
+    # agent_look_depths = np.arange(0, 10, 0.01)
+    # agent_look_depths = agent_look_depths[None, :, None, None]
+    # agent_look_depths = np.repeat(a=agent_look_depths, repeats=frames_num, axis=2)
+    rays_num = 2
+
+    # center_pos = np.array([
+    #     simulator_configs["room_min_length"] / 2,
+    #     simulator_configs["room_min_width"] / 2,
+    #     simulator_configs["room_min_height"] / 2
+    # ])
+    center_pos = np.array([4, 4, 2])
+    agent_positions = center_pos[None, None, None, :]
+    agent_positions = np.repeat(a=agent_positions, repeats=rays_num, axis=1)
+    agent_positions = np.repeat(a=agent_positions, repeats=frames_num, axis=2)
+
+    # agent_look_directions = np.repeat(
+    #     a=agent_look_directions[None, :, None, :],
+    #     repeats=frames_num,
+    #     axis=-2
+    # )
+
+    #
+    mics_num = 4
+    mic_look_directions = np.ones((mics_num, 3))
+    mic_look_directions = np.repeat(
+        a=mic_look_directions[None, :, None, :],
+        repeats=frames_num,
+        axis=-2
+    )
+
+    mic_positions = get_mic_positions(center_pos, mics_yaml)
+    mic_positions = np.repeat(
+        a=mic_positions[None, :, None, :],
+        repeats=frames_num,
+        axis=-2
+    )
+
+    pointer = 0
+
+    pred_tensor = []
+
+    while pointer + segment_samples < audio_samples:
+
+        print(pointer / sample_rate)
+
+        curr_sec = pointer / sample_rate
+        curr_frame = curr_sec * 10
+
+        for i in range(len(frame_indexes)):
+            if frame_indexes[i] > curr_frame:
+                break
+
+        azi = azimuths[i]
+        col = colatitudes[i]
+        dist = distances[i]
+
+        agent_look_directions = np.array(sph2cart(r=1., azimuth=azi, colatitude=col))
+        agent_look_directions = agent_look_directions[None, None, None, :]
+        agent_look_directions = np.repeat(a=agent_look_directions, repeats=rays_num, axis=1)
+        agent_look_directions = np.repeat(a=agent_look_directions, repeats=frames_num, axis=2)
+
+        segment = audio[:, pointer : pointer + segment_samples]
+
+        input_dict = {
+            "mic_positions": mic_positions,
+            "mic_look_directions": mic_look_directions,
+            "mic_signals": segment[None, ...],
+            "agent_positions": agent_positions,
+            # "agent_look_depths": agent_look_depths,
+            "agent_look_directions": agent_look_directions,
+        }
+
+        input_dict["agent_look_depths"] = PAD * np.ones(agent_look_directions.shape[0:-1] + (1,))
+
+        for key in input_dict.keys():
+            input_dict[key] = torch.Tensor(input_dict[key]).to(device)
+
+        output_dict = forward_in_batch(model=model, input_dict=input_dict)
+
+        # from IPython import embed; embed(using=False); os._exit(0)
+
+        tmp = output_dict["agent_signals"][0]
+
+        pred_tensor.append(tmp)
+
+        pointer += segment_samples
+
+        # agent_look_directions_has_source = np.mean(output_dict["agent_look_directions_has_source"], axis=1)
+
+        # source_positions = [e[0] for e in data_dict["source_positions"][i]] # (sources_num, 3)
+        # agent_position = data_dict["agent_positions"][i][0, 0]  # (3,)
+
+        # pickle.dump([agent_look_directions_has_source, source_positions, agent_position.data.cpu().numpy()], open("_zz.pkl", "wb"))
+
+        # add(None)
+
+    pred_tensor = np.concatenate(pred_tensor, axis=0)
+
+    soundfile.write(file="_zz.wav", data=pred_tensor, samplerate=sample_rate)
+
+    # pickle.dump(pred_tensor, open("_zz2_depth.pkl", "wb"))
+    from IPython import embed; embed(using=False); os._exit(0)
+
+
 def sub(x):
     x[0] = 10
     # time.sleep(6 - x) 
@@ -669,6 +843,20 @@ if __name__ == "__main__":
         "--checkpoint_path", type=str, required=True, help="Directory of workspace."
     )
 
+    parser_inference_sep = subparsers.add_parser("inference_sep")
+    parser_inference_sep.add_argument(
+        "--workspace", type=str, required=True, help="Directory of workspace."
+    )
+    parser_inference_sep.add_argument(
+        "--config_yaml",
+        type=str,
+        required=True,
+        help="Path of config file for training.",
+    )
+    parser_inference_sep.add_argument(
+        "--checkpoint_path", type=str, required=True, help="Directory of workspace."
+    )
+
     parser_inference = subparsers.add_parser("plot")
     parser_inference = subparsers.add_parser("plot_depth")
 
@@ -682,6 +870,9 @@ if __name__ == "__main__":
 
     elif args.mode == "inference_depth":
         inference_depth(args)
+
+    elif args.mode == "inference_sep":
+        inference_sep(args)
 
     elif args.mode == "plot": 
         plot(args)
