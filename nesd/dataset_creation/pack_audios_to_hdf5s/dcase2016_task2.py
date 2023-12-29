@@ -9,10 +9,10 @@ def add():
     sample_rate = 24000
     segment_seconds = 2
     segment_samples = int(sample_rate * segment_seconds) 
-    split = "test"
+    split = "train"
 
-    audios_dir = Path("/home/qiuqiangkong/datasets/dcase2018/task2/task2_downloaded_package", "audio_{}".format(split))
-    out_audios_dir = Path("/home/qiuqiangkong/workspaces/nesd2/audios/dcase2018_task2_2s_segments", split)
+    audios_dir = Path("/home/qiuqiangkong/datasets/dcase2016/task2/dcase2016_task2_train_dev/dcase2016_task2_train")
+    out_audios_dir = Path("/home/qiuqiangkong/workspaces/nesd2/audios/dcase2016_task2_2s_segments", split)
     out_audios_dir.mkdir(parents=True, exist_ok=True)
 
     audio_paths = sorted(list(Path(audios_dir).glob("*.wav")))

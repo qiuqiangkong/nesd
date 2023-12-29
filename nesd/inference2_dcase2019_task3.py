@@ -39,12 +39,27 @@ from nesd.test_dataloader import Dataset3, collate_fn
 from nesd.train2 import LitModel
 from nesd.image_source_simulator import expand_frame_dim
 from nesd.inference2 import get_all_agent_look_directions, forward_in_batch
+from nesd.inference2_dcase2022_task3 import calculate_centers, plot_center_to_mat
 
 
 LABELS = ['clearthroat', 'cough', 'doorslam', 'drawer', 'keyboard', 'keysDrop', 'knock', 'laughter', 'pageturn', 'phone', 'speech']
 
 LB_TO_ID = {lb: id for id, lb in enumerate(LABELS)}
 ID_TO_LB = {id: lb for id, lb in enumerate(LABELS)}
+
+split = "test"
+
+if split == "train":
+    audio_path = "/home/qiuqiangkong/datasets/dcase2019/task3/downloaded_package/mic_dev/split1_ir0_ov1_1.wav"
+
+    csv_path = "/home/qiuqiangkong/datasets/dcase2019/task3/downloaded_package/metadata_dev/split1_ir0_ov1_1.csv"
+
+elif split == "test":
+    audio_path = "/home/qiuqiangkong/datasets/dcase2019/task3/downloaded_package/mic_eval/split0_1.wav"
+    # audio_path = "/home/qiuqiangkong/datasets/dcase2019/task3/downloaded_package/mic_eval/split0_99.wav"
+
+    csv_path = "/home/qiuqiangkong/datasets/dcase2019/task3/downloaded_package/metadata_eval/split0_1.csv"
+    # csv_path = "/home/qiuqiangkong/datasets/dcase2019/task3/downloaded_package/metadata_eval/split0_99.csv"
 
 
 def inference(args):
@@ -59,7 +74,7 @@ def inference(args):
     model_type = configs['train']['model_type']
     simulator_configs = configs["simulator_configs"]
     mics_yaml = simulator_configs["mics_yaml"]
-    lowpass_freq = configs["lowpass_freq"] if "lowpass_freq" in configs.keys() else None
+    lowpass = simulator_configs["lowpass"] if "lowpass" in simulator_configs.keys() else None
 
     num_workers = 0
     batch_size = 32
@@ -85,19 +100,17 @@ def inference(args):
     )
 
     # Load audio
-    # audio_path = "/home/qiuqiangkong/datasets/dcase2019/task3/downloaded_package/mic_dev/split1_ir0_ov1_1.wav"
-    audio_path = "/home/qiuqiangkong/datasets/dcase2019/task3/downloaded_package/mic_eval/split0_1.wav"
     audio, fs = librosa.load(path=audio_path, sr=sample_rate, mono=False)
 
     # audio *= 50
     # soundfile.write(file="_zz.wav", data=audio.T, samplerate=sample_rate)
     # from IPython import embed; embed(using=False); os._exit(0)
 
-    if lowpass_freq is not None:
+    if lowpass is not None:
         audio = torchaudio.functional.lowpass_biquad(
             waveform=torch.Tensor(audio),
             sample_rate=sample_rate,
-            cutoff_freq=500,
+            cutoff_freq=lowpass,
         ).data.cpu().numpy()
 
     audio_samples = audio.shape[1]
@@ -278,9 +291,6 @@ def plot(args):
 
 def plot(args):
 
-    # csv_path = "/home/qiuqiangkong/datasets/dcase2019/task3/downloaded_package/metadata_dev/split1_ir0_ov1_1.csv"
-    csv_path = "/home/qiuqiangkong/datasets/dcase2019/task3/downloaded_package/metadata_eval/split0_1.csv"
-
     frame_indexes, class_indexes, azimuths, colatitudes, distances = read_dcase2019_task3_csv(csv_path=csv_path)
 
     #
@@ -315,8 +325,8 @@ def plot(args):
 
     gt_texts = [""] * gt_tensor.shape[0]
     for (frame_index, class_index, gt_mat) in results:
-        gt_tensor[frame_index] = gt_mat
-        gt_texts[frame_index] = ID_TO_LB[class_index]
+        gt_tensor[frame_index] += gt_mat
+        gt_texts[frame_index] += ID_TO_LB[class_index]
 
     Path("_tmp").mkdir(parents=True, exist_ok=True)
 
@@ -332,6 +342,10 @@ def plot(args):
 
     with ProcessPoolExecutor(max_workers=None) as pool: # Maximum workers on the machine.
         results = pool.map(_multiple_process_plot, params)
+
+    results = list(results)
+
+    pickle.dump(results, open("_zz_centers.pkl", "wb"))
 
 
 def _multiple_process_gt_mat(param):
@@ -369,6 +383,10 @@ def _multiple_process_plot(param):
     n, gt_text, gt_mat, pred_mat, azimuth_grids, elevation_grids, grid_deg = param
     print("Plot: {}".format(n))
 
+    if True:
+        centers = calculate_centers(x=pred_mat)
+        pred_mat = plot_center_to_mat(centers=centers, x=pred_mat)
+
     plt.figure(figsize=(20, 10))
     fig, axs = plt.subplots(2, 1, sharex=True)
     axs[0].matshow(gt_mat.T, origin='upper', aspect='equal', cmap='jet', vmin=0, vmax=1)
@@ -382,6 +400,8 @@ def _multiple_process_plot(param):
     axs[0].set_title(gt_text)
 
     plt.savefig('_tmp/_zz_{:04d}.png'.format(n))
+
+    return n, centers
 
 
 def read_dcase2019_task3_csv(csv_path):
@@ -810,6 +830,34 @@ def add(args):
     from IPython import embed; embed(using=False); os._exit(0)
 
 
+def center_to_csv(args):
+
+    
+    results = pickle.load(open("_zz_centers.pkl", "rb"))
+
+    out_csv_path = "./tmp_results_dcase2019/{}".format(Path(csv_path).name)
+    Path(out_csv_path).parent.mkdir(parents=True, exist_ok=True)
+
+    grid_deg = 2
+    
+    with open(out_csv_path, 'w') as fw:
+        for n in range(len(results)):
+            centers = results[n][1]
+
+            for center in centers:
+
+                azi = center[0] * grid_deg
+                if 180 < azi <= 360:
+                    azi = azi - 360
+                ele = 90 - center[1] * grid_deg 
+
+                for i in range(5):
+
+                    fw.write("{},{},{},{}\n".format(5 * n + i, 8, int(np.around(azi, -1)), int(np.around(ele, -1))))
+
+    from IPython import embed; embed(using=False); os._exit(0)
+
+
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="")
@@ -861,6 +909,8 @@ if __name__ == "__main__":
     parser_inference = subparsers.add_parser("plot_depth")
 
     parser_inference = subparsers.add_parser("add")
+
+    parser_inference = subparsers.add_parser("center_to_csv")
     
     args = parser.parse_args()
     args.filename = pathlib.Path(__file__).stem 
@@ -882,6 +932,9 @@ if __name__ == "__main__":
 
     elif args.mode == "add": 
         add(args)
+
+    elif args.mode == "center_to_csv":
+        center_to_csv(args)
 
     else:
         raise Exception("Error argument!")

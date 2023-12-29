@@ -147,6 +147,9 @@ CUDA_VISIBLE_DEVICES=2 python3 ./nesd/inference_sed_fz_loc.py inference_dcase202
 python nesd/test_room.py
 
 ############# 2023.10 New ############
+
+WORKSPACE="/home/qiuqiangkong/workspaces/nesd2"
+
 python nesd/test5.py    # latest simulator
 python nesd/test_dataloader.py  # render iss data and plot simulator
 python nesd/test_plot.py    # Plot data simulator
@@ -154,9 +157,24 @@ python nesd/test_plot.py    # Plot data simulator
 # Prepare data
 python nesd/process_vctk_dataset.py
 
+python ./nesd/dataset_creation/pack_audios_to_hdf5s/dcase2016_task2.py
+
+python ./nesd/dataset_creation/pack_audios_to_hdf5s/dcase2018_task2.py
+
+python ./nesd/dataset_creation/pack_audios_to_hdf5s/fsd50k.py
+
+python ./nesd/dataset_creation/pack_audios_to_hdf5s/musdb18hq.py \
+    --dataset_dir="/home/qiuqiangkong/datasets/musdb18hq" \
+    --split="${SPLIT}" \
+    --hdf5s_dir="${WORKSPACE}/hdf5s/musdb18hq/${SPLIT}" \
+    --sample_rate=24000 \
+    --segment_seconds=2.0
+
+###
+python nesd/prepare_paths_dict_d22.py
+
 ### --- pyroomacoustics ---
 # train
-WORKSPACE="/home/qiuqiangkong/workspaces/nesd2"
 CUDA_VISIBLE_DEVICES=0 python nesd/train2.py train \
     --workspace=$WORKSPACE \
     --config_yaml="./kqq_scripts/train/configs2/01a.yaml"
@@ -249,6 +267,7 @@ python nesd/inference2_dcase2019_task3.py plot
 
 ffmpeg -framerate 10 -i '_tmp/_zz_%04d.png' -r 30 -pix_fmt yuv420p 123.mp4
 
+python nesd/inference2_dcase2019_task3.py center_to_csv
 
 # Inference dcase 2020 task 3
 
@@ -269,6 +288,12 @@ CUDA_VISIBLE_DEVICES=2 python nesd/inference2_dcase2022_task3.py inference \
     --config_yaml="./kqq_scripts/train/configs2/03a.yaml" \
     --checkpoint_path="/home/qiuqiangkong/workspaces/nesd2/checkpoints/train2/config=03a/epoch=23-step=24000-test_loss=0.031.ckpt"
 python nesd/inference2_dcase2022_task3.py plot
+
+CUDA_VISIBLE_DEVICES=2 python nesd/inference2_dcase2022_task3.py inference_cla \
+    --workspace="" \
+    --config_yaml="./kqq_scripts/train/configs2/15a.yaml" \
+    --checkpoint_path="/home/qiuqiangkong/workspaces/nesd2/checkpoints/train2/config=03a/epoch=23-step=24000-test_loss=0.031.ckpt"
+python nesd/inference2_dcase2022_task3.py plot_cla
 
 ######## Create RIR
 python nesd/test_rir.py

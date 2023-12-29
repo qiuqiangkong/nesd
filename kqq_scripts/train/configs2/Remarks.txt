@@ -12,7 +12,12 @@
 09a.yaml	03a + noise
 (todo) 10a.yaml	rigid rir (simulate), not yet
 - 11a.yaml	ism noise + real data
-12a.yaml	09a + lowpass_freq=500
++ 12a.yaml	09a + lowpass_freq=500
+13a.yaml	12a + 0-2 sources
+13b.yaml	12a + part silence
+13c.yaml	12a + dcase2018_task2
+14a.yaml	12a + dcase2022
+15a.yaml	12a + dcase2022 cla
 
 freefield_01a.yaml	fix pos, 4.2cm, omni
 freefield_01b.yaml	fix pos, 0cm, cardioid

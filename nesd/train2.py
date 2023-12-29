@@ -137,8 +137,15 @@ def get_data_module(
     steps_per_epoch = configs['train']['steps_per_epoch']
     batch_size = batch_size_per_device * devices_num
 
-    train_audios_dir = "/home/qiuqiangkong/workspaces/nesd2/audios/vctk_2s_segments/train"
-    test_audios_dir = "/home/qiuqiangkong/workspaces/nesd2/audios/vctk_2s_segments/test"
+    train_audios_dir = simulator_configs["train_audios_dir"] if "train_audios_dir" in simulator_configs.keys() else None
+    test_audios_dir = simulator_configs["test_audios_dir"] if "test_audios_dir" in simulator_configs.keys() else None
+
+    if train_audios_dir is None:
+        train_audios_dir = "/home/qiuqiangkong/workspaces/nesd2/audios/vctk_2s_segments/train"
+    if test_audios_dir is None:
+        test_audios_dir = "/home/qiuqiangkong/workspaces/nesd2/audios/vctk_2s_segments/test"
+
+    # from IPython import embed; embed(using=False); os._exit(0)
 
     train_dataset = Dataset3(
         audios_dir=train_audios_dir, 

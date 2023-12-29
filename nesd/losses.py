@@ -60,6 +60,24 @@ def loc_bce_depth_bce(output_dict, target_dict):
     return loss
 
 
+def loc_bce_cla_bce(output_dict, target_dict):
+
+    agent_sed_mask = (target_dict['agent_sed_mask'] != PAD) * 1.
+    # agent_sed_mask = agent_sed_mask[:, :, :, None].repeat(1, 1, 1, )
+
+    loc_bce_loss = loc_bce(output_dict, target_dict)
+
+    cla_bce_loss = loc_bce_mask(
+        output=output_dict['agent_sed'], 
+        target=target_dict['agent_sed'], 
+        mask=agent_sed_mask
+    )
+    
+    loss = loc_bce_loss + cla_bce_loss
+
+    return loss
+
+
 def l1(x, y, mask):
     loss = torch.sum(torch.abs(x - y) * mask[:, :, None]) / torch.clamp(torch.sum(mask), 1e-4) / x.shape[-1]
     return loss

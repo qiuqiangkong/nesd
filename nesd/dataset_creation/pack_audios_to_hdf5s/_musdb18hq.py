@@ -7,8 +7,6 @@ from typing import NoReturn, List
 import h5py
 import numpy as np
 import librosa
-from pathlib import Path
-import soundfile
 
 from nesd.utils import float32_to_int16
 
@@ -29,20 +27,17 @@ def pack_audios_to_hdf5s(args) -> NoReturn:
     """
 
     # arguments & parameters
-    sample_rate = 24000
-    segment_seconds = 2
-    segment_samples = int(sample_rate * segment_seconds) 
-    split = "test"
+    dataset_dir = args.dataset_dir
+    split = args.split
+    hdf5s_dir = args.hdf5s_dir
+    sample_rate = args.sample_rate
+    segment_seconds = args.segment_seconds
 
     segment_samples = int(sample_rate * segment_seconds)
 
-    # audios_dir = os.path.join(dataset_dir, split)
-    dataset_dir = Path("/home/qiuqiangkong/datasets/musdb18hq")
-    audios_dir = Path(dataset_dir, split)
+    audios_dir = os.path.join(dataset_dir, split)
 
-    out_audios_dir = Path("/home/qiuqiangkong/workspaces/nesd2/audios/musdb18hq_2s_segments", split)
-
-    os.makedirs(out_audios_dir, exist_ok=True)
+    os.makedirs(hdf5s_dir, exist_ok=True)
 
     params = []
     audio_index = 0
@@ -58,7 +53,7 @@ def pack_audios_to_hdf5s(args) -> NoReturn:
             audio_name,
             audio_path,
             sample_rate,
-            out_audios_dir,
+            hdf5s_dir,
             segment_samples,
         )
         params.append(param)
@@ -88,7 +83,7 @@ def write_single_audio_to_hdf5(param: List) -> NoReturn:
         audio_name,
         audio_path,
         sample_rate,
-        out_audios_dir,
+        hdf5s_dir,
         segment_samples,
     ) = param
 
@@ -116,9 +111,22 @@ def write_single_audio_to_hdf5(param: List) -> NoReturn:
     for n, segment in enumerate(segments):
 
         bare_name = "{}_{:04d}".format(pathlib.Path(audio_name).stem, n)
-        out_audio_path = Path(out_audios_dir, "{}.wav".format(bare_name, n))
-        soundfile.write(file=out_audio_path, data=segment, samplerate=sample_rate)
-        print("Write out to {}".format(out_audio_path))
+        hdf5_path = os.path.join(hdf5s_dir, "{}.h5".format(bare_name, n))
+
+        frame_contains_source = np.ones(301)
+
+        with h5py.File(hdf5_path, "w") as hf:
+            hf.create_dataset(name="waveform", data=float32_to_int16(segment), dtype=np.int16)
+            hf.create_dataset(name="frame_contains_source", data=frame_contains_source, dtype=np.float32)
+            hf.attrs.create("audio_name", data=bare_name.encode(), dtype="S100")
+            hf.attrs.create("sample_rate", data=sample_rate, dtype=np.int32)
+            # hf.attrs.create("label", data=label, dtype="S100")
+
+        print('{} Write hdf5 to {}'.format(audio_index, hdf5_path))
+
+        # import soundfile
+        # out_path = os.path.join('_tmp', "{}.wav".format(bare_name, n))
+        # soundfile.write(file=out_path, data=segment, samplerate=sample_rate)
 
 
 def remove_silence(audio, sample_rate):

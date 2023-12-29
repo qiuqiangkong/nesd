@@ -153,11 +153,66 @@ class Dataset3:
             "agent_signals": iss_data.agent_waveforms
         }
 
+        if hasattr(iss_data, "sed"):
+            data["agent_sed"] = iss_data.sed
+            data["agent_sed_mask"] = iss_data.sed_mask
+
         return data
 
     # def __len__(self):
     #     return 10000
 
+
+'''
+class Dataset3:
+    def __init__(self, audios_dir, expand_frames=None, simulator_configs=None):
+        self.audios_dir = audios_dir
+        self.expand_frames = expand_frames
+        self.simulator_configs = simulator_configs
+
+        self.iss_data = ImageSourceSimulator(
+            audios_dir=self.audios_dir, 
+            expand_frames=self.expand_frames,
+            simulator_configs=self.simulator_configs
+        )
+
+    def __getitem__(self, meta):
+        # print(meta)
+        
+        self.iss_data.sample()
+
+        from IPython import embed; embed(using=False); os._exit(0)
+
+        data = {
+            "room_length": iss_data.length,
+            "room_width": iss_data.width,
+            "room_height": iss_data.height,
+            "source_positions": iss_data.source_positions,
+            "source_signals": iss_data.sources,
+            "mic_positions": iss_data.mic_positions,
+            "mic_look_directions": iss_data.mic_look_directions,
+            "mic_signals": iss_data.mic_signals,
+            "agent_positions": iss_data.agent_positions,
+            "agent_look_directions": iss_data.agent_look_directions,
+            "agent_look_depths": iss_data.agent_look_depths,
+            # "agent_signals": iss_data.agent_waveforms,
+            "agent_look_directions_has_source": iss_data.agent_look_directions_has_source,
+            "agent_look_depths_has_source": iss_data.agent_look_depths_has_source,
+            # "agent_ray_types": iss_data.agent_ray_types,
+            "agent_active_indexes": iss_data.active_indexes,
+            "agent_active_indexes_mask": iss_data.active_indexes_mask,
+            "agent_signals": iss_data.agent_waveforms
+        }
+
+        if hasattr(iss_data, "sed"):
+            data["agent_sed"] = iss_data.sed
+            data["agent_sed_mask"] = iss_data.sed_mask
+
+        return data
+
+    # def __len__(self):
+    #     return 10000
+'''
 
 class DatasetEmRir:
     def __init__(self, audios_dir, rir_hdf5s_dir, expand_frames=None, simulator_configs=None):
@@ -207,7 +262,7 @@ def collate_fn(list_data_dict):
         
         data_dict[key] = [dd[key] for dd in list_data_dict]
 
-        if key in ["mic_positions", "mic_look_directions", "mic_signals", "agent_positions", "agent_look_directions", "agent_look_depths", "agent_look_directions_has_source", "agent_look_depths_has_source", "agent_active_indexes_mask", "agent_signals"]:
+        if key in ["mic_positions", "mic_look_directions", "mic_signals", "agent_positions", "agent_look_directions", "agent_look_depths", "agent_look_directions_has_source", "agent_look_depths_has_source", "agent_active_indexes_mask", "agent_signals", "agent_sed", "agent_sed_mask"]:
             data_dict[key] = torch.Tensor(np.stack(data_dict[key], axis=0))
 
         elif key in ["agent_active_indexes"]:

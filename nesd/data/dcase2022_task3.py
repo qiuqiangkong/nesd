@@ -222,6 +222,8 @@ class DCASE2022Task3Dataset:
         data["agent_signals"] = np.zeros((max_active_indexes, self.segment_samples))
         # data["agent"]
 
+        from IPython import embed; embed(using=False); os._exit(0) 
+
         return data
 
     def sample_mic_positions(self, exclude_positions, exclude_raidus):
