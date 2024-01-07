@@ -47,7 +47,7 @@ LABELS = ['clearthroat', 'cough', 'doorslam', 'drawer', 'keyboard', 'keysDrop', 
 LB_TO_ID = {lb: id for id, lb in enumerate(LABELS)}
 ID_TO_LB = {id: lb for id, lb in enumerate(LABELS)}
 
-split = "test"
+split = "train"
 
 if split == "train":
     audio_path = "/home/qiuqiangkong/datasets/dcase2019/task3/downloaded_package/mic_dev/split1_ir0_ov1_1.wav"
@@ -404,6 +404,49 @@ def _multiple_process_plot(param):
     return n, centers
 
 
+def _multiple_process_plot_cla(param):
+
+    n, gt_text, gt_mat, pred_mat, pred_mat_cla, azimuth_grids, elevation_grids, grid_deg = param
+    print("Plot: {}".format(n))
+
+    pred_text = ""
+
+    if True:
+        pred_mat = np.max(pred_mat_cla, axis=-1)
+    # from IPython import embed; embed(using=False); os._exit(0)
+
+    if True:
+        centers = calculate_centers(x=pred_mat)
+        pred_mat = plot_center_to_mat(centers=centers, x=pred_mat)
+
+        for center in centers:
+            center_azi = int(center[0])
+            center_col = int(center[1])
+
+            max_id = np.argmax(pred_mat_cla[center_azi, center_col])
+            label = ID_TO_LB[max_id]
+            prob = np.max(pred_mat_cla[center_azi, center_col])
+            pred_text += "{},{},{}={:.3f}; ".format(center_azi, center_col, label, prob)
+
+    # from IPython import embed; embed(using=False); os._exit(0)
+
+    plt.figure(figsize=(20, 15))
+    fig, axs = plt.subplots(2, 1, sharex=True)
+    axs[0].matshow(gt_mat.T, origin='upper', aspect='equal', cmap='jet', vmin=0, vmax=1)
+    axs[1].matshow(pred_mat.T, origin='upper', aspect='equal', cmap='jet', vmin=0, vmax=1)
+    for i in range(2):
+        axs[i].grid(color='w', linestyle='--', linewidth=0.1)
+        axs[i].xaxis.set_ticks(np.arange(0, azimuth_grids+1, 10))
+        axs[i].yaxis.set_ticks(np.arange(0, elevation_grids+1, 10))
+        axs[i].xaxis.set_ticklabels(np.arange(0, 361, 10 * grid_deg), rotation=90)
+        axs[i].yaxis.set_ticklabels(np.arange(0, 181, 10 * grid_deg))
+    axs[0].set_title(gt_text)
+    axs[1].set_title(pred_text)
+    plt.tight_layout(pad=0, h_pad=0, w_pad=0)
+
+    plt.savefig('_tmp/_zz_{:04d}.png'.format(n))
+
+
 def read_dcase2019_task3_csv(csv_path):
 
     df = pd.read_csv(csv_path, sep=',')
@@ -483,12 +526,12 @@ def inference_depth(args):
 
     )
 
-    csv_path = "/home/qiuqiangkong/datasets/dcase2019/task3/downloaded_package/metadata_eval/split0_1.csv"
+    # csv_path = "/home/qiuqiangkong/datasets/dcase2019/task3/downloaded_package/metadata_eval/split0_1.csv"
     frame_indexes, class_indexes, azimuths, colatitudes, distances = read_dcase2019_task3_csv(csv_path=csv_path)
 
     # Load audio
     # audio_path = "/home/qiuqiangkong/datasets/dcase2019/task3/downloaded_package/mic_dev/split1_ir0_ov1_1.wav"
-    audio_path = "/home/qiuqiangkong/datasets/dcase2019/task3/downloaded_package/mic_eval/split0_1.wav"
+    # audio_path = "/home/qiuqiangkong/datasets/dcase2019/task3/downloaded_package/mic_eval/split0_1.wav"
     audio, fs = librosa.load(path=audio_path, sr=sample_rate, mono=False)
 
     # audio *= 50
@@ -619,7 +662,7 @@ def inference_depth(args):
 def plot_depth(args):
 
     # csv_path = "/home/qiuqiangkong/datasets/dcase2019/task3/downloaded_package/metadata_dev/split1_ir0_ov1_1.csv"
-    csv_path = "/home/qiuqiangkong/datasets/dcase2019/task3/downloaded_package/metadata_eval/split0_1.csv"
+    # csv_path = "/home/qiuqiangkong/datasets/dcase2019/task3/downloaded_package/metadata_eval/split0_1.csv"
 
     frame_indexes, class_indexes, azimuths, colatitudes, distances = read_dcase2019_task3_csv(csv_path=csv_path)
 
@@ -630,6 +673,63 @@ def plot_depth(args):
     fig, ax = plt.subplots(1, 1, sharex=True)
     ax.matshow(pred_tensor.T, origin='lower', aspect='auto', cmap='jet')
     plt.savefig('_zz.pdf')
+
+    from IPython import embed; embed(using=False); os._exit(0)
+
+
+def plot_cla(args):
+
+    frame_indexes, class_indexes, azimuths, colatitudes, distances = read_dcase2019_task3_csv(csv_path=csv_path)
+
+    #
+    pred_tensor, pred_tensor_cla = pickle.load(open("_zz2_sed.pkl", "rb"))
+    frames_num = pred_tensor.shape[0]
+
+    grid_deg = 2
+    azimuth_grids = 360 // grid_deg
+    elevation_grids = 180 // grid_deg
+    
+    gt_tensor = np.zeros((frames_num + 20, azimuth_grids, elevation_grids))
+    half_angle = math.atan2(0.1, 1)
+
+    # Get GT
+    params = []
+
+    for n in range(len(frame_indexes)):
+
+        frame_index = frame_indexes[n]
+        class_index = class_indexes[n]
+        source_azi = azimuths[n]
+        source_col = colatitudes[n]
+
+        param = (frame_index, class_index, source_azi, source_col, azimuth_grids, elevation_grids, grid_deg, half_angle)
+        params.append(param)
+
+    # for param in params:
+    #     _multiple_process_gt_mat(param)
+
+    with ProcessPoolExecutor(max_workers=None) as pool: # Maximum workers on the machine.
+        results = pool.map(_multiple_process_gt_mat, params)
+
+    gt_texts = [""] * gt_tensor.shape[0]
+    for (frame_index, class_index, gt_mat) in results:
+        gt_tensor[frame_index] += gt_mat
+        gt_texts[frame_index] += ID_TO_LB[class_index]
+
+    Path("_tmp").mkdir(parents=True, exist_ok=True)
+
+    # Plot
+    params = []
+
+    for n in range(min(pred_tensor.shape[0], gt_tensor.shape[0])):
+        param = (n, gt_texts[n], gt_tensor[n], pred_tensor[n], pred_tensor_cla[n], azimuth_grids, elevation_grids, grid_deg)
+        params.append(param)
+
+    # for param in params:
+    #     _multiple_process_plot_cla(param) 
+
+    with ProcessPoolExecutor(max_workers=None) as pool: # Maximum workers on the machine.
+        results = pool.map(_multiple_process_plot_cla, params)
 
     from IPython import embed; embed(using=False); os._exit(0)
 
@@ -671,12 +771,12 @@ def inference_sep(args):
 
     )
 
-    csv_path = "/home/qiuqiangkong/datasets/dcase2019/task3/downloaded_package/metadata_eval/split0_1.csv"
+    # csv_path = "/home/qiuqiangkong/datasets/dcase2019/task3/downloaded_package/metadata_eval/split0_1.csv"
     frame_indexes, class_indexes, azimuths, colatitudes, distances = read_dcase2019_task3_csv(csv_path=csv_path)
 
     # Load audio
     # audio_path = "/home/qiuqiangkong/datasets/dcase2019/task3/downloaded_package/mic_dev/split1_ir0_ov1_1.wav"
-    audio_path = "/home/qiuqiangkong/datasets/dcase2019/task3/downloaded_package/mic_eval/split0_1.wav"
+    # audio_path = "/home/qiuqiangkong/datasets/dcase2019/task3/downloaded_package/mic_eval/split0_1.wav"
     audio, fs = librosa.load(path=audio_path, sr=sample_rate, mono=False)
 
     # audio *= 50
@@ -808,6 +908,159 @@ def inference_sep(args):
     from IPython import embed; embed(using=False); os._exit(0)
 
 
+def inference_cla(args):
+
+    workspace = args.workspace
+    config_yaml = args.config_yaml
+    checkpoint_path = args.checkpoint_path
+    filename = args.filename
+    device = "cuda"
+
+    configs = read_yaml(config_yaml)
+    model_type = configs['train']['model_type']
+    simulator_configs = configs["simulator_configs"]
+    mics_yaml = simulator_configs["mics_yaml"]
+    # lowpass_freq = simulator_configs["lowpass_freq"] if "lowpass_freq" in configs.keys() else None
+    lowpass = simulator_configs["lowpass"] if "lowpass" in simulator_configs.keys() else None
+
+    num_workers = 0
+    batch_size = 32
+    frames_num = 201
+    sample_rate = 24000
+    segment_seconds = 2
+    segment_samples = int(sample_rate * segment_seconds)
+
+    # Load checkpoint
+    # checkpoint_path = "./tmp/epoch=8-step=9000-test_loss=0.094.ckpt"
+    checkpoint = torch.load(checkpoint_path)
+    # device = "cuda"
+
+    Net = eval(model_type)
+    net = Net(mics_num=4)
+
+    model = LitModel.load_from_checkpoint(
+        net=net, 
+        loss_function=None,
+        learning_rate=None,
+        checkpoint_path=checkpoint_path,
+
+    )
+
+    # Load audio
+    audio, fs = librosa.load(path=audio_path, sr=sample_rate, mono=False)
+
+    # audio *= 50
+    # soundfile.write(file="_zz.wav", data=audio.T, samplerate=sample_rate)
+    # from IPython import embed; embed(using=False); os._exit(0)
+
+    if lowpass is not None:
+        audio = torchaudio.functional.lowpass_biquad(
+            waveform=torch.Tensor(audio),
+            sample_rate=sample_rate,
+            cutoff_freq=lowpass,
+        ).data.cpu().numpy()
+
+    audio_samples = audio.shape[1]
+
+    # soundfile.write(file="_zz.wav", data=audio[0], samplerate=24000)
+    # from IPython import embed; embed(using=False); os._exit(0)
+
+    # agents
+    grid_deg = 2
+    azimuth_grids = 360 // grid_deg
+    elevation_grids = 180 // grid_deg
+
+    agent_look_azimuths, agent_look_colatitudes = get_all_agent_look_directions(grid_deg)
+
+    agent_look_directions = np.stack(sph2cart(
+        r=1., azimuth=agent_look_azimuths, colatitude=agent_look_colatitudes), axis=-1)
+
+    rays_num = agent_look_directions.shape[0]
+
+    # center_pos = np.array([
+    #     simulator_configs["room_min_length"] / 2,
+    #     simulator_configs["room_min_width"] / 2,
+    #     simulator_configs["room_min_height"] / 2
+    # ])
+    center_pos = np.array([4, 4, 2])
+    agent_positions = center_pos[None, None, None, :]
+    agent_positions = np.repeat(a=agent_positions, repeats=rays_num, axis=1)
+    agent_positions = np.repeat(a=agent_positions, repeats=frames_num, axis=2)
+
+    agent_look_directions = np.repeat(
+        a=agent_look_directions[None, :, None, :],
+        repeats=frames_num,
+        axis=-2
+    )
+
+    #
+    mics_num = 4
+    mic_look_directions = np.ones((mics_num, 3))
+    mic_look_directions = np.repeat(
+        a=mic_look_directions[None, :, None, :],
+        repeats=frames_num,
+        axis=-2
+    )
+
+    mic_positions = get_mic_positions(center_pos, mics_yaml)
+    mic_positions = np.repeat(
+        a=mic_positions[None, :, None, :],
+        repeats=frames_num,
+        axis=-2
+    )
+
+    pointer = 0
+
+    pred_tensor = []
+    pred_tensor_cla = []
+
+    while pointer + segment_samples < audio_samples:
+
+        print(pointer / sample_rate)
+
+        segment = audio[:, pointer : pointer + segment_samples]
+
+        input_dict = {
+            "mic_positions": mic_positions,
+            "mic_look_directions": mic_look_directions,
+            "mic_signals": segment[None, ...],
+            "agent_positions": agent_positions,
+            "agent_look_directions": agent_look_directions,
+        }
+
+        input_dict["agent_look_depths"] = PAD * np.ones(agent_look_directions.shape[0:-1] + (1,))
+
+        for key in input_dict.keys():
+            input_dict[key] = torch.Tensor(input_dict[key]).to(device)
+
+        output_dict = forward_in_batch(model=model, input_dict=input_dict, mode="inference") 
+
+        tmp = output_dict["agent_look_directions_has_source"][:, 0:-1:10].reshape((azimuth_grids, elevation_grids, -1)).transpose(2, 0, 1)
+
+        classes_num = 20
+        tmp_sed = output_dict["agent_sed"][:, 0:-1:10].reshape((azimuth_grids, elevation_grids, -1, classes_num)).transpose(2, 0, 1, 3)
+        
+        pred_tensor.append(tmp)
+        pred_tensor_cla.append(tmp_sed)
+
+        pointer += segment_samples
+
+        # agent_look_directions_has_source = np.mean(output_dict["agent_look_directions_has_source"], axis=1)
+
+        # source_positions = [e[0] for e in data_dict["source_positions"][i]] # (sources_num, 3)
+        # agent_position = data_dict["agent_positions"][i][0, 0]  # (3,)
+
+        # pickle.dump([agent_look_directions_has_source, source_positions, agent_position.data.cpu().numpy()], open("_zz.pkl", "wb"))
+
+        # add(None)
+
+    pred_tensor = np.concatenate(pred_tensor, axis=0)
+    pred_tensor_cla = np.concatenate(pred_tensor_cla, axis=0)
+
+    pickle.dump([pred_tensor, pred_tensor_cla], open("_zz2_sed.pkl", "wb"))
+    from IPython import embed; embed(using=False); os._exit(0)
+
+
 def sub(x):
     x[0] = 10
     # time.sleep(6 - x) 
@@ -853,7 +1106,8 @@ def center_to_csv(args):
 
                 for i in range(5):
 
-                    fw.write("{},{},{},{}\n".format(5 * n + i, 8, int(np.around(azi, -1)), int(np.around(ele, -1))))
+                    class_id = 0
+                    fw.write("{},{},{},{}\n".format(5 * n + i, class_id, int(np.around(azi, -1)), int(np.around(ele, -1))))
 
     from IPython import embed; embed(using=False); os._exit(0)
 
@@ -905,8 +1159,23 @@ if __name__ == "__main__":
         "--checkpoint_path", type=str, required=True, help="Directory of workspace."
     )
 
+    parser_inference_cla = subparsers.add_parser("inference_cla")
+    parser_inference_cla.add_argument(
+        "--workspace", type=str, required=True, help="Directory of workspace."
+    )
+    parser_inference_cla.add_argument(
+        "--config_yaml",
+        type=str,
+        required=True,
+        help="Path of config file for training.",
+    )
+    parser_inference_cla.add_argument(
+        "--checkpoint_path", type=str, required=True, help="Directory of workspace."
+    )
+
     parser_inference = subparsers.add_parser("plot")
     parser_inference = subparsers.add_parser("plot_depth")
+    parser_inference = subparsers.add_parser("plot_cla")
 
     parser_inference = subparsers.add_parser("add")
 
@@ -924,11 +1193,17 @@ if __name__ == "__main__":
     elif args.mode == "inference_sep":
         inference_sep(args)
 
+    elif args.mode == "inference_cla":
+        inference_cla(args)
+
     elif args.mode == "plot": 
         plot(args)
 
     elif args.mode == "plot_depth": 
         plot_depth(args)
+
+    elif args.mode == "plot_cla": 
+        plot_cla(args)
 
     elif args.mode == "add": 
         add(args)

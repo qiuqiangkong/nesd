@@ -4,7 +4,7 @@ speed_of_sound: 343.
 sampler_type: Sampler
 dataset_type: Dataset
 dataset_probs:
-    pyroomacoustics: 0.5
+    pyroomacoustics: 1.
     # dcase2019_task3: 0.5
     # dcase2022_task3: 0.5
 simulator_configs:
@@ -25,12 +25,12 @@ simulator_configs:
     mics_yaml: "./microphones/eigenmike_4.2cm_omni.yaml"
     add_noise: "tau-noise"
     lowpass: 1000
-    source_paths_dict: "./paths_dict_d22.pkl"
+    source_paths_dict: "./paths_dict_d16t2.pkl"
 train:
     device: "gpu"
     # devices_num: 1
-    num_workers: 0
-    # num_workers: 16
+    # num_workers: 0
+    num_workers: 16 
     sample_rate: 24000
     input_channels: 1
     output_channels: 1

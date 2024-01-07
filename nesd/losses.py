@@ -33,7 +33,7 @@ def loc_bce(output_dict, target_dict):
 #     output = output_dict['agent_look_directions_has_source']
 #     target = target_dict['agent_look_directions_has_source']
 
-def loc_bce_mask(output, target, mask):
+def bce_mask(output, target, mask):
 
     eps = 1e-7
     output = torch.clamp(output, eps, 1. - eps)
@@ -49,7 +49,7 @@ def loc_bce_depth_bce(output_dict, target_dict):
 
     loc_bce_loss = loc_bce(output_dict, target_dict)
 
-    depth_bce_loss = loc_bce_mask(
+    depth_bce_loss = bce_mask(
         output=output_dict['agent_look_depths_has_source'], 
         target=target_dict['agent_look_depths_has_source'], 
         mask=agent_look_depths_mask
@@ -67,13 +67,14 @@ def loc_bce_cla_bce(output_dict, target_dict):
 
     loc_bce_loss = loc_bce(output_dict, target_dict)
 
-    cla_bce_loss = loc_bce_mask(
+    cla_bce_loss = bce_mask(
         output=output_dict['agent_sed'], 
         target=target_dict['agent_sed'], 
         mask=agent_sed_mask
     )
     
     loss = loc_bce_loss + cla_bce_loss
+    # from IPython import embed; embed(using=False); os._exit(0)
 
     return loss
 

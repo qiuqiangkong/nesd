@@ -13,6 +13,7 @@ import yaml
 import torchaudio
 import torch
 import pickle
+from scipy.signal import fftconvolve
 
 
 def id_to_onehot(id, classes_num):
@@ -678,6 +679,8 @@ class ImageSourceSimulator:
 
                 self.sources, self.source_labels = self.sample_sources_paths_dict(self.source_paths_dict)
 
+                # from IPython import embed; embed(using=False); os._exit(0)
+
             self.has_sources = []
             
             # soundfile.write(file="_zz1.wav", data=self.sources[1], samplerate=24000)
@@ -696,6 +699,7 @@ class ImageSourceSimulator:
                     has_sources[bgn_frame : end_frame + 1] = 0
                     self.has_sources.append(has_sources)
                     self.sources[i][bgn_sample : end_sample] = 0
+                    # from IPython import embed; embed(using=False); os._exit(0)
 
             # soundfile.write(file="_zz.wav", data=self.sources[0], samplerate=24000)
             # from IPython import embed; embed(using=False); os._exit(0)
@@ -842,10 +846,12 @@ class ImageSourceSimulator:
             self.sed = np.stack([agent.sed for agent in self.agents], axis=0)
             self.sed_mask = np.stack([agent.sed_mask for agent in self.agents], axis=0)
 
-        # from IPython import embed; embed(using=False); os._exit(0)
+        # if self.sources_num == 0:
+        #     from IPython import embed; embed(using=False); os._exit(0)
         # import soundfile
         # soundfile.write(file="_zz.wav", data=self.mic_signals[0], samplerate=24000)
         # soundfile.write(file="_zz2.wav", data=self.agent_waveforms[0], samplerate=24000)
+        # from IPython import embed; embed(using=False); os._exit(0)
 
     def sample_shoebox_room(self):
 
@@ -1073,7 +1079,10 @@ class ImageSourceSimulator:
         mic_signals = []
 
         for mic_pos in self.mic_positions:
-            mic_signal = self.simulate_microphone_signal(mic_pos)
+            if self.rigid:
+                mic_signal = self.simulate_microphone_signal_rigid(mic_pos)
+            else:
+                mic_signal = self.simulate_microphone_signal(mic_pos)
             mic_signals.append(mic_signal)
 
         return mic_signals
@@ -1095,15 +1104,89 @@ class ImageSourceSimulator:
 
             decay_factor = 1 / distance
 
-            if self.rigid:
-                from IPython import embed; embed(using=False); os._exit(0)
-            else:
-                angle_factor = 1.
+            # if self.rigid:
+            #     from IPython import embed; embed(using=False); os._exit(0)
+            # else:
+            angle_factor = 1.
 
             normalized_direction = direction / distance
 
             h = decay_factor * angle_factor * fractional_delay_filter(delayed_samples)
             hs_dict[source_index].append(h)
+
+        y_dict = {}
+
+        for source_index in range(self.sources_num):
+
+            hs = hs_dict[source_index]
+            source = self.sources[source_index]
+
+            max_filter_len = max([len(h) for h in hs])
+            
+            sum_h = np.zeros(max_filter_len)
+            for h in hs:
+                sum_h[0 : len(h)] += h
+
+            y = self.convolve_source_filter(x=source, h=sum_h)
+
+            y_dict[source_index] = y
+
+            # soundfile.write(file="_zz{}.wav".format(source_index), data=y, samplerate=16000)
+            
+        y_total = np.sum([y for y in y_dict.values()], axis=0)
+
+        return y_total
+
+    def simulate_microphone_signal_rigid(self, mic_pos):
+
+        if self.sources_num == 0:
+            return np.zeros(self.segment_samples)
+
+        hs_dict = {source_index: [] for source_index in range(self.sources_num)}
+
+        center_mic_pos = np.mean(self.mic_positions, axis=0)
+
+        mic_direction = mic_pos - center_mic_pos
+
+        for image_meta in self.image_meta_list:
+
+            source_index = image_meta["source_index"]
+
+            direction = image_meta["position"] - center_mic_pos
+            distance = norm(direction)
+            delayed_samples = distance / self.speed_of_sound * self.sample_rate
+
+            decay_factor = 1 / distance
+
+            # if self.rigid:
+            #     from IPython import embed; embed(using=False); os._exit(0)
+            # else:
+            angle_factor = 1.
+
+            normalized_direction = direction / distance
+
+            h1 = decay_factor * angle_factor * fractional_delay_filter(delayed_samples)
+
+            _deg = int(np.rad2deg(np.arccos(get_cos(direction, mic_direction))))
+
+            with h5py.File('rigid_eig_ir.h5', 'r') as hf:
+                h2 = hf["h"][_deg]
+
+            # from IPython import embed; embed(using=False); os._exit(0)
+
+            _center = len(h2)//2
+            h2 = h2[_center - 100 : _center + 100]
+
+            # import matplotlib.pyplot as plt
+            # plt.stem(h2)
+            # plt.savefig("_zz.pdf")
+
+
+            h_total = fftconvolve(in1=h1, in2=h2, mode='full')
+
+            # from IPython import embed; embed(using=False); os._exit(0)
+
+            hs_dict[source_index].append(h_total)
 
         y_dict = {}
 
@@ -1170,6 +1253,11 @@ class ImageSourceSimulator:
             if self.max_drop_duration:                
                 look_direction_has_source = self.has_sources[source_index]
 
+                delayed_frames = int(np.round(delayed_samples / self.sample_rate * self.frames_per_sec))
+                look_direction_has_source = np.concatenate((np.zeros(delayed_frames), look_direction_has_source))[0 : len(look_direction_has_source)]
+                
+                # from IPython import embed; embed(using=False); os._exit(0)
+
             else:
                 look_direction_has_source = np.ones(self.expand_frames)
 
@@ -1192,6 +1280,8 @@ class ImageSourceSimulator:
                     sed = id_to_onehot(id, self.classes_num)
                     agent.sed = expand_frame_dim(sed, self.frames_num)
                     agent.sed_mask = np.ones((self.frames_num, self.classes_num))
+                # print(label)
+                # from IPython import embed; embed(using=False); os._exit(0)
 
             agents.append(agent)
 
@@ -1228,7 +1318,7 @@ class ImageSourceSimulator:
 
         # middle
         # todo
-        
+
         # negative
         # t1 = time.time()
         while len(agents) < self.total_rays:
@@ -1255,9 +1345,12 @@ class ImageSourceSimulator:
 
             agents.append(agent)
 
+        # if self.sources_num == 0:
+        #     from IPython import embed; embed(using=False); os._exit(0)
+
         # print("a4", time.time() - t1)
         return agents
-        # from IPython import embed; embed(using=False); os._exit(0)
+        
 
     def get_image_meta_by_order(self, image_meta_list, orders):
 

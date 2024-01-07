@@ -314,40 +314,26 @@ def train(args) -> NoReturn:
 
     # callbacks = []
 
-    checkpoint_callback = ModelCheckpoint(
-        dirpath=checkpoints_dir,
-        filename="{epoch}-{step}-{test_loss:.3f}",
-        verbose=True,
-        save_last=False,
-        # save_weights_only=True,
-        save_weights_only=False,
-        # every_n_train_steps=50,
-        save_top_k=3,
-        monitor="test_loss",
-    )
     
-
-    '''
     checkpoint_callback = ModelCheckpoint(
         dirpath=checkpoints_dir,
-        filename="{epoch}-{step}-{test_loss:.3f}",
+        filename="{epoch}-{step}",
         verbose=True,
         save_last=False,
         # save_weights_only=True,
         save_weights_only=False,
-        every_n_train_steps=50,
-        # save_top_k=3,
+        every_n_train_steps=10000, 
+        save_top_k=-1,
         # monitor="test_loss",
     )
-    '''
+    
 
     callbacks = [checkpoint_callback]
     
     trainer = L.Trainer(
         accelerator="auto",
         devices=devices_num,
-        max_epochs=50,
-        # max_epochs=150, 
+        max_epochs=200,
         num_nodes=1,
         precision="32-true",
         callbacks=callbacks,
@@ -362,7 +348,7 @@ def train(args) -> NoReturn:
         train_dataloaders=train_dataloader,
         val_dataloaders=val_dataloader,
         ckpt_path=None, 
-        # ckpt_path="/home/qiuqiangkong/workspaces/nesd2/checkpoints/train2/config=12a/epoch=48-step=49000-test_loss=0.066.ckpt"
+        # ckpt_path="/home/qiuqiangkong/workspaces/nesd2/checkpoints/train3/config=20b/epoch=39-step=40000.ckpt"
     )
 
 

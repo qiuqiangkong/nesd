@@ -4,6 +4,7 @@ import pudb
 import scipy.signal as scysignal
 import scipy.special as scyspecial
 import h5py
+import matplotlib.pyplot as plt
 
 c = 343 # sound speed
 radius = 0.042 # radius of the eigenmic baffle
@@ -37,7 +38,8 @@ def get_rigid_sph_array(src_pos, mic_pos, n_points, order=30):
 
     b_n = np.zeros((order+1, len(f)), dtype=np.complex128)
     for n in range(order+1):
-        b_n[n] = mode_strength(n=n, kr=kr, sphere_type='rigid')
+        # b_n[n] = mode_strength(n=n, kr=kr, sphere_type='rigid')
+        b_n[n] = mode_strength(n=n, kr=kr, sphere_type='open')
     temp = b_n
     temp[:, 0] = np.abs(temp[:, 0])
     temp[:, -1] = np.abs(temp[:, -1])
@@ -62,7 +64,6 @@ def get_rigid_sph_array(src_pos, mic_pos, n_points, order=30):
         h_mic[:,:,i] = b_nt.T @ P
         H_mic[:,:,i] = b_n.T @ P
 
-    from IPython import embed; embed(using=False); os._exit(0)
     return h_mic.transpose(2,1,0), H_mic.transpose(2,1,0)
 
 
@@ -165,12 +166,16 @@ def get_rigid_sph_array2(angle, n_points, order=30):
 
     b_n = np.zeros((order+1, len(f)), dtype=np.complex128)
     for n in range(order+1):
+        # b_n[n] = mode_strength(n=n, kr=kr, sphere_type='open')
         b_n[n] = mode_strength(n=n, kr=kr, sphere_type='rigid')
-    temp = b_n
-    temp[:, 0] = np.abs(temp[:, 0])
-    temp[:, -1] = np.abs(temp[:, -1])
-    temp = np.concatenate((temp, temp[:,-2:0:-1].conj()), axis=1)
-    b_nt = np.fft.fftshift(np.fft.ifft(temp, axis=1).real)
+    # temp = b_n
+    # temp[:, 0] = np.abs(temp[:, 0])
+    # temp[:, -1] = np.abs(temp[:, -1])
+    # temp = np.concatenate((temp, temp[:,-2:0:-1].conj()), axis=1)
+    # b_nt = np.fft.fftshift(np.fft.ifft(temp, axis=1).real)
+
+    b_nt = np.fft.irfft(b_n)
+    # from IPython import embed; embed(using=False); os._exit(0)
 
     P = np.zeros(order+1)
     for n in range(order+1):
@@ -179,6 +184,26 @@ def get_rigid_sph_array2(angle, n_points, order=30):
         
     h_mic = b_nt.T @ P
     H_mic = b_n.T @ P
+
+    h_mic = np.fft.fftshift(h_mic)
+
+    # fig, axes = plt.subplots(2, 1, sharex=True)
+    # axes[0].plot(np.angle(H_mic))
+    # axes[1].plot(np.abs(H_mic))
+    # axes[0].set_ylim(-10, 10)
+    # axes[1].set_ylim(-3, 3)
+    # plt.savefig("_zz.pdf")
+
+    # M = 10
+    # plt.stem(h_mic[1024 - M : 1024 + M])
+    # # plt.stem(h_mic)
+    # plt.savefig('_zz.pdf')
+
+    # import matplotlib.pyplot as plt
+    # fig, ax = plt.subplots(1, 1, sharex=True)
+    # ax.matshow(np.abs(b_nt), origin='lower', aspect='auto', cmap='jet')
+    # plt.savefig("_zz.pdf")
+    # from IPython import embed; embed(using=False); os._exit(0)
 
     return h_mic, H_mic
 
@@ -288,12 +313,20 @@ def add2():
     Hs = []
 
     for angle in range(0, 360, 1):
+    # for angle in [90]:
 
         print(angle)
 
         h, H = get_rigid_sph_array2(np.deg2rad(angle), n_points=nfft, order=30)
         Hs.append(H)
         hs.append(h)
+
+    # fig, axs = plt.subplots(2,1, sharex=True)
+    # axs[0].stem(hs[0][900:1100])
+    # axs[1].stem(hs[1][900:1100])
+    # plt.savefig('_zz.pdf')
+
+    # from IPython import embed; embed(using=False); os._exit(0)
 
     Hs = np.stack(Hs, axis=0)
     hs = np.stack(hs, axis=0)
@@ -306,21 +339,38 @@ def add2():
     plt.savefig("_zz2.pdf")
 
     plt.figure()
-    plt.stem(np.abs(hs[0])[1000:1200])
+    plt.stem(np.abs(hs[0])[1024 - 50: 1024 + 50])
     plt.savefig("_zz3.pdf")
 
+    # hs /= 20
 
     with h5py.File('rigid_eig_ir.h5', 'w') as hf:   # 'a' for append
         hf.create_dataset('h', data=hs, dtype=np.float32)
 
+
     from IPython import embed; embed(using=False); os._exit(0)
 
 
-# def add3():
+def add3():
 
-#     azi, col = np.meshgrid(np.linspace(0,359,360), np.linspace(0, 179 ,180))
+    import librosa
+    from scipy.signal import fftconvolve
+    import soundfile
 
+    with h5py.File('rigid_eig_ir.h5', 'r') as hf:
+        hs = hf["h"][:]
+
+    audio, _ = librosa.load(path="./resources/p226_001.wav", sr=fs)
+    y1 = fftconvolve(in1=audio, in2=hs[0])
+    y2 = fftconvolve(in1=audio, in2=hs[180])
+
+    soundfile.write(file="_zz.wav", data=audio, samplerate=fs)
+    soundfile.write(file="_zz1.wav", data=y1, samplerate=fs)
+    soundfile.write(file="_zz2.wav", data=y2, samplerate=fs)
+
+    from IPython import embed; embed(using=False); os._exit(0)
 
 if __name__ == '__main__':
 
     add2()
+    # add3()

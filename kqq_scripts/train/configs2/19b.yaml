@@ -3,13 +3,9 @@ task_name: vctk
 speed_of_sound: 343.
 sampler_type: Sampler
 dataset_type: Dataset
-dataset_probs:
-    pyroomacoustics: 0.5
-    # dcase2019_task3: 0.5
-    # dcase2022_task3: 0.5
 simulator_configs:
     image_source_max_order: 3
-    min_sources_num: 1
+    min_sources_num: 0
     max_sources_num: 2
     positive_rays: 4
     total_rays: 20
@@ -24,22 +20,22 @@ simulator_configs:
     sources_position_type: "random"
     mics_yaml: "./microphones/eigenmike_4.2cm_omni.yaml"
     add_noise: "tau-noise"
-    lowpass: 1000
-    source_paths_dict: "./paths_dict_d22.pkl"
+    # lowpass: 1000
+    rigid: True
 train:
     device: "gpu"
     # devices_num: 1
-    num_workers: 0
-    # num_workers: 16
+    # num_workers: 0
+    num_workers: 16
     sample_rate: 24000
     input_channels: 1
     output_channels: 1
     segment_seconds: 2.0
-    model_type: Model02_Cla
+    model_type: Model02
     do_localization: True
     do_sed: False
     do_separation: True
-    loss_type: loc_bce_cla_bce
+    loss_type: loc_bce
     optimizer_type: AdamW
     learning_rate: 1e-3
     batch_size_per_device: 16

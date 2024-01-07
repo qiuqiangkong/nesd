@@ -530,6 +530,17 @@ def add13():
     mic_pos = np.zeros((0, 0, 0))
 
 
+def add14():
+
+    x = np.array([0, 4, 3, 5, 2, 7])
+
+    X = np.fft.rfft(x)
+
+    y = np.fft.irfft(X)
+
+    from IPython import embed; embed(using=False); os._exit(0)
+
+
 if __name__ == "__main__":
 
     # add()
@@ -544,4 +555,5 @@ if __name__ == "__main__":
     # add10()
     # add11()
     # add12()
-    add13()
+    # add13()
+    add14()
