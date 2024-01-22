@@ -63,7 +63,7 @@ LABELS = [
 LB_TO_ID = {lb: id for id, lb in enumerate(LABELS)}
 ID_TO_LB = {id: lb for id, lb in enumerate(LABELS)}
 
-_split = "test"
+_split = "train"
 
 if _split == "train":
     # audio_path = "/home/qiuqiangkong/datasets/dcase2022/task3/mic_dev/dev-train-tau/fold3_room4_mix001.wav"
@@ -121,6 +121,7 @@ def inference(args):
     # Load audio
     audio, fs = librosa.load(path=audio_path, sr=sample_rate, mono=False)
 
+    audio *= 10
     # audio *= 50
     # soundfile.write(file="_zz.wav", data=audio.T, samplerate=sample_rate)
     # from IPython import embed; embed(using=False); os._exit(0)
@@ -428,7 +429,11 @@ def plot_cla(args):
     with ProcessPoolExecutor(max_workers=None) as pool: # Maximum workers on the machine.
         results = pool.map(_multiple_process_plot_cla, params)
 
-    from IPython import embed; embed(using=False); os._exit(0)
+    results = list(results)
+
+    pickle.dump(results, open("_zz_centers_cla.pkl", "wb"))
+
+    # from IPython import embed; embed(using=False); os._exit(0)
 
 
 def _multiple_process_gt_mat(param):
@@ -497,13 +502,16 @@ def _multiple_process_plot_cla(param):
     if True:
         centers = calculate_centers(x=pred_mat)
         pred_mat = plot_center_to_mat(centers=centers, x=pred_mat)
+        labels = []
 
         for center in centers:
             center_azi = int(center[0])
             center_col = int(center[1])
 
             max_id = np.argmax(pred_mat_cla[center_azi, center_col])
+            # from IPython import embed; embed(using=False); os._exit(0)
             label = ID_TO_LB[max_id]
+            labels.append(label)
             prob = np.max(pred_mat_cla[center_azi, center_col])
             pred_text += "{},{},{}={:.3f}; ".format(center_azi, center_col, label, prob)
 
@@ -524,6 +532,8 @@ def _multiple_process_plot_cla(param):
     plt.tight_layout(pad=0, h_pad=0, w_pad=0)
 
     plt.savefig('_tmp/_zz_{:04d}.png'.format(n))
+
+    return n, centers, labels
 
 
 def read_dcase2020_task3_csv(csv_path):
@@ -994,7 +1004,7 @@ def inference_cla(args):
     # Load audio
     audio, fs = librosa.load(path=audio_path, sr=sample_rate, mono=False)
 
-    # audio *= 50
+    audio *= 10
     # soundfile.write(file="_zz.wav", data=audio.T, samplerate=sample_rate)
     # from IPython import embed; embed(using=False); os._exit(0)
 
@@ -1212,7 +1222,7 @@ def center_to_csv(args):
     
     results = pickle.load(open("_zz_centers.pkl", "rb"))
 
-    out_csv_path = "./tmp_results/{}".format(Path(csv_path).name)
+    out_csv_path = "./tmp_results_dcase2022/{}".format(Path(csv_path).name)
     Path(out_csv_path).parent.mkdir(parents=True, exist_ok=True)
 
     grid_deg = 2
@@ -1228,9 +1238,51 @@ def center_to_csv(args):
                     azi = azi - 360
                 ele = 90 - center[1] * grid_deg 
 
-                fw.write("{},{},{},{},{}\n".format(n, 8, -1, azi, ele))
+                class_id = 8
+                fw.write("{},{},{},{},{}\n".format(n, class_id, -1, azi, ele))
 
-    from IPython import embed; embed(using=False); os._exit(0)
+    print("Write out to {}".format(out_csv_path))
+    # from IPython import embed; embed(using=False); os._exit(0)
+
+
+def center_to_csv_cla(args):
+    
+    # dcase_label_to_id = {
+    #     'clearthroat': 2,
+    #     'cough': 8,
+    #     'doorslam': 9,
+    #     'drawer': 1,
+    #     'keyboard': 6,
+    #     'keysDrop': 4,
+    #     'knock': 0,
+    #     'laughter': 10,
+    #     'pageturn': 7,
+    #     'phone': 3,
+    #     'speech': 5
+    # }
+
+    results = pickle.load(open("_zz_centers_cla.pkl", "rb"))
+    # from IPython import embed; embed(using=False); os._exit(0)
+
+    out_csv_path = "./tmp_results_dcase2022/{}".format(Path(csv_path).name)
+    Path(out_csv_path).parent.mkdir(parents=True, exist_ok=True)
+
+    grid_deg = 2
+    
+    with open(out_csv_path, 'w') as fw:
+        for n in range(len(results)):
+            centers = results[n][1]
+            labels = results[n][2]
+
+            for center, label in zip(centers, labels):
+
+                azi = center[0] * grid_deg
+                if 180 < azi <= 360:
+                    azi = azi - 360
+                ele = 90 - center[1] * grid_deg 
+
+                class_id = LB_TO_ID[label]
+                fw.write("{},{},{},{}\n".format(n, class_id, int(np.around(azi, -1)), int(np.around(ele, -1))))
 
 
 if __name__ == "__main__":
@@ -1302,6 +1354,7 @@ if __name__ == "__main__":
     parser_inference = subparsers.add_parser("add2")
 
     parser_inference = subparsers.add_parser("center_to_csv")
+    parser_inference = subparsers.add_parser("center_to_csv_cla")
     
     args = parser.parse_args()
     args.filename = pathlib.Path(__file__).stem 
@@ -1335,6 +1388,9 @@ if __name__ == "__main__":
 
     elif args.mode == "center_to_csv":
         center_to_csv(args)
+
+    elif args.mode == "center_to_csv_cla":
+        center_to_csv_cla(args) 
 
     else:
         raise Exception("Error argument!")

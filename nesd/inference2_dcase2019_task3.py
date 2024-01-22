@@ -47,7 +47,7 @@ LABELS = ['clearthroat', 'cough', 'doorslam', 'drawer', 'keyboard', 'keysDrop', 
 LB_TO_ID = {lb: id for id, lb in enumerate(LABELS)}
 ID_TO_LB = {id: lb for id, lb in enumerate(LABELS)}
 
-split = "train"
+split = "test"
 
 if split == "train":
     audio_path = "/home/qiuqiangkong/datasets/dcase2019/task3/downloaded_package/mic_dev/split1_ir0_ov1_1.wav"
@@ -102,7 +102,8 @@ def inference(args):
     # Load audio
     audio, fs = librosa.load(path=audio_path, sr=sample_rate, mono=False)
 
-    # audio *= 50
+    # audio *= 3
+    audio *= 10 
     # soundfile.write(file="_zz.wav", data=audio.T, samplerate=sample_rate)
     # from IPython import embed; embed(using=False); os._exit(0)
 
@@ -412,19 +413,19 @@ def _multiple_process_plot_cla(param):
     pred_text = ""
 
     if True:
-        pred_mat = np.max(pred_mat_cla, axis=-1)
-    # from IPython import embed; embed(using=False); os._exit(0)
-
-    if True:
         centers = calculate_centers(x=pred_mat)
         pred_mat = plot_center_to_mat(centers=centers, x=pred_mat)
+        labels = []
+        # pred_ids = []
 
         for center in centers:
             center_azi = int(center[0])
             center_col = int(center[1])
 
             max_id = np.argmax(pred_mat_cla[center_azi, center_col])
+            # pred_ids.append(max_id)
             label = ID_TO_LB[max_id]
+            labels.append(label)
             prob = np.max(pred_mat_cla[center_azi, center_col])
             pred_text += "{},{},{}={:.3f}; ".format(center_azi, center_col, label, prob)
 
@@ -445,6 +446,8 @@ def _multiple_process_plot_cla(param):
     plt.tight_layout(pad=0, h_pad=0, w_pad=0)
 
     plt.savefig('_tmp/_zz_{:04d}.png'.format(n))
+
+    return n, centers, labels
 
 
 def read_dcase2019_task3_csv(csv_path):
@@ -722,16 +725,19 @@ def plot_cla(args):
     params = []
 
     for n in range(min(pred_tensor.shape[0], gt_tensor.shape[0])):
+        # from IPython import embed; embed(using=False); os._exit(0)
         param = (n, gt_texts[n], gt_tensor[n], pred_tensor[n], pred_tensor_cla[n], azimuth_grids, elevation_grids, grid_deg)
         params.append(param)
 
     # for param in params:
-    #     _multiple_process_plot_cla(param) 
+    #     results = _multiple_process_plot_cla(param) 
 
     with ProcessPoolExecutor(max_workers=None) as pool: # Maximum workers on the machine.
         results = pool.map(_multiple_process_plot_cla, params)
 
-    from IPython import embed; embed(using=False); os._exit(0)
+    results = list(results)
+
+    pickle.dump(results, open("_zz_centers_cla.pkl", "wb"))
 
 
 def inference_sep(args):
@@ -949,8 +955,8 @@ def inference_cla(args):
     # Load audio
     audio, fs = librosa.load(path=audio_path, sr=sample_rate, mono=False)
 
-    # audio *= 50
-    # soundfile.write(file="_zz.wav", data=audio.T, samplerate=sample_rate)
+    audio *= 10
+    soundfile.write(file="_zz.wav", data=audio.T, samplerate=sample_rate)
     # from IPython import embed; embed(using=False); os._exit(0)
 
     if lowpass is not None:
@@ -1038,8 +1044,8 @@ def inference_cla(args):
         tmp = output_dict["agent_look_directions_has_source"][:, 0:-1:10].reshape((azimuth_grids, elevation_grids, -1)).transpose(2, 0, 1)
 
         classes_num = 20
-        tmp_sed = output_dict["agent_sed"][:, 0:-1:10].reshape((azimuth_grids, elevation_grids, -1, classes_num)).transpose(2, 0, 1, 3)
-        
+        tmp_sed = output_dict["agent_sed"][:, 0:-1:10, :].reshape((azimuth_grids, elevation_grids, -1, classes_num)).transpose(2, 0, 1, 3)
+
         pred_tensor.append(tmp)
         pred_tensor_cla.append(tmp_sed)
 
@@ -1092,7 +1098,7 @@ def center_to_csv(args):
     Path(out_csv_path).parent.mkdir(parents=True, exist_ok=True)
 
     grid_deg = 2
-    
+
     with open(out_csv_path, 'w') as fw:
         for n in range(len(results)):
             centers = results[n][1]
@@ -1106,10 +1112,50 @@ def center_to_csv(args):
 
                 for i in range(5):
 
-                    class_id = 0
+                    # class_id = 0
                     fw.write("{},{},{},{}\n".format(5 * n + i, class_id, int(np.around(azi, -1)), int(np.around(ele, -1))))
 
-    from IPython import embed; embed(using=False); os._exit(0)
+
+def center_to_csv_cla(args):
+    
+    dcase_label_to_id = {
+        'clearthroat': 2,
+        'cough': 8,
+        'doorslam': 9,
+        'drawer': 1,
+        'keyboard': 6,
+        'keysDrop': 4,
+        'knock': 0,
+        'laughter': 10,
+        'pageturn': 7,
+        'phone': 3,
+        'speech': 5
+    }
+
+    results = pickle.load(open("_zz_centers_cla.pkl", "rb"))
+
+    out_csv_path = "./tmp_results_dcase2019/{}".format(Path(csv_path).name)
+    Path(out_csv_path).parent.mkdir(parents=True, exist_ok=True)
+
+    grid_deg = 2
+    
+    with open(out_csv_path, 'w') as fw:
+        for n in range(len(results)):
+            centers = results[n][1]
+            labels = results[n][2]
+
+            for center, label in zip(centers, labels):
+
+                azi = center[0] * grid_deg
+                if 180 < azi <= 360:
+                    azi = azi - 360
+                ele = 90 - center[1] * grid_deg 
+
+                for i in range(5):
+
+                    # class_id = 0
+                    class_id = dcase_label_to_id[label]
+                    fw.write("{},{},{},{}\n".format(5 * n + i, class_id, int(np.around(azi, -1)), int(np.around(ele, -1))))
 
 
 if __name__ == "__main__":
@@ -1180,6 +1226,8 @@ if __name__ == "__main__":
     parser_inference = subparsers.add_parser("add")
 
     parser_inference = subparsers.add_parser("center_to_csv")
+
+    parser_inference = subparsers.add_parser("center_to_csv_cla")
     
     args = parser.parse_args()
     args.filename = pathlib.Path(__file__).stem 
@@ -1210,6 +1258,9 @@ if __name__ == "__main__":
 
     elif args.mode == "center_to_csv":
         center_to_csv(args)
+
+    elif args.mode == "center_to_csv_cla":
+        center_to_csv_cla(args)
 
     else:
         raise Exception("Error argument!")

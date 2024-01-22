@@ -606,6 +606,8 @@ class ImageSourceSimulator:
 
         self.rigid = simulator_configs["rigid"] if "rigid" in simulator_configs.keys() else None
         self.lowpass = simulator_configs["lowpass"] if "lowpass" in simulator_configs.keys() else None
+        self.source_gain = simulator_configs["source_gain"] if "source_gain" in simulator_configs.keys() else None
+        self.noise_gain = simulator_configs["noise_gain"] if "noise_gain" in simulator_configs.keys() else None
 
         self.max_drop_duration = simulator_configs["max_drop_duration"] if "max_drop_duration" in simulator_configs.keys() else None
 
@@ -662,6 +664,7 @@ class ImageSourceSimulator:
             # self.max_width = 8
             # self.min_height = 2
             # self.max_height = 4
+
 
             # t1 = time.time()
             self.length, self.width, self.height = self.sample_shoebox_room()
@@ -792,7 +795,12 @@ class ImageSourceSimulator:
                 end_sample = bgn_sample + self.segment_samples
                 noise = int16_to_float32(hf['waveform'][:, bgn_sample : end_sample])
 
-            noise *= 20
+            from IPython import embed; embed(using=False); os._exit(0) 
+            if self.noise_gain:
+                gain = random.uniform(self.noise_gain["min"], self.noise_gain["max"])
+                noise *= gain
+            else:
+                noise *= 20
 
             # soundfile.write(file="_zz.wav", data=self.mic_signals[0], samplerate=24000)
             # soundfile.write(file="_zz2.wav", data=noise[0], samplerate=24000)
@@ -888,6 +896,10 @@ class ImageSourceSimulator:
             audio, _ = librosa.load(path=audio_path, sr=self.sample_rate, mono=True)
             audio = repeat_to_length(audio=audio, segment_samples=self.segment_samples)
 
+            if self.source_gain:
+                gain = random.uniform(self.source_gain["min"], self.source_gain["max"])
+                audio *= gain
+                
             sources.append(audio)
             labels.append(label)
 

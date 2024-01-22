@@ -541,6 +541,54 @@ def add14():
     from IPython import embed; embed(using=False); os._exit(0)
 
 
+def add15():
+
+    # hdf5_path = "/home/qiuqiangkong/workspaces/nesd2/hdf5s/tau-noise/ambience_foa_sn3d_24k_edited_000.h5"
+
+    hdf5_path = "/home/qiuqiangkong/workspaces/nesd2/hdf5s/tau-noise/ambience_tetra_24k_edited_024.h5"
+
+    with h5py.File(hdf5_path, 'r') as hf:
+
+        x = int16_to_float32(hf["waveform"][:])
+
+        print(np.max(x))
+        print(np.mean(x**2))
+
+        plt.plot(x[0][0:100000])
+        plt.savefig("_zz.pdf")
+
+        from IPython import embed; embed(using=False); os._exit(0)
+
+
+def add16():
+
+    audio_path = "/home/qiuqiangkong/datasets/dcase2019/task3/downloaded_package/mic_eval/split0_1.wav"
+
+    audio, _ = librosa.load(path=audio_path, sr=None, mono=False)
+
+    # plt.plot(audio[0][0:100000])
+    plt.plot(audio[0])
+    plt.savefig("_zz.pdf")
+
+    from IPython import embed; embed(using=False); os._exit(0)
+
+
+def add17():
+
+    # audio_path = "/home/qiuqiangkong/datasets/dcase2016/task2/dcase2016_task2_train_dev/dcase2016_task2_train/phone059.wav"
+    # audio_path = "/home/qiuqiangkong/workspaces/nesd2/audios/musdb18hq_2s_segments/test/Nerve 9 - Pray For The Rain_0010.wav"
+    audio_path = "/home/qiuqiangkong/datasets/dcase2022/task3/mic_dev/dev-train-sony/fold3_room21_mix001.wav" 
+
+    audio, _ = librosa.load(path=audio_path, sr=None, mono=False)
+
+    # plt.plot(audio[0][0:100000]) 
+    # plt.plot(audio)
+    # plt.savefig("_zz.pdf")
+    print(np.max(audio))
+
+    from IPython import embed; embed(using=False); os._exit(0)
+
+
 if __name__ == "__main__":
 
     # add()
@@ -556,4 +604,7 @@ if __name__ == "__main__":
     # add11()
     # add12()
     # add13()
-    add14()
+    # add14()
+    # add15()
+    # add16()
+    add17()

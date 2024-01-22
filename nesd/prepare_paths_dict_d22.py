@@ -98,8 +98,8 @@ def dcase2022_task3():
         paths_dict[label] = audio_paths
 
     # vctk
-    audio_paths = sorted(list(Path(vctk_dir).glob("*.wav")))
-    paths_dict["Unknown"] = audio_paths
+    # audio_paths = sorted(list(Path(vctk_dir).glob("*.wav")))
+    # paths_dict["Unknown"] = audio_paths
 
     # music
     audio_paths = sorted(list(Path(musdb18hq_dir).glob("*.wav")))

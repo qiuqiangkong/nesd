@@ -140,6 +140,114 @@ def inference(args):
         from IPython import embed; embed(using=False); os._exit(0)
 
 
+def inference_cla(args):
+
+    workspace = args.workspace
+    checkpoint_path = args.checkpoint_path
+    config_yaml = args.config_yaml
+    filename = args.filename
+    device = "cuda"
+
+    configs = read_yaml(config_yaml)
+    # device = configs["train"]["device"]
+    # devices_num = configs["train"]["devices_num"]
+
+    # num_workers = configs["train"]["num_workers"]
+    model_type = configs['train']['model_type']
+    simulator_configs = configs["simulator_configs"]
+
+    num_workers = 0
+    batch_size = 32
+    frames_num = 201
+
+    # Load checkpoint
+    # checkpoint_path = "./tmp/epoch=8-step=9000-test_loss=0.094.ckpt"
+    checkpoint = torch.load(checkpoint_path)
+    # device = "cuda"
+
+    Net = eval(model_type)
+    net = Net(mics_num=4)
+
+    model = LitModel.load_from_checkpoint(
+        net=net, 
+        loss_function=None,
+        learning_rate=None,
+        checkpoint_path=checkpoint_path
+    )
+
+    # Data
+    test_audios_dir = "/home/qiuqiangkong/workspaces/nesd2/audios/vctk_2s_segments/test"
+    dataset = Dataset3(audios_dir=test_audios_dir, expand_frames=201, simulator_configs=simulator_configs)
+    
+    batch_sampler = BatchSampler(batch_size=batch_size, iterations_per_epoch=5)
+    batch_sampler = DistributedSamplerWrapper(batch_sampler)
+
+    dataloader = torch.utils.data.DataLoader(
+        dataset=dataset,
+        batch_sampler=batch_sampler, 
+        collate_fn=collate_fn,
+        num_workers=num_workers,
+        pin_memory=True
+    )
+
+    grid_deg = 2
+    azimuth_grids = 360 // grid_deg
+    elevation_grids = 180 // grid_deg
+
+    agent_look_azimuths, agent_look_colatitudes = get_all_agent_look_directions(grid_deg)
+
+    agent_look_directions = np.stack(sph2cart(
+        r=1., azimuth=agent_look_azimuths, colatitude=agent_look_colatitudes), axis=-1)
+
+    rays_num = agent_look_directions.shape[0]
+
+    for _, data_dict in enumerate(dataloader):
+
+        i = 0
+
+        agent_positions = np.repeat(
+            a=data_dict["agent_positions"][i : i + 1, 0 : 1, ...], 
+            repeats=rays_num, 
+            axis=1
+        )
+
+        agent_look_directions = np.repeat(
+            a=agent_look_directions[None, :, None, :],
+            repeats=frames_num,
+            axis=-2
+        )
+
+        input_dict = {
+            "mic_positions": data_dict["mic_positions"][i : i + 1, ...],
+            "mic_look_directions": data_dict["mic_look_directions"][i : i + 1, ...],
+            "mic_signals": data_dict["mic_signals"][i : i + 1, ...],
+            "agent_positions": agent_positions,
+            "agent_look_directions": agent_look_directions,
+        }
+
+        input_dict["agent_look_depths"] = PAD * np.ones(agent_look_directions.shape[0:-1] + (1,))
+
+        for key in input_dict.keys():
+            input_dict[key] = torch.Tensor(input_dict[key]).to(device)
+
+        output_dict = forward_in_batch(model=model, input_dict=input_dict)
+
+        agent_look_directions_has_source = np.mean(output_dict["agent_look_directions_has_source"], axis=1)
+
+        agent_sed = np.mean(output_dict["agent_sed"], axis=1)
+        # from IPython import embed; embed(using=False); os._exit(0)
+
+        source_positions = [e[0] for e in data_dict["source_positions"][i]] # (sources_num, 3)
+        agent_position = data_dict["agent_positions"][i][0, 0]  # (3,)
+
+        pickle.dump([agent_look_directions_has_source, agent_sed, source_positions, agent_position.data.cpu().numpy()], open("_zz_sed.pkl", "wb"))
+
+        # from IPython import embed; embed(using=False); os._exit(0)
+        plot_sed(None)
+
+        from IPython import embed; embed(using=False); os._exit(0)
+
+
 def forward_in_batch(model, input_dict, mode="inference"):
 
     rays_num = input_dict['agent_positions'].shape[1]
@@ -228,6 +336,50 @@ def plot(args):
         axs[i].yaxis.set_ticklabels(np.arange(0, 181, 10 * grid_deg))
 
     plt.savefig('_zz.pdf')
+
+    from IPython import embed; embed(using=False); os._exit(0)
+
+
+def plot_sed(args):
+
+    agent_look_directions_has_source, agent_sed, source_positions, agent_position = pickle.load(open("_zz_sed.pkl", "rb"))
+
+    grid_deg = 2
+    azimuth_grids = 360 // grid_deg
+    elevation_grids = 180 // grid_deg
+    sources_num = len(source_positions)
+
+    for m in range(agent_sed.shape[-1]):
+        pred_mat = agent_sed[:, m].reshape(azimuth_grids, elevation_grids)
+
+        gt_mat = np.zeros((azimuth_grids, elevation_grids))
+        half_angle = math.atan2(0.1, 1)
+
+        for i in range(gt_mat.shape[0]):
+            for j in range(gt_mat.shape[1]):
+                _azi = np.deg2rad(i * grid_deg)
+                _zen = np.deg2rad(j * grid_deg)
+                plot_direction = np.array(sph2cart(1., _azi, _zen))
+
+                for k in range(sources_num):
+                    new_to_src = source_positions[k] - agent_position
+                    ray_angle = np.arccos(get_cos(new_to_src, plot_direction))
+
+                    if ray_angle < half_angle:
+                        gt_mat[i, j] = 1
+
+        plt.figure(figsize=(20, 10))
+        fig, axs = plt.subplots(2, 1, sharex=True)
+        axs[0].matshow(gt_mat.T, origin='upper', aspect='equal', cmap='jet', vmin=0, vmax=1)
+        axs[1].matshow(pred_mat.T, origin='upper', aspect='equal', cmap='jet', vmin=0, vmax=1)
+        for i in range(2):
+            axs[i].grid(color='w', linestyle='--', linewidth=0.1)
+            axs[i].xaxis.set_ticks(np.arange(0, azimuth_grids+1, 10))
+            axs[i].yaxis.set_ticks(np.arange(0, elevation_grids+1, 10))
+            axs[i].xaxis.set_ticklabels(np.arange(0, 361, 10 * grid_deg), rotation=90)
+            axs[i].yaxis.set_ticklabels(np.arange(0, 181, 10 * grid_deg))
+
+        plt.savefig('_zz_{}.pdf'.format(m))
 
     from IPython import embed; embed(using=False); os._exit(0)
 
@@ -547,6 +699,20 @@ if __name__ == "__main__":
         help="Path of config file for training.",
     )
 
+    parser_inference_cla = subparsers.add_parser("inference_cla")
+    parser_inference_cla.add_argument(
+        "--workspace", type=str, required=True, help="Directory of workspace."
+    )
+    parser_inference_cla.add_argument(
+        "--checkpoint_path", type=str, required=True, help="Directory of workspace."
+    )
+    parser_inference_cla.add_argument(
+        "--config_yaml",
+        type=str,
+        required=True,
+        help="Path of config file for training.",
+    )
+
     parser_inference_depth = subparsers.add_parser("inference_depth")
     parser_inference_depth.add_argument(
         "--workspace", type=str, required=True, help="Directory of workspace."
@@ -582,6 +748,9 @@ if __name__ == "__main__":
 
     if args.mode == "inference":
         inference(args)
+
+    elif args.mode == "inference_cla":
+        inference_cla(args)
 
     elif args.mode == "inference_depth":
         inference_depth(args)

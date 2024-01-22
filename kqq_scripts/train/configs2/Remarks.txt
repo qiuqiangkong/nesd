@@ -26,6 +26,12 @@
 20a.yaml	19b + dcase2022 cla
 20b.yaml	19b + d16t2 cla
 21a.yaml	19b, depths
+22a.yaml	19b + d16t2 cla, source, noise gain
++ 22c.yaml	19b + d16t2 cla, no_scale_noise
+22d.yaml	19b + d16t2 cla, no_noise
+23a.yaml	depths, others same as 22c
+24a.yaml	rigid rir (simulate), 0-2 sources
+25a.yaml	19b + d22 cla, no_scale_noise
 
 
 

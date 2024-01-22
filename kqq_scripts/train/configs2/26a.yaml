@@ -1,0 +1,61 @@
+---
+task_name: vctk
+speed_of_sound: 343.
+sampler_type: Sampler
+dataset_type: Dataset
+simulator_configs:
+    image_source_max_order: 3
+    min_sources_num: 0
+    max_sources_num: 2
+    positive_rays: 4
+    total_rays: 20
+    room_min_length: 4
+    room_max_length: 8
+    room_min_width: 4
+    room_max_width: 8
+    room_min_height: 2
+    room_max_height: 4
+    mics_position_type: "random"
+    agent_position_type: "center_of_mics"
+    sources_position_type: "random"
+    mics_yaml: "./microphones/eigenmike_4.2cm_omni.yaml"
+    add_noise: "tau-noise"
+    source_paths_dict: "./paths_dict_d16t2.pkl"
+    rigid: True
+    source_gain:
+        max: 1.
+        min: 1.
+    noise_gain: 
+        max: 1.
+        min: 1.
+train:
+    device: "gpu"
+    # devices_num: 1
+    num_workers: 0 
+    # num_workers: 16
+    sample_rate: 24000
+    input_channels: 1
+    output_channels: 1
+    segment_seconds: 2.0
+    model_type: Model02_Cla
+    do_localization: True
+    do_sed: False
+    do_separation: True
+    loss_type: loc_bce_cla_bce
+    optimizer_type: AdamW
+    learning_rate: 1e-3
+    batch_size_per_device: 16
+    precision: 32
+    steps_per_epoch: 10000  # Every 10000 steps is called an `epoch`.
+    evaluate_step_frequency: 200     # Evaluate every #evaluate_step_frequency steps.
+    save_step_frequency: 1000  # Save every #save_step_frequency steps. 
+    early_stop_steps: 200001
+    warm_up_steps: 1000
+    reduce_lr_steps: 15000
+    random_seed: 1234
+    resume_checkpoint_path: ""
+    classes_num: 15
+
+test:
+    segment_seconds: 3.0
+    batch_size: 1
