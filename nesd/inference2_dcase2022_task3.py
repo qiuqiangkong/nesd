@@ -205,7 +205,7 @@ def inference(args):
         for key in input_dict.keys():
             input_dict[key] = torch.Tensor(input_dict[key]).to(device)
 
-        output_dict = forward_in_batch(model=model, input_dict=input_dict, mode="inference") 
+        output_dict = forward_in_batch(model=model, input_dict=input_dict, mode="inference", do_separation=False) 
 
         tmp = output_dict["agent_look_directions_has_source"][:, 0:-1:10].reshape((azimuth_grids, elevation_grids, -1)).transpose(2, 0, 1)
 
@@ -797,6 +797,26 @@ def inference_sep(args):
     segment_seconds = 2
     segment_samples = int(sample_rate * segment_seconds)
 
+    #
+    # agent_look_directions = np.array(sph2cart(r=1., azimuth=azis, colatitude=cols))
+    all_agent_look_directions = []
+    results = pickle.load(open("_zz_centers.pkl", "rb"))
+
+    for n, result in enumerate(results):
+        if len(result[1]) == 0:
+            look_direction = np.ones(3) * 0.001
+        
+        else:
+            azi, col = np.deg2rad(result[1][0])
+            look_direction = sph2cart(r=1., azimuth=azi, colatitude=col)
+        
+        for i in range(10):
+            all_agent_look_directions.append(look_direction)
+        #     agent_look_directions.append(look_direction)
+
+    all_agent_look_directions = np.stack(all_agent_look_directions, axis=0)
+    # from IPython import embed; embed(using=False); os._exit(0)
+
     # Load checkpoint
     # checkpoint_path = "./tmp/epoch=8-step=9000-test_loss=0.094.ckpt"
     checkpoint = torch.load(checkpoint_path)
@@ -810,13 +830,14 @@ def inference_sep(args):
         loss_function=None,
         learning_rate=None,
         checkpoint_path=checkpoint_path,
-
     )
 
     frame_indexes, class_indexes, azimuths, colatitudes, distances = read_dcase2020_task3_csv(csv_path=csv_path)
 
     # Load audio
     audio, fs = librosa.load(path=audio_path, sr=sample_rate, mono=False)
+
+    audio *= 10
 
     # audio *= 50
     # soundfile.write(file="_zz.wav", data=audio.T, samplerate=sample_rate)
@@ -892,36 +913,37 @@ def inference_sep(args):
 
         print(pointer / sample_rate)
 
-        curr_sec = pointer / sample_rate
-        curr_frame = curr_sec * 10
+        bgn_time = pointer / sample_rate
+        end_time = bgn_time + segment_samples / sample_rate
+        # curr_frame = curr_sec * 10
 
-        _azis, _cols = [], []
-        tmp2 = []
+        # _azis, _cols = [], []
+        # tmp2 = []
 
-        for i in range(len(frame_indexes)):
-            if curr_frame < frame_indexes[i] < curr_frame + 20:
-                # tmp.append((i, class_indexes[i]))
-                if class_indexes[i] not in tmp2:
-                    _azis.append(azimuths[i])
-                    _cols.append(colatitudes[i])
-                    tmp2.append(class_indexes[i])
+        # for i in range(len(frame_indexes)):
+        #     if curr_frame < frame_indexes[i] < curr_frame + 20:
+        #         # tmp.append((i, class_indexes[i]))
+        #         if class_indexes[i] not in tmp2:
+        #             _azis.append(azimuths[i])
+        #             _cols.append(colatitudes[i])
+        #             tmp2.append(class_indexes[i])
 
         # azis = np.array(azis)
         # cols = np.array(cols)
-        azis = np.zeros(rays_num)
-        cols = np.zeros(rays_num)
-        azis[0 : len(_azis)] = np.array(_azis)
-        cols[0 : len(_cols)] = np.array(_cols)
+        # azis = np.zeros(rays_num)
+        # cols = np.zeros(rays_num)
+        # azis[0 : len(_azis)] = np.array(_azis)
+        # cols[0 : len(_cols)] = np.array(_cols)
 
         # azis = azimuths[i]
         # col = colatitudes[i]
         # dist = distances[i]
-        
-        agent_look_directions = np.array(sph2cart(r=1., azimuth=azis, colatitude=cols))
-        agent_look_directions = agent_look_directions.T[None, :, None, :]
-        # agent_look_directions = np.repeat(a=agent_look_directions, repeats=rays_num, axis=1)
-        agent_look_directions = np.repeat(a=agent_look_directions, repeats=frames_num, axis=2)
 
+        bgn_n = int(bgn_time * 100)
+        end_n = int(end_time * 100) + 1
+        agent_look_directions = all_agent_look_directions[bgn_n : end_n][None, None, :, :]
+        agent_look_directions = np.repeat(a=agent_look_directions, repeats=rays_num, axis=1)
+        
         segment = audio[:, pointer : pointer + segment_samples]
 
         input_dict = {
@@ -938,22 +960,15 @@ def inference_sep(args):
         for key in input_dict.keys():
             input_dict[key] = torch.Tensor(input_dict[key]).to(device)
 
-        output_dict = forward_in_batch(model=model, input_dict=input_dict, mode="inference")
+        output_dict = forward_in_batch(model=model, input_dict=input_dict, mode="inference", do_separation=True)
+
+        # from IPython import embed; embed(using=False); os._exit(0)
 
         tmp = output_dict["agent_signals"]
 
         pred_tensor.append(tmp)
 
         pointer += segment_samples
-
-        # agent_look_directions_has_source = np.mean(output_dict["agent_look_directions_has_source"], axis=1)
-
-        # source_positions = [e[0] for e in data_dict["source_positions"][i]] # (sources_num, 3)
-        # agent_position = data_dict["agent_positions"][i][0, 0]  # (3,)
-
-        # pickle.dump([agent_look_directions_has_source, source_positions, agent_position.data.cpu().numpy()], open("_zz.pkl", "wb"))
-
-        # add(None)
 
     pred_tensor = np.concatenate(pred_tensor, axis=-1)
 
@@ -1242,7 +1257,7 @@ def center_to_csv(args):
                 fw.write("{},{},{},{},{}\n".format(n, class_id, -1, azi, ele))
 
     print("Write out to {}".format(out_csv_path))
-    # from IPython import embed; embed(using=False); os._exit(0)
+    from IPython import embed; embed(using=False); os._exit(0)
 
 
 def center_to_csv_cla(args):

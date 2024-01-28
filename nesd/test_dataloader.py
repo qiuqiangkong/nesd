@@ -150,7 +150,8 @@ class Dataset3:
             # "agent_ray_types": iss_data.agent_ray_types,
             "agent_active_indexes": iss_data.active_indexes,
             "agent_active_indexes_mask": iss_data.active_indexes_mask,
-            "agent_signals": iss_data.agent_waveforms
+            "agent_signals": iss_data.agent_waveforms,
+            "agent_signals_echo": iss_data.agent_waveforms_echo
         }
 
         if hasattr(iss_data, "sed"):
@@ -261,8 +262,9 @@ def collate_fn(list_data_dict):
     for key in list_data_dict[0].keys():
         
         data_dict[key] = [dd[key] for dd in list_data_dict]
+        # from IPython import embed; embed(using=False); os._exit(0)
 
-        if key in ["mic_positions", "mic_look_directions", "mic_signals", "agent_positions", "agent_look_directions", "agent_look_depths", "agent_look_directions_has_source", "agent_look_depths_has_source", "agent_active_indexes_mask", "agent_signals", "agent_sed", "agent_sed_mask"]:
+        if key in ["mic_positions", "mic_look_directions", "mic_signals", "agent_positions", "agent_look_directions", "agent_look_depths", "agent_look_directions_has_source", "agent_look_depths_has_source", "agent_active_indexes_mask", "agent_signals", "agent_sed", "agent_sed_mask", "agent_signals_echo"]:
             data_dict[key] = torch.Tensor(np.stack(data_dict[key], axis=0))
 
         elif key in ["agent_active_indexes"]:

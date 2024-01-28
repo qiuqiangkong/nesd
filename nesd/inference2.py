@@ -248,7 +248,7 @@ def inference_cla(args):
         from IPython import embed; embed(using=False); os._exit(0)
 
 
-def forward_in_batch(model, input_dict, mode="inference"):
+def forward_in_batch(model, input_dict, mode="inference", do_separation=False):
 
     rays_num = input_dict['agent_positions'].shape[1]
     batch_size = 1000
@@ -269,7 +269,7 @@ def forward_in_batch(model, input_dict, mode="inference"):
 
         with torch.no_grad():
             model.eval()
-            batch_output_dict = model.net(data_dict=batch_input_dict, mode=mode)
+            batch_output_dict = model.net(data_dict=batch_input_dict, mode=mode, do_separation=do_separation)
 
         output_dicts.append(batch_output_dict)
         pointer += batch_size
@@ -662,7 +662,7 @@ def inference_sep(args):
         for key in input_dict.keys():
             input_dict[key] = torch.Tensor(input_dict[key]).to(device)
 
-        output_dict = forward_in_batch(model=model, input_dict=input_dict)
+        output_dict = forward_in_batch(model=model, input_dict=input_dict, do_separation=True)
 
         out_wavs = output_dict["agent_signals"]
 

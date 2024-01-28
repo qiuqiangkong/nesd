@@ -5,7 +5,7 @@ sampler_type: Sampler
 dataset_type: Dataset
 simulator_configs:
     image_source_max_order: 0
-    min_sources_num: 2
+    min_sources_num: 0
     max_sources_num: 2
     positive_rays: 4
     total_rays: 20

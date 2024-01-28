@@ -577,9 +577,12 @@ def add17():
 
     # audio_path = "/home/qiuqiangkong/datasets/dcase2016/task2/dcase2016_task2_train_dev/dcase2016_task2_train/phone059.wav"
     # audio_path = "/home/qiuqiangkong/workspaces/nesd2/audios/musdb18hq_2s_segments/test/Nerve 9 - Pray For The Rain_0010.wav"
-    audio_path = "/home/qiuqiangkong/datasets/dcase2022/task3/mic_dev/dev-train-sony/fold3_room21_mix001.wav" 
+    # audio_path = "/home/qiuqiangkong/datasets/dcase2022/task3/mic_dev/dev-train-sony/fold3_room21_mix001.wav" 
+    audio_path = "/home/qiuqiangkong/datasets/dcase2022/tau-srir/TAU-SNoise_DB/01_bomb_center/ambience_tetra_24k_edited.wav"
 
     audio, _ = librosa.load(path=audio_path, sr=None, mono=False)
+
+    audio = audio[0, 0:10000]
 
     # plt.plot(audio[0][0:100000]) 
     # plt.plot(audio)

@@ -54,7 +54,7 @@ def loc_bce_depth_bce(output_dict, target_dict):
         target=target_dict['agent_look_depths_has_source'], 
         mask=agent_look_depths_mask
     )
-    # from IPython import embed; embed(using=False); os._exit(0)
+    
     loss = loc_bce_loss + depth_bce_loss
 
     return loss
@@ -98,6 +98,60 @@ def loc_bce_sep_l1(output_dict, target_dict):
 
     sep_l1_loss *= 10
     loss = loc_bce_loss + sep_l1_loss
+    return loss
+
+
+def loc_bce_depth_bce_sep_l1(output_dict, target_dict):
+
+    agent_look_depths_mask = (target_dict['agent_look_depths_has_source'] != PAD) * 1.
+
+    loc_bce_loss = loc_bce(output_dict, target_dict)
+
+    depth_bce_loss = bce_mask(
+        output=output_dict['agent_look_depths_has_source'], 
+        target=target_dict['agent_look_depths_has_source'], 
+        mask=agent_look_depths_mask
+    )
+
+    loc_bce_loss = loc_bce(output_dict, target_dict)
+    
+    sep_l1_loss = l1(
+        x=output_dict["agent_signals"],
+        y=target_dict["agent_signals"],
+        mask=target_dict["agent_active_indexes_mask"]
+    )
+    
+    loss = loc_bce_loss + depth_bce_loss + sep_l1_loss
+
+    return loss
+
+
+def loc_bce_depth_bce_sepecho_l1(output_dict, target_dict):
+
+    agent_look_depths_mask = (target_dict['agent_look_depths_has_source'] != PAD) * 1.
+
+    loc_bce_loss = loc_bce(output_dict, target_dict)
+
+    depth_bce_loss = bce_mask(
+        output=output_dict['agent_look_depths_has_source'], 
+        target=target_dict['agent_look_depths_has_source'], 
+        mask=agent_look_depths_mask
+    )
+
+    loc_bce_loss = loc_bce(output_dict, target_dict)
+    
+    sep_l1_loss = l1(
+        x=output_dict["agent_signals_echo"],
+        y=target_dict["agent_signals_echo"],
+        mask=target_dict["agent_active_indexes_mask"]
+    )
+    
+    # from IPython import embed; embed(using=False); os._exit(0)
+    
+    loss = loc_bce_loss + depth_bce_loss + sep_l1_loss
+
+    
+
     return loss
 
 

@@ -85,8 +85,10 @@ def write_single_audio_to_hdf5(param: List) -> NoReturn:
     while pointer < audio_length:
 
         clip = audio[:, pointer : pointer + clip_samples]
+        print(np.max(clip))
 
-        bare_name = Path(audio_path).stem
+        bare_name = ",".join([Path(audio_path).parent.stem, Path(audio_path).stem])
+        # from IPython import embed; embed(using=False); os._exit(0)
         hdf5_path = Path(hdf5s_dir, "{}_{:03d}.h5".format(bare_name, index))
 
         with h5py.File(hdf5_path, "w") as hf:

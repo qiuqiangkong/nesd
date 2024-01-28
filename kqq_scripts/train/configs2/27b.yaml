@@ -5,7 +5,7 @@ sampler_type: Sampler
 dataset_type: Dataset
 simulator_configs:
     image_source_max_order: 0
-    min_sources_num: 2
+    min_sources_num: 0
     max_sources_num: 2
     positive_rays: 4
     total_rays: 20
@@ -21,7 +21,7 @@ simulator_configs:
     mics_yaml: "./microphones/eigenmike_4.2cm_omni.yaml"
     add_noise: "tau-noise"
     # source_paths_dict: "./paths_dict_d16t2.pkl"
-    rigid: True
+    rigid: False
     source_gain:
         max: 0.2
         min: 1.

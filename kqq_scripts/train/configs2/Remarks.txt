@@ -32,8 +32,18 @@
 23a.yaml	depths, others same as 22c
 24a.yaml	rigid rir (simulate), 0-2 sources
 25a.yaml	19b + d22 cla, no_scale_noise
-
-
+26a.yaml	others same as 19b, fix noise
++ 27a.yaml	26a + sep, order=0
+- 27b.yaml	26a + sep, omni, order=0
+- 28a.yaml	26a + sep, Model2_sep_linear order=0
+29a.yaml	depths, omni
+29b.yaml	depths, rigid
+30a.yaml	the same as 05a, 1-2 sources, order=3
+30b.yaml	the same as 05b, 0-2 sources, order=3
+31a.yaml	the same as 29a, 1-2 sources, order=3
++ 31b.yaml	the same as 29b, 0-2 sources, order=3
+32a.yaml	the same as 29b, 0-2 sources, order=3, fix raidus
+33a.yaml	
 
 freefield_01a.yaml	fix pos, 4.2cm, omni
 freefield_01b.yaml	fix pos, 0cm, cardioid

@@ -624,6 +624,8 @@ class ImageSourceSimulator:
         # agent_in_center_of_mics = True
         sources_position_type = simulator_configs["sources_position_type"]
 
+        self.echo_waveform = simulator_configs["echo_waveform"] if "echo_waveform" in simulator_configs.keys() else None
+
         if debug:
 
             self.length = 5
@@ -795,12 +797,14 @@ class ImageSourceSimulator:
                 end_sample = bgn_sample + self.segment_samples
                 noise = int16_to_float32(hf['waveform'][:, bgn_sample : end_sample])
 
-            from IPython import embed; embed(using=False); os._exit(0) 
+            # from IPython import embed; embed(using=False); os._exit(0) 
             if self.noise_gain:
                 gain = random.uniform(self.noise_gain["min"], self.noise_gain["max"])
                 noise *= gain
             else:
                 noise *= 20
+
+            # print(np.max(self.mic_signals), np.max(noise), np.max(self.mic_signals) / np.max(noise))
 
             # soundfile.write(file="_zz.wav", data=self.mic_signals[0], samplerate=24000)
             # soundfile.write(file="_zz2.wav", data=noise[0], samplerate=24000)
@@ -809,7 +813,10 @@ class ImageSourceSimulator:
 
         # Simluate agent signals
         # t1 = time.time()
-        self.agents = self.sample_and_simulate_agent_signals()
+        if self.echo_waveform:
+            self.agents = self.sample_and_simulate_agent_signals_echo()
+        else:
+            self.agents = self.sample_and_simulate_agent_signals()
         # print("a8", time.time() - t1)
 
         self.mic_look_directions = np.stack(self.mic_look_directions, axis=0)
@@ -836,12 +843,15 @@ class ImageSourceSimulator:
         ###
         self.agent_has_waveform_bool = np.array([agent.waveform is not None for agent in self.agents], dtype=np.int32)
         active_indexes = np.where(self.agent_has_waveform_bool==1)[0]
+        # from IPython import embed; embed(using=False); os._exit(0)
+
         max_active_indexes = 5
         self.active_indexes = librosa.util.fix_length(data=active_indexes, size=max_active_indexes, axis=0, constant_values=-1)
         self.active_indexes_mask = (self.active_indexes != -1).astype(np.int32)
         # max_active_indexes = 5
         # tmp = -1 * np.zeros(max_active_indexes)
         # tmp[0 : len()]
+        # from IPython import embed; embed(using=False); os._exit(0)
 
         self.agent_waveforms = [self.agents[i].waveform for i in active_indexes]
         while len(self.agent_waveforms) < max_active_indexes:
@@ -849,6 +859,12 @@ class ImageSourceSimulator:
             self.agent_waveforms.append(waveform)
             
         self.agent_waveforms = np.stack(self.agent_waveforms, axis=0)
+
+        #
+        self.agent_waveforms_echo = [self.agents[i].waveform_echo for i in active_indexes]
+        while len(self.agent_waveforms_echo) < max_active_indexes:
+            waveform = np.zeros(self.segment_samples)
+            self.agent_waveforms_echo.append(waveform)
 
         if self.source_paths_dict_path:
             self.sed = np.stack([agent.sed for agent in self.agents], axis=0)
@@ -859,6 +875,7 @@ class ImageSourceSimulator:
         # import soundfile
         # soundfile.write(file="_zz.wav", data=self.mic_signals[0], samplerate=24000)
         # soundfile.write(file="_zz2.wav", data=self.agent_waveforms[0], samplerate=24000)
+        # soundfile.write(file="_zz3.wav", data=self.agent_waveforms_echo[0], samplerate=24000)
         # from IPython import embed; embed(using=False); os._exit(0)
 
     def sample_shoebox_room(self):
@@ -1147,6 +1164,8 @@ class ImageSourceSimulator:
             
         y_total = np.sum([y for y in y_dict.values()], axis=0)
 
+        self.hs_dict = hs_dict
+
         return y_total
 
     def simulate_microphone_signal_rigid(self, mic_pos):
@@ -1217,11 +1236,33 @@ class ImageSourceSimulator:
 
             y_dict[source_index] = y
 
+            # from IPython import embed; embed(using=False); os._exit(0)
+
             # soundfile.write(file="_zz{}.wav".format(source_index), data=y, samplerate=16000)
             
         y_total = np.sum([y for y in y_dict.values()], axis=0)
 
+        self.hs_dict = hs_dict
+
         return y_total
+
+    def simulate_agent_aggregate_signal(self, mic_pos, source_index):
+
+        if self.sources_num == 0:
+            return np.zeros(self.segment_samples)
+
+        hs = self.hs_dict[source_index]
+        source = self.sources[source_index]
+
+        max_filter_len = max([len(h) for h in hs])
+        
+        sum_h = np.zeros(max_filter_len)
+        for h in hs:
+            sum_h[0 : len(h)] += h
+
+        y = self.convolve_source_filter(x=source, h=sum_h)
+
+        return y
 
     def convolve_source_filter(self, x, h):
         return np.convolve(x, h, mode='full')[0 : len(x)]
@@ -1262,6 +1303,13 @@ class ImageSourceSimulator:
 
             y = self.convolve_source_filter(x=self.sources[source_index], h=h)
 
+            # from IPython import embed; embed(using=False); os._exit(0)
+
+            # agg_y = self.simulate_agent_aggregate_signal(
+            #     mic_pos=mic_pos, 
+            #     source_index=source_index
+            # )
+
             if self.max_drop_duration:                
                 look_direction_has_source = self.has_sources[source_index]
 
@@ -1278,6 +1326,7 @@ class ImageSourceSimulator:
                 position=self.agent_position, 
                 look_direction=agent_look_direction, 
                 waveform=y,
+                # agg_waveform=agg_y,
                 look_direction_has_source=look_direction_has_source,
                 ray_type="positive",
             )
@@ -1299,7 +1348,7 @@ class ImageSourceSimulator:
 
             if self.depth_rays is not None:
 
-                agent_look_depth = sample_positive_depth(x=distance, radius=self.exclude_raidus, max_length=10.)
+                agent_look_depth = sample_positive_depth(x=distance, radius=0.1, max_length=10.)
 
                 agent = Agent(
                     position=self.agent_position, 
@@ -1314,7 +1363,7 @@ class ImageSourceSimulator:
 
                 for _ in range(self.depth_rays - 1):
 
-                    agent_look_depth = sample_negative_depth(x=distance, radius=self.exclude_raidus, max_length=10.)
+                    agent_look_depth = sample_negative_depth(x=distance, radius=0.1, max_length=10.)
 
                     agent = Agent(
                         position=self.agent_position, 
@@ -1362,7 +1411,191 @@ class ImageSourceSimulator:
 
         # print("a4", time.time() - t1)
         return agents
-        
+
+
+    def sample_and_simulate_agent_signals_echo(self):
+
+        agents = []
+
+        _direction_sampler = DirectionSampler(
+            low_colatitude=0, 
+            high_colatitude=math.pi, 
+            sample_on_sphere_uniformly=False, 
+        )
+
+        # from IPython import embed; embed(using=False); os._exit(0)
+
+        y_echo_dict, y0_dict = self.get_agent_echo_anecho_signal(agent_position=self.agent_position) 
+
+        # positive
+        positive_image_meta_list = self.get_image_meta_by_order(self.image_meta_list, orders=[0])
+
+        # if len(positive_image_meta_list) > self.positive_rays:
+        #     positive_image_meta_list = np.random.choice(positive_image_meta_list, size=positive_num, replace=False)
+
+        for source_index in range(self.sources_num):
+
+            agent_to_image = self.source_positions[source_index] - self.agent_position
+            distance = norm(agent_to_image)
+
+            agent_look_direction = sample_agent_look_direction(
+                agent_to_src=agent_to_image, 
+                half_angle=self.half_angle, 
+            )
+
+            look_direction_has_source = np.ones(self.expand_frames)
+
+            agent = Agent(
+                position=self.agent_position, 
+                look_direction=agent_look_direction, 
+                waveform=y0_dict[source_index],
+                waveform_echo=y_echo_dict[source_index],
+                look_direction_has_source=look_direction_has_source,
+                ray_type="positive",
+            )
+
+            if self.source_paths_dict_path:
+                label = self.source_labels[source_index]
+                if label == "Unknown":
+                    agent.sed = np.zeros((self.frames_num, self.classes_num))
+                    agent.sed_mask = PAD * np.ones((self.frames_num, self.classes_num))
+                else:
+                    id = self.LB_TO_ID[label]
+                    sed = id_to_onehot(id, self.classes_num)
+                    agent.sed = expand_frame_dim(sed, self.frames_num)
+                    agent.sed_mask = np.ones((self.frames_num, self.classes_num))
+                # print(label)
+                # from IPython import embed; embed(using=False); os._exit(0)
+
+            agents.append(agent)
+
+            if self.depth_rays is not None:
+
+                agent_look_depth = sample_positive_depth(x=distance, radius=0.1, max_length=10.)
+
+                agent = Agent(
+                    position=self.agent_position, 
+                    look_direction=agent_look_direction, 
+                    look_depth=agent_look_depth,
+                    # waveform=y0_dict[source_index],
+                    waveform=None,
+                    look_direction_has_source=np.ones(self.expand_frames),
+                    look_depth_has_source=np.ones(self.expand_frames),
+                    ray_type="positive",
+                )
+                agents.append(agent)
+
+                for _ in range(self.depth_rays - 1):
+
+                    agent_look_depth = sample_negative_depth(x=distance, radius=0.1, max_length=10.)
+
+                    agent = Agent(
+                        position=self.agent_position, 
+                        look_direction=agent_look_direction, 
+                        look_depth=agent_look_depth,
+                        # waveform=y,
+                        waveform=None,
+                        waveform_echo=None,
+                        look_direction_has_source=np.ones(self.expand_frames),
+                        look_depth_has_source=np.zeros(self.expand_frames),
+                        ray_type="positive",
+                    )
+                    agents.append(agent)
+
+        # middle
+        # todo
+
+        # negative
+        # t1 = time.time()
+        while len(agents) < self.total_rays:
+            
+            agent_look_direction = self.sample_negative_direction(
+                agent_position=self.agent_position,
+                direction_sampler=_direction_sampler,
+                positive_image_meta_list=self.get_image_meta_by_order(self.image_meta_list, orders=[0]),
+                half_angle=self.half_angle,
+            )
+
+            agent = Agent(
+                position=self.agent_position, 
+                look_direction=agent_look_direction, 
+                # waveform=np.zeros(self.segment_samples),
+                waveform=None,
+                waveform_echo=None,
+                look_direction_has_source=np.zeros(self.expand_frames),
+                ray_type="negative",
+            )
+
+            if self.source_paths_dict_path:
+                agent.sed = np.zeros((self.frames_num, self.classes_num))
+                agent.sed_mask = PAD * np.ones((self.frames_num, self.classes_num))
+
+            agents.append(agent)
+
+        # if self.sources_num == 0:
+        #     from IPython import embed; embed(using=False); os._exit(0)
+
+        # print("a4", time.time() - t1)
+        return agents
+
+    def get_agent_echo_anecho_signal(self, agent_position):
+
+        if self.sources_num == 0:
+            return np.zeros(self.segment_samples), np.zeros(self.segment_samples)
+
+        hs0_dict = {source_index: None for source_index in range(self.sources_num)}
+        hs_dict = {source_index: [] for source_index in range(self.sources_num)}
+
+        for image_meta in self.image_meta_list:
+
+            source_index = image_meta["source_index"]
+
+            direction = image_meta["position"] - agent_position
+            distance = norm(direction)
+            delayed_samples = distance / self.speed_of_sound * self.sample_rate
+
+            decay_factor = 1 / distance
+
+            angle_factor = 1.
+
+            normalized_direction = direction / distance
+
+            h = decay_factor * angle_factor * fractional_delay_filter(delayed_samples)
+            hs_dict[source_index].append(h)
+
+            if image_meta["order"] == 0:
+                hs0_dict[source_index] = h
+
+        y_dict = {}
+        y0_dict = {}
+
+        for source_index in range(self.sources_num):
+
+            hs = hs_dict[source_index]
+            source = self.sources[source_index]
+
+            max_filter_len = max([len(h) for h in hs])
+            
+            sum_h = np.zeros(max_filter_len)
+            for h in hs:
+                sum_h[0 : len(h)] += h
+
+            y = self.convolve_source_filter(x=source, h=sum_h)
+            y_dict[source_index] = y
+
+            #
+            h0 = hs0_dict[source_index]
+            y0 = self.convolve_source_filter(x=source, h=h0)
+            y0_dict[source_index] = y0
+
+            import soundfile
+            soundfile.write(file="_zz{}.wav".format(source_index), data=y_dict[source_index], samplerate=24000)
+            soundfile.write(file="_yy{}.wav".format(source_index), data=y0_dict[source_index], samplerate=24000)
+            
+        # from IPython import embed; embed(using=False); os._exit(0)
+
+        return y_dict, y0_dict
+
 
     def get_image_meta_by_order(self, image_meta_list, orders):
 

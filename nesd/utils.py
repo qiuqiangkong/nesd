@@ -588,7 +588,7 @@ class Agent:
         assert is_unit_norm_direction
 '''
 class Agent:
-    def __init__(self, position, look_direction, waveform, look_direction_has_source=None, look_depth_has_source=None, see_source=None, see_source_classwise=None, ray_type=None, look_depth=None):
+    def __init__(self, position, look_direction, waveform, look_direction_has_source=None, look_depth_has_source=None, see_source=None, see_source_classwise=None, ray_type=None, look_depth=None, waveform_echo=None):
         self.position = position
         self.look_direction = look_direction
         self.look_depth = [look_depth]
@@ -598,6 +598,7 @@ class Agent:
         # self.see_source = see_source
         # self.see_source_classwise = see_source_classwise
         self.ray_type = ray_type
+        self.waveform_echo = waveform_echo
 
         frames_num = look_direction.shape[0]
 

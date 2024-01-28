@@ -5,10 +5,11 @@ sampler_type: Sampler
 dataset_type: Dataset
 simulator_configs:
     image_source_max_order: 0
-    min_sources_num: 2
+    min_sources_num: 0
     max_sources_num: 2
     positive_rays: 4
-    total_rays: 20
+    depth_rays: 5
+    total_rays: 30
     room_min_length: 4
     room_max_length: 8
     room_min_width: 4
@@ -21,7 +22,8 @@ simulator_configs:
     mics_yaml: "./microphones/eigenmike_4.2cm_omni.yaml"
     add_noise: "tau-noise"
     # source_paths_dict: "./paths_dict_d16t2.pkl"
-    rigid: True
+    lowpass: 1000
+    # rigid: True
     source_gain:
         max: 0.2
         min: 1.
@@ -37,11 +39,11 @@ train:
     input_channels: 1
     output_channels: 1
     segment_seconds: 2.0
-    model_type: Model02_sep
+    model_type: Model02_depth
     do_localization: True
     do_sed: False
     do_separation: True
-    loss_type: loc_bce_sep_l1
+    loss_type: loc_bce_depth_bce
     optimizer_type: AdamW
     learning_rate: 1e-3
     batch_size_per_device: 16
