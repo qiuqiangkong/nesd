@@ -1,3 +1,0 @@
-01a.yaml	freefield, loc_bce, src=2
-- 01b.yaml
-01c.yaml	freefield, loc_bce_sep_l1, src=2
