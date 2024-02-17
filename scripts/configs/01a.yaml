@@ -1,0 +1,104 @@
+---
+
+# sampler_type: Sampler
+# dataset_type: Dataset
+
+simulator_configs:
+
+    speed_of_sound: 343.    
+    sample_rate: 24000
+    segment_seconds: 2.0
+    frames_per_sec: 100
+    collision_radius: 0.25
+
+    room_length:
+        min: 4
+        max: 8
+    room_width:
+        min: 4
+        max: 8
+    room_height:
+        min: 2
+        max: 4
+    room_margin: 0.2
+
+    train_audios_dir: "/home/qiuqiangkong/workspaces/nesd/audios/vctk_2s_segments/train"
+    test_audios_dir: "/home/qiuqiangkong/workspaces/nesd/audios/vctk_2s_segments/test"
+    sources_num:
+        # min: 0
+        min: 2
+        max: 2
+    source_gain_db:
+        min: -24.
+        max: 0.
+    source_radius: 0.1
+    source_apprent_diameter_deg: 10
+    
+    # mic_positions_type: "random_in_environment"
+    mics_yaml: "./microphones/eigenmike.yaml"
+    mic_spatial_irs_path: /home/qiuqiangkong/workspaces/nesd/mic_spatial_irs/rigid_sphere.pkl
+
+    image_source_order: 3
+
+    # agent_positions_type: "random_in_environment"
+    agent_positions_type: "center_of_mics"
+    # agent_detect_rays: 20
+    # agent_dist_rays: 20
+    # agent_sep_rays: 5
+    agent_detection_rays:
+        max_positive: 10
+        total: 20
+    agent_distance_rays:
+        max_positive: 10
+        total: 20
+    agent_sep_rays: 
+        max_positive: 5
+        total: 5
+    
+    
+
+
+
+
+
+    add_noise: "tau-noise"
+    # source_paths_dict: "./paths_dict_d16t2.pkl"
+    rigid: True
+    source_gain:
+        max: 0.2
+        min: 1.
+    noise_gain: 
+        max: 1.
+        min: 10.
+    echo_waveform: True
+train:
+    device: "gpu"
+    # devices_num: 1
+    # num_workers: 0  
+    num_workers: 16
+    sample_rate: 24000
+    input_channels: 1
+    output_channels: 1
+    segment_seconds: 2.0
+    model_type: Model02_depth_sepecho
+    do_localization: True
+    do_sed: False
+    do_separation: True
+    loss_type: loc_bce_depth_bce_sepecho_l1
+    optimizer_type: AdamW
+    learning_rate: 1e-3
+    batch_size_per_device: 16
+    precision: 32
+    steps_per_epoch: 10000  # Every 10000 steps is called an `epoch`.
+    evaluate_step_frequency: 200     # Evaluate every #evaluate_step_frequency steps.
+    save_step_frequency: 1000  # Save every #save_step_frequency steps. 
+    early_stop_steps: 200001
+    warm_up_steps: 1000
+    reduce_lr_steps: 15000
+    random_seed: 1234
+    resume_checkpoint_path: ""
+    classes_num: 15
+
+test:
+    segment_seconds: 3.0
+    batch_size: 1
