@@ -36,7 +36,7 @@ def pack_audios_to_hdf5s(args) -> NoReturn:
     label = "speech"
     segment_samples = int(sample_rate * segment_seconds)
 
-    audios_dir = os.path.join(dataset_dir, 'wav48', split)
+    audios_dir = os.path.join(dataset_dir, "wav48", split)
     speaker_ids = sorted(os.listdir(audios_dir))
     
     os.makedirs(hdf5s_dir, exist_ok=True)

@@ -19,7 +19,7 @@ simulator_configs:
     mics_position_type: "random"
     agent_position_type: "center_of_mics"
     sources_position_type: "random"
-    mics_yaml: "./microphones/eigenmike_4.2cm_omni.yaml"
+    mics_yaml: "./microphones/eigenmike.yaml"
     add_noise: "tau-noise"
     # source_paths_dict: "./paths_dict_d16t2.pkl"
     # lowpass: 1000

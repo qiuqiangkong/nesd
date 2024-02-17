@@ -369,7 +369,7 @@ if __name__ == "__main__":
     )
     
     args = parser.parse_args()
-    args.filename = pathlib.Path(__file__).stem 
+    args.filename = pathlib.Path(__file__).stem
 
     if args.mode == "train":
         train(args)

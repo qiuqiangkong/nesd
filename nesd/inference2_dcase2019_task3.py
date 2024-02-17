@@ -926,7 +926,10 @@ def inference_sep(args):
 
         # from IPython import embed; embed(using=False); os._exit(0)
 
-        tmp = output_dict["agent_signals"]
+        if "agent_signals_echo" in output_dict.keys():
+            tmp = output_dict["agent_signals_echo"]
+        else:
+            tmp = output_dict["agent_signals"]
 
         pred_tensor.append(tmp)
 
