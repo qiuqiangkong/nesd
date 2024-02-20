@@ -5,11 +5,13 @@ import copy
 import soundfile
 import math
 import h5py
+import torch
 # import scipy
 from scipy.signal import fftconvolve
 from scipy.spatial.transform import Rotation
 
 import pyroomacoustics as pra
+from nesd.models.base import *
 
 
 def add():
@@ -422,6 +424,33 @@ def add21():
 
     print(sample_source_indexes(5, 10))
 
+# test PositionEncoder
+def add22():
+
+    pos_encoder = PositionEncoder(size=5)
+    vector = torch.Tensor(np.arange(0, 20, 0.01))[:, None]
+    pos_emb = pos_encoder(vector)
+    plt.matshow(pos_emb.T, origin='lower', aspect='auto', vmin=-1., vmax=1., cmap='jet')
+    plt.savefig("_zz.pdf")
+    from IPython import embed; embed(using=False); os._exit(0)
+    
+
+def add23():
+
+    a1 = torch.Tensor([1,2,3])[None, :, None]
+    y = torch.repeat_interleave(a1, repeats=4, dim=2)
+    print(y)
+
+
+
+
+
+def add24():
+    a1 = InfiniteSampler()
+    for e in a1:
+        print(e)
+
+
 if __name__ == "__main__":
 
-    add21()
+    add24()

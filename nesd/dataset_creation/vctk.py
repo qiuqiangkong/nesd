@@ -165,11 +165,11 @@ if __name__ == "__main__":
     )
     parser.add_argument("--split", type=str, required=True, choices=["train", "test"])
     parser.add_argument("--sample_rate", type=int, required=True, help="Sample rate.")
-    parser.add_argument("--segment_seconds", type=float, required=True, help="Sample rate.")
+    parser.add_argument("--segment_seconds", type=float, required=True)
     parser.add_argument("--output_dir", type=str, required=True)
 
     # Parse arguments.
     args = parser.parse_args()
 
-    # Pack audios into hdf5 files.
+    # Process audios into segments.
     process_audio_into_segments(args)

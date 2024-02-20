@@ -165,13 +165,17 @@ def get_included_angle(a, b):
     return angle
 
 
-def random_positive_direction(source_direction, theta):
+def triangle_function(x, r=0.05, low=0.5):
+    return 1 - ((1 - low) / r * np.abs(x))
+
+
+def random_positive_direction(direction, theta):
 
     base_direction = np.array([0, 0, 1])
     
     # Compute rotation vector.
-    rot_vector = np.cross(a=base_direction, b=source_direction)
-    rot_angle = get_included_angle(a=base_direction, b=source_direction)
+    rot_vector = np.cross(a=base_direction, b=direction)
+    rot_angle = get_included_angle(a=base_direction, b=direction)
     rot_vector = rot_angle * normalize(rot_vector)
 
     # Initiate rotation object.
@@ -190,19 +194,15 @@ def random_positive_direction(source_direction, theta):
     return output_direction
 
 
-def triangle_function(x, r=0.05, low=0.5):
-    return 1 - ((1 - low) / r * np.abs(x))
-
-
-def random_negative_direction(source_directions, theta):
+def random_negative_direction(directions, theta):
 
     while True:
 
         rand_direction = random_direction()
         satisfied = True
 
-        for src_direction in source_directions:
-            if get_included_angle(a=rand_direction, b=src_direction) < theta:
+        for direction in directions:
+            if get_included_angle(a=rand_direction, b=direction) < theta:
                 satisfied = False
                 break
             
@@ -210,22 +210,59 @@ def random_negative_direction(source_directions, theta):
             return rand_direction
 
 
-def random_positive_distance(source_distance, r):
-    rand_dist = random.uniform(a=source_distance - r, b=source_distance + r)
+def random_positive_distance(distance, r):
+    rand_dist = random.uniform(a=max(distance - r, 0), b=distance + r)
     return rand_dist
 
 
-def random_negative_distance(source_distances, r, max_dist):
+def random_negative_distance(distances, r, max_dist):
 
     while True:
         
         rand_dist = random.uniform(a=0, b=max_dist)
         satisfied = True
 
-        for src_dist in source_distances:
-            if src_dist - r <= rand_dist <= src_dist + r:
+        for dist in distances:
+            if dist - r <= rand_dist <= dist + r:
                 satisfied = False
                 break
 
         if satisfied:
             return rand_dist
+
+
+def expand_along_frame_axis(x, repeats):
+    
+    output = np.repeat(
+        a=np.expand_dims(x, axis=-2), 
+        repeats=repeats, 
+        axis=-2
+    )
+    return output
+
+
+class Agent:
+    def __init__(self, 
+        position, 
+        look_at_direction, 
+        look_at_direction_has_source=None,
+        look_at_direction_direct_waveform=None,
+        look_at_direction_reverb_waveform=None,
+        look_at_distance=None, 
+        look_at_distance_has_source=None,
+    ):
+        self.position = position
+        self.look_at_direction = look_at_direction
+        self.look_at_direction_has_source = look_at_direction_has_source
+        self.look_at_direction_direct_waveform = look_at_direction_direct_waveform
+        self.look_at_direction_reverb_waveform = look_at_direction_reverb_waveform
+        self.look_at_distance = look_at_distance
+        self.look_at_distance_has_source = look_at_distance_has_source
+
+
+def load_mics_meta(mics_yaml):
+
+    with open(mics_yaml, 'r') as f:
+        mics_meta = yaml.load(f, Loader=yaml.FullLoader)
+
+    return mics_meta

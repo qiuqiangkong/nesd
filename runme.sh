@@ -1,6 +1,7 @@
 
 WORKSPACE="${HOME}/workspaces/nesd"
 
+#
 VCTK_DATASET_DIR="/datasets/vctk"
 SAMPLE_RATE=24000
 SEGMENT_SECONDS=2.0
@@ -10,6 +11,17 @@ python nesd/dataset_creation/vctk.py \
 	--sample_rate=$SAMPLE_RATE \
 	--segment_seconds=$SEGMENT_SECONDS \
 	--output_dir="${WORKSPACE}/audios/vctk_2s_segments"
+
+#
+TAU_NOISE_AUDIOS_DIR="/datasets/tau-srir/TAU-SNoise_DB"
+CLIP_SECONDS=60.
+
+python nesd/dataset_creation/tau_noise.py \
+	--audios_dir=$TAU_NOISE_AUDIOS_DIR \
+	--split="train" \
+	--sample_rate=$SAMPLE_RATE \
+	--clip_seconds=$CLIP_SECONDS \
+	--output_dir="${WORKSPACE}/audios/tau_noise"
 
 
 python nesd/mic_prep/rigid_sphere.py \
