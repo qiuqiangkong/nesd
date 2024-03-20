@@ -161,12 +161,18 @@ def fractional_delay_filter(delayed_samples):
 # def get_incident_angle(a, b):
 def get_included_angle(a, b):
     cos = np.sum(a * b, axis=-1) / (np.linalg.norm(a, axis=-1) * np.linalg.norm(b, axis=-1))
+    cos = np.clip(cos, a_min=-1., a_max=1.)
     angle = np.arccos(cos)
     return angle
 
 
-def triangle_function(x, r=0.05, low=0.5):
-    return 1 - ((1 - low) / r * np.abs(x))
+# def triangle_function(x, r=0.05, low=0.5):
+#     return 1 - ((1 - low) / r * np.abs(x))
+
+def triangle_function(x, r=0.05, low=1.):
+    y = 1 - ((1 - low) / r * np.abs(x))
+    # print(y)
+    return y
 
 
 def random_positive_direction(direction, theta):
@@ -182,7 +188,8 @@ def random_positive_direction(direction, theta):
     rot_obj = Rotation.from_rotvec(rotvec=rot_vector)
 
     # Sample a direction near the base direction.
-    random_direction_near_base = random_direction(min_azimuth=-math.pi, 
+    random_direction_near_base = random_direction(
+        min_azimuth=-math.pi, 
         max_azimuth=math.pi, 
         min_elevation=math.pi / 2 - theta,
         max_elevation=math.pi / 2,

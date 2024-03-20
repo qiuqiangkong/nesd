@@ -1,6 +1,5 @@
 import argparse
 import os
-import pathlib
 from typing import Dict, List, NoReturn
 import torch
 import time
@@ -10,6 +9,7 @@ from nesd.utils import read_yaml, load_mics_meta
 from nesd.data.dataset import Dataset
 from nesd.data.collate import collate_fn
 from nesd.losses import get_loss
+from nesd.data.samplers import InfiniteRandomSampler
 
 
 def train(args) -> NoReturn:
@@ -24,10 +24,9 @@ def train(args) -> NoReturn:
     # Arugments & parameters
     workspace = args.workspace
     config_yaml = args.config_yaml
-    filename = pathlib.Path(__file__).stem
+    filename = Path(__file__).stem
     devices_num = torch.cuda.device_count()
-    # from IPython import embed; embed(using=False); os._exit(0)
-
+    
     configs = read_yaml(config_yaml)
 
     simulator_configs = configs["simulator_configs"]
@@ -42,7 +41,9 @@ def train(args) -> NoReturn:
     lr = float(configs["train"]["learning_rate"])
 
     # batch_size = batch_size_per_device * 
-    checkpoints_dir = Path(workspace, "checkpoints", model_name)
+    # checkpoints_dir = Path(workspace, "checkpoints", filename, model_name)
+    checkpoints_dir = Path(workspace, "checkpoints", filename, Path(config_yaml).stem)
+    # from IPython import embed; embed(using=False); os._exit(0) 
     Path(checkpoints_dir).mkdir(parents=True, exist_ok=True)
 
     batch_size = batch_size_per_device
@@ -68,6 +69,10 @@ def train(args) -> NoReturn:
 
     # Model
     model = get_model(model_name, mics_num)
+
+    # checkpoint_path = "/home/qiuqiangkong/workspaces/nesd/checkpoints/train/07a/step=300000.pth"
+    # model.load_state_dict(torch.load(checkpoint_path)) 
+
     model.to(device)
 
     optimizer = torch.optim.AdamW(
@@ -82,19 +87,21 @@ def train(args) -> NoReturn:
     for step, data in enumerate(dataloader):
         
         for key in data.keys():
-            data[key] = data[key].to(device)
+            if isinstance(data[key], torch.Tensor):
+                data[key] = data[key].to(device)
         
         optimizer.zero_grad()
+        # from IPython import embed; embed(using=False); os._exit(0)
 
         model.train()
-        output_dict = model(data=data) 
+        output_dict = model(data) 
 
         loss = loss_func(output_dict, data)
         loss.backward()
 
         optimizer.step()
 
-        if step % 10000 == 0:
+        if step % 100000 == 0:
             checkpoint_path = Path(checkpoints_dir, "step={}.pth".format(step))
             torch.save(model.state_dict(), checkpoint_path)
             print("Save model to {}".format(checkpoint_path))
@@ -103,26 +110,38 @@ def train(args) -> NoReturn:
             torch.save(model.state_dict(), Path(checkpoint_path))
             print("Save model to {}".format(checkpoint_path))
 
-        print(step, loss.item())
+        if step % 1 == 0:
+            print(step, loss.item())
 
 
 def get_model(model_name, mics_num):
+    
     if model_name == "NeSD":
         from nesd.models.nesd import NeSD
         return NeSD(mics_num=mics_num)
+
+    elif model_name == "NeSD2":
+        from nesd.models.nesd import NeSD2
+        return NeSD2(mics_num=mics_num)
+
+    elif model_name == "NeSD3":
+        from nesd.models.nesd import NeSD3
+        return NeSD3(mics_num=mics_num)
+
+    elif model_name == "NeSD4":
+        from nesd.models.nesd import NeSD4
+        return NeSD4(mics_num=mics_num)
+
+    elif model_name == "NeSD4b":
+        from nesd.models.nesd import NeSD4b
+        return NeSD4b(mics_num=mics_num)
+
+    elif model_name == "Model02":
+        from nesd.old_models.models02 import Model02
+        return Model02(mics_num=mics_num)
+
     else:
         raise NotImplementedError
-
-
-class InfiniteRandomSampler:
-    def __init__(self):
-        pass
-
-    def __iter__(self):
-        while True:
-            yield 0
-
-
 
 
 if __name__ == "__main__":

@@ -442,15 +442,82 @@ def add23():
     print(y)
 
 
+class InfiniteRandomSampler:
+    def __init__(self):
+        self.indexes = list(range(10))
+        
+    def __iter__(self):
 
+        pointer = 0
+
+        while True:
+
+            if pointer == len(self.indexes):
+                pointer = 0
+                random.shuffle(self.indexes)
+
+            index = self.indexes[pointer]
+            pointer += 1
+
+            yield index
+
+            
 
 
 def add24():
-    a1 = InfiniteSampler()
+    a1 = InfiniteRandomSampler()
     for e in a1:
         print(e)
 
 
+def add25():
+
+    direction = np.array([1, 0, 0])
+    theta = 0
+    y = random_positive_direction(direction, theta)
+    from IPython import embed; embed(using=False); os._exit(0)
+
+
+def add26():
+
+    directions = [np.array([1, 0, 0]), np.array([1, 1, 1])]
+    tmp = np.zeros((360, 180))
+
+    for _ in range(100000):
+        dirs = random_negative_direction(directions, theta = np.deg2rad(20))
+        azi, ele, r = cart2sph(dirs)
+        tmp[int(np.rad2deg(azi)) + 180, int(np.rad2deg(ele)) + 90] = 1
+
+    # fig, axs = plt.subplots(2,2, sharex=True)
+    plt.matshow(tmp.T, origin='lower', aspect='auto', cmap='jet', vmin=0, vmax=1)
+    plt.savefig("_zz.pdf")
+    from IPython import embed; embed(using=False); os._exit(0)
+
+
+def add27():
+    pkl_path = "/home/qiuqiangkong/workspaces/nesd/mic_spatial_irs/rigid_sphere.pkl"
+    # pkl_path = "/home/qiuqiangkong/workspaces/nesd/mic_spatial_irs/open_sphere.pkl"
+    a1 = pickle.load(open(pkl_path, "rb"))
+
+    N = 2049
+    L = 20
+    fig, axs = plt.subplots(4, 1, sharex=True)
+    axs[0].stem(a1[0][N//2 - L : N//2 + L + 1])
+    axs[1].stem(a1[90][N//2 - L : N//2 + L + 1])
+    axs[2].stem(a1[180][N//2 - L : N//2 + L + 1])
+    plt.savefig("_zz.pdf")
+
+    from IPython import embed; embed(using=False); os._exit(0)
+
+
+def add28():
+
+    a1 = np.array([1, 0.1, 0.2, 0.3, 0.4, 0.5])
+    a1 = np.fft.fftshift(a1)
+    a1 = np.pad(array=a1, pad_width=((0, 1)), constant_values=0.)
+    from IPython import embed; embed(using=False); os._exit(0)
+
+
 if __name__ == "__main__":
 
-    add24()
+    add27()

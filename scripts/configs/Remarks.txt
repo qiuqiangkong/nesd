@@ -1,0 +1,29 @@
+tmp.yaml    works
+02a.yaml    add noise, works
+03a.yaml    add eigenmike, noise, not so good
+04a.yaml    4 srcs, others same as tmp
+04b.yaml    8 srcs, others same as tmp
+04c.yaml    16 srcs, others same as tmp
+
+05a.yaml    Models02, others same as 03a.yaml
+
+06a.yaml	the same as 02a
+06b.yaml	the same as 02a, srcs=4
+06c.yaml	the same as 02a, srcs=8
+07a.yaml	the same as 06a, det_dist_sep
+
+08a.yaml	same as 03a
+08b.yaml	open sphere, others same as 08a, 60k works, 70k explode
+08c.yaml	fix rigid
+
+09a.yaml	det only, rigid
+09b.yaml	det only, open
+
+10a.yaml	Model02, rigid
+10b.yaml	Model02, open
+
+11a.yaml	Nesd2, rigid
+11b.yaml	Nesd2, open
+12a.yaml	Nesd3, Model02's enc feature
+13a.yaml	Nesd4, fix enc feature
+14a.yaml	Nesd4b, direct + reverb

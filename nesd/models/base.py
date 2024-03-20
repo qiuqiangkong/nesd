@@ -27,7 +27,6 @@ class PositionEncoder:
 class OrientationEncoder:
     def __init__(self, size):
         self.size = size
-        self.max_distance = 20
 
     def __call__(self, direction):
 
@@ -67,6 +66,26 @@ class DistanceEncoder:
         # (bs, mics_num, frames_num, size * 2)
 
         return dist_emb
+
+
+class AngleEncoder:
+    def __init__(self, size):
+        self.size = size
+
+    def __call__(self, angle):
+
+        angles = []
+
+        for i in range(self.size):
+            angles.append((2 ** i) * angle)
+
+        angles = torch.stack(angles, dim=-1)
+        # (bs, mics_num, frames_num, size)
+
+        angle_emb = torch.cat((torch.cos(angles), torch.sin(angles)), dim=-1)
+        # (bs, mics_num, frames_num, size * 2)
+
+        return angle_emb
 
 
 def cart2sph_torch(vector):

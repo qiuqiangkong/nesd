@@ -24,7 +24,6 @@ def calcualte_spaital_impulse_responses(args):
 
     # Inclined angle between mic_orientation and mic_to_source.
     for deg in range(0, 181, 1):
-    # for deg in [0]:
 
         print("Inclined angle degree: {}".format(deg))
 
@@ -38,15 +37,15 @@ def calcualte_spaital_impulse_responses(args):
         )
 
         # Get delay impulse response.
-        distance = - RADIUS * np.cos(np.deg2rad(deg))
-        delayed_samples = (distance / SPEED_OF_SOUND) * SAMPLE_RATE
-        h_delay = fractional_delay_filter(delayed_samples)
+        # distance = - RADIUS * np.cos(np.deg2rad(deg))
+        # delayed_samples = (distance / SPEED_OF_SOUND) * SAMPLE_RATE
+        # h_delay = fractional_delay_filter(delayed_samples)
 
         # Total impulse response.
-        h_total = fftconvolve(in1=h_rigid, in2=h_delay, mode="full")
+        # h_total = fftconvolve(in1=h_rigid, in2=h_delay, mode="full")
 
         # spatial_irs.append(h)
-        spatial_irs[deg] = h_total
+        spatial_irs[deg] = h_rigid
 
     Path(mic_spatial_irs_path).parent.mkdir(parents=True, exist_ok=True)
     pickle.dump(spatial_irs, open(mic_spatial_irs_path, "wb"))
@@ -82,6 +81,7 @@ def get_rigid_sph_array(angle, nfft, radius, fs, c, order):
     
     for n in range(order + 1):
         b_n[n] = mode_strength(n=n, kr=kr, sphere_type='rigid')
+        # b_n[n] = mode_strength(n=n, kr=kr, sphere_type='open')
 
     b_nt = np.fft.irfft(b_n)    # (order + 1, nfft)
     
@@ -95,14 +95,17 @@ def get_rigid_sph_array(angle, nfft, radius, fs, c, order):
     H_mic = b_n.T @ P   # (nfft // 2 + 1)
 
     # Shift the origin to the center
-    h_mic = np.pad(array=h_mic, pad_width=((0, 1)), constant_values=0.)
     h_mic = np.fft.fftshift(h_mic)
 
+    h_mic = np.pad(array=h_mic, pad_width=((0, 1)), constant_values=0.)
+
+    # print(np.sum(h_mic))
+
     # Multiply sinc filter by window.
-    h_mic *= np.blackman(len(h_mic))
+    # h_mic *= np.blackman(len(h_mic))
     
     # Normalize to get unity gain.
-    h_mic /= np.sum(h_mic)
+    # h_mic /= np.sum(h_mic)
 
     # fig, axes = plt.subplots(2, 1, sharex=True)
     # axes[0].plot(np.angle(H_mic))

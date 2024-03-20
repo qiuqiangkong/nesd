@@ -13,7 +13,6 @@ import matplotlib.pyplot as plt
 
 from nesd.utils import db_to_scale, sph2cart, normalize, random_direction, get_included_angle, random_positive_direction, triangle_function, random_negative_direction, random_positive_distance, random_negative_distance, expand_along_frame_axis, Agent
 from nesd.data.engine import ImageSourceEngine
-from nesd.constants import PAD
 
 
 class Dataset:
@@ -57,10 +56,7 @@ class Dataset:
         self.mic_spatial_irs_path = simulator_configs["mic_spatial_irs_path"]
         self.mic_noise_dir = simulator_configs["{}_mic_noise".format(split)]
 
-        if self.mic_spatial_irs_path:
-            self.mic_spatial_irs = pickle.load(open(self.mic_spatial_irs_path, "rb"))
-        else:
-            self.mic_spatial_irs = None
+        self.mic_spatial_irs = pickle.load(open(self.mic_spatial_irs_path, "rb"))
         self.mic_noise_paths = self.load_mic_noise_paths(self.mic_noise_dir)
         self.min_noise_gain_db = simulator_configs["noise_gain_db"]["min"]
         self.max_noise_gain_db = simulator_configs["noise_gain_db"]["max"]
@@ -79,6 +75,7 @@ class Dataset:
 
     def __getitem__(self, _):
         # print(meta)
+        from IPython import embed; embed(using=False); os._exit(0)
 
         # ------ 1. Sample environment. ------
         room_length, room_width, room_height = self.sample_environment()
@@ -132,6 +129,7 @@ class Dataset:
         # print(time.time() - t1)
 
         # ------ 4. Sample agents ------
+
         agent_position = self.sample_agent_positions(
             environment=environment,
             mic_positions=mic_positions,
@@ -169,8 +167,8 @@ class Dataset:
         agent_look_at_direction_reverb_wav = np.stack([agents[i].look_at_direction_reverb_waveform for i in agent_sep_idxes], axis=0)
 
         data = {
-            "source": sources,
-            "source_position": src_positions,
+            # "source": sources,
+            # "source_position": src_positions,
             "mic_wavs": mic_wavs,
             "mic_positions": mic_positions,
             "mic_orientations": mic_orientations,
@@ -244,7 +242,7 @@ class Dataset:
             # (frames_num, ndim)
 
             mic_poss += mics_center_pos
-
+                
             return mic_poss
 
         else:
@@ -307,8 +305,8 @@ class Dataset:
     ):
         position = np.zeros(self.ndim)
 
-        for i, edge in enumerate((room_length, room_width, room_height)):
-            position[i] = random.uniform(a=room_margin, b=edge - room_margin)
+        for dim, edge in enumerate((room_length, room_width, room_height)):
+            position[dim] = random.uniform(a=room_margin, b=edge - room_margin)
 
         return position
 
@@ -335,7 +333,7 @@ class Dataset:
 
         if srcs_num > 0:
             srcs = np.stack(srcs, axis=0)
-
+        
         return srcs
 
     def sample_source_positions(self, 
@@ -393,10 +391,10 @@ class Dataset:
 
     def get_static_position(self, position):
 
-        static_pos = position[0]
+        static_position = position[0]
 
-        if np.array_equiv(a1=static_pos, a2=position):
-            return static_pos
+        if np.array_equiv(a1=static_position, a2=position):
+            return static_position
 
         else:
             raise NotImplementedError("Only support static source for now!")
@@ -445,17 +443,9 @@ class Dataset:
             else:
                 mic_wav = self.sample_mic_noise()
 
+
             for src, h in zip(sources, srcs_h_reverb):
                 mic_wav += fftconvolve(in1=src, in2=h, mode="same")
-
-                # import matplotlib.pyplot as plt
-                # fig, axs = plt.subplots(4, 1, sharex=False)
-                # axs[0].plot(src)
-                # axs[1].plot(mic_wav)
-                # axs[2].plot(h)
-                # plt.savefig("_zz.pdf")
-                
-                # from IPython import embed; embed(using=False); os._exit(0)
 
             mic_wavs.append(mic_wav)
 
@@ -504,7 +494,7 @@ class Dataset:
             )
             agent_pos = expand_along_frame_axis(x=agent_pos, repeats=self.frames_num)
             # shape: (frames_num, ndim)
-            # from IPython import embed; embed(using=False); os._exit(0)
+
             return agent_pos
 
         else:
@@ -516,7 +506,6 @@ class Dataset:
 
         # --- 1. Detection agents ---
         detection_agents = []
-        assert self.agent_det_max_pos_rays <= self.agent_det_total_rays
 
         src_idxes = self.sample_source_indexes(
             sources_num=srcs_num, 
@@ -543,7 +532,6 @@ class Dataset:
 
         # --- 2. Distance estimation agents ---
         distance_agents = []
-        assert self.agent_dist_max_pos_rays <= self.agent_dist_total_rays
 
         src_idxes = self.sample_source_indexes(
             sources_num=srcs_num, 
@@ -571,7 +559,6 @@ class Dataset:
 
         # --- 3. Spatial source separation agents ---
         sep_agents = []
-        assert self.agent_sep_max_pos_rays <= self.agent_sep_total_rays
 
         src_idxes = self.sample_source_indexes(
             sources_num=srcs_num, 
@@ -624,7 +611,7 @@ class Dataset:
             repeats=self.frames_num
         )
 
-        look_at_distance = PAD * np.ones(self.frames_num)
+        look_at_distance = -math.inf * np.ones(self.frames_num)
 
         # 
         included_angles = get_included_angle(look_at_direction, agent_to_src)
@@ -656,7 +643,7 @@ class Dataset:
             repeats=self.frames_num
         )
 
-        look_at_distance = PAD * np.ones(self.frames_num)
+        look_at_distance = -math.inf * np.ones(self.frames_num)
 
         look_at_direction_has_source = np.zeros(self.frames_num)
 
@@ -693,16 +680,13 @@ class Dataset:
         )
         # shape: (1,)
 
-        # relative_dist = look_at_distance - src_distance
+        relative_dist = look_at_distance - src_distance
         # shape: (1,)
 
-        '''
         look_at_distance_has_source = triangle_function(
             x=relative_dist,
             r=self.source_radius,
         )
-        '''
-        look_at_distance_has_source = 1.
         # shape: (1,)
         
         look_at_distance = look_at_distance * np.ones(self.frames_num)
@@ -780,7 +764,7 @@ class Dataset:
             repeats=self.frames_num
         )
 
-        look_at_distance = PAD * np.ones(self.frames_num)
+        look_at_distance = -math.inf * np.ones(self.frames_num)
 
         engine = ImageSourceEngine(
             environment=environment, 
@@ -824,7 +808,7 @@ class Dataset:
             repeats=self.frames_num
         )
 
-        look_at_distance = PAD * np.ones(self.frames_num)
+        look_at_distance = -math.inf * np.ones(self.frames_num)
 
         direct_wav = np.zeros(self.segment_samples)
         reverb_wav = np.zeros(self.segment_samples)

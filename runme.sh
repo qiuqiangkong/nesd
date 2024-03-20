@@ -31,3 +31,10 @@ python nesd/mic_prep/rigid_sphere.py \
 python nesd/train.py \
 	--workspace=$WORKSPACE \
 	--config_yaml="./scripts/configs/01a.yaml"
+
+
+python nesd/inference.py inference \
+	--workspace=$WORKSPACE \
+	--config_yaml="./scripts/configs/01a.yaml" \
+	--checkpoint_path="/home/qiuqiangkong/workspaces/nesd/checkpoints/NeSD/step=100000.pth"
+	

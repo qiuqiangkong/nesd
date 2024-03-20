@@ -1,3 +1,4 @@
+import time
 import numpy as np
 import pyroomacoustics as pra
 from scipy.signal import fftconvolve
@@ -34,11 +35,11 @@ class ImageSourceEngine:
 
         srcs_num = len(self.source_positions)
 
-        room = self.build_shoebox_room(self.environment)
+        room = self.build_shoebox_room()
 
         # Add sources to the room.
         for src_pos in self.source_positions:
-            room.add_source(src_pos)
+            self.safe_add_source(room, src_pos)
 
         # Add microphone to the room.
         room.add_microphone(self.mic_position)
@@ -69,24 +70,52 @@ class ImageSourceEngine:
                 delayed_samples = (distance / self.speed_of_sound) * self.sample_rate
                 distance_gain = 1. / np.clip(a=distance, a_min=self.min_distance, a_max=None)
                 h_delay = distance_gain * fractional_delay_filter(delayed_samples)
-
+                
                 if self.mic_spatial_irs:
                     # Mic spatial IR.
                     incident_angle = get_included_angle(a=self.mic_orientation, b=mic_to_img)
                     incident_angle_deg = np.rad2deg(incident_angle)
                     h_mic = self.mic_spatial_irs[round(incident_angle_deg)]
+                    
+
+                    # for i in range(180):
+                    #     print(len(self.mic_spatial_irs[i]))
+
+                    # import matplotlib.pyplot as plt
+                    # fig, axs = plt.subplots(4, 1, sharex=True)
+                    # axs[0].plot(self.mic_spatial_irs[0])
+                    # axs[1].plot(self.mic_spatial_irs[30])
+                    # axs[2].plot(self.mic_spatial_irs[60])
+                    # axs[3].plot(self.mic_spatial_irs[90])
+                    # plt.savefig("_zz.pdf")
 
                     # Composed IR.
                     h_composed = fftconvolve(in1=h_delay, in2=h_mic, mode="full")
+
+                    # import matplotlib.pyplot as plt
+                    # fig, axs = plt.subplots(4, 1, sharex=True)
+                    # axs[0].plot(h_mic)
+                    # axs[1].plot(h_delay)
+                    # axs[2].plot(h_composed)
+                    # plt.savefig("_zz.pdf")
+
+                    # from IPython import embed; embed(using=False); os._exit(0)
 
                 else:
                     h_composed = h_delay
                 
                 h_list.append(h_composed)
-
+            
             # Sum the IR of all images.
             h_direct = h_list[0]
             h_reverb = self.sum_impulse_responses(h_list=h_list)
+
+            # import matplotlib.pyplot as plt
+            # fig, axs = plt.subplots(2, 1, sharex=True)
+            # axs[0].stem(h_direct[len(h_direct)//2:])
+            # axs[1].stem(h_reverb[len(h_reverb)//2:])
+            # plt.savefig("_zz.pdf")
+            # from IPython import embed; embed(using=False); os._exit(0)
 
             srcs_h_direct.append(h_direct)
             srcs_h_reverb.append(h_reverb)
@@ -94,14 +123,14 @@ class ImageSourceEngine:
         return srcs_h_direct, srcs_h_reverb
 
 
-    def build_shoebox_room(self, environment):
+    def build_shoebox_room(self):
 
         # Initialize a room.
         corners = np.array([
             [0, 0], 
-            [0, environment["room_width"]], 
-            [environment["room_length"], environment["room_width"]], 
-            [environment["room_length"], 0]
+            [0, self.environment["room_width"]], 
+            [self.environment["room_length"], self.environment["room_width"]], 
+            [self.environment["room_length"], 0]
         ]).T
         # shape: (2, 4)
 
@@ -110,9 +139,18 @@ class ImageSourceEngine:
             max_order=self.image_source_order,
         )
 
-        room.extrude(height=environment["room_height"])
+        room.extrude(height=self.environment["room_height"])
 
         return room
+
+    def safe_add_source(self, room, source_position):
+
+        while True:
+            try:
+                room.add_source(source_position)
+                break
+            except:
+                continue
 
     def sum_impulse_responses(self, h_list):
 
