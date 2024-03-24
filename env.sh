@@ -7,3 +7,4 @@ pip install pyyaml
 pip install ipython
 pip install torchaudio
 pip install einops
+pip install pyroomacoustics
