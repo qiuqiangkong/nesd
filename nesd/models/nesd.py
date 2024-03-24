@@ -1840,12 +1840,12 @@ class NeSD4b(Fourier):
         pos_enc_size = 5
         orien_enc_size = 5
         dist_enc_size = 5
-        angle_enc_size = 1  # If too large will increase GPU memory.
+        angle_enc_size = 5
 
         self.pos_encoder = PositionEncoder(size=pos_enc_size)
         self.orien_encoder = OrientationEncoder(size=orien_enc_size)
         self.dist_encoder = DistanceEncoder(size=dist_enc_size)
-        self.angle_encoder = DistanceEncoder(size=angle_enc_size)
+        self.angle_encoder = AngleEncoder(size=angle_enc_size)
 
         # Mic magnitude process layer.
         self.mic_mag_fc = nn.Conv2d(
