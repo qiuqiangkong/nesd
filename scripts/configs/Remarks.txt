@@ -24,6 +24,7 @@ tmp.yaml    works
 
 11a.yaml	Nesd2, rigid
 11b.yaml	Nesd2, open
-12a.yaml	Nesd3, Model02's enc feature
-13a.yaml	Nesd4, fix enc feature
+12a.yaml	Nesd3, Model02's enc feature, works
++ 13a.yaml	Nesd4, fix enc feature, works
 14a.yaml	Nesd4b, direct + reverb
+15a.yaml	Nesd5, fix

@@ -66,7 +66,7 @@ def distance_bce(output_dict, target_dict):
 
 
 def sep_reverb_l1(output_dict, target_dict):
-    loss = sep_reverb_l1(
+    loss = l1(
         x=output_dict["agent_look_at_direction_reverb_wav"],
         y=target_dict["agent_look_at_direction_reverb_wav"],
     )
@@ -74,7 +74,7 @@ def sep_reverb_l1(output_dict, target_dict):
 
 
 def sep_direct_l1(output_dict, target_dict):
-    loss = sep_reverb_l1(
+    loss = l1(
         x=output_dict["agent_look_at_direction_direct_wav"],
         y=target_dict["agent_look_at_direction_direct_wav"],
     )
