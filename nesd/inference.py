@@ -10,7 +10,7 @@ import numpy as np
 import math
 import soundfile
 
-from nesd.utils import read_yaml, load_mics_meta, sph2cart, expand_along_frame_axis, get_included_angle
+from nesd.utils import read_yaml, sph2cart, expand_along_frame_axis, get_included_angle
 from nesd.data.dataset import Dataset
 from nesd.data.collate import collate_fn
 from nesd.data.samplers import InfiniteRandomSampler
@@ -23,12 +23,11 @@ def inference(args):
     config_yaml = args.config_yaml
     checkpoint_path = args.checkpoint_path
     filename = pathlib.Path(__file__).stem
-    devices_num = torch.cuda.device_count()
     
     configs = read_yaml(config_yaml)
 
     simulator_configs = configs["simulator_configs"]
-    mics_meta = load_mics_meta(simulator_configs["mics_yaml"])
+    mics_meta = read_yaml(simulator_configs["mics_yaml"])
     mics_num = len(mics_meta["microphone_coordinates"])
 
     device = configs["train"]["device"]
@@ -106,7 +105,7 @@ def inference_panaroma(args):
     configs = read_yaml(config_yaml)
 
     simulator_configs = configs["simulator_configs"]
-    mics_meta = load_mics_meta(simulator_configs["mics_yaml"])
+    mics_meta = read_yaml(simulator_configs["mics_yaml"])
     mics_num = len(mics_meta["microphone_coordinates"])
 
     device = configs["train"]["device"]
@@ -217,6 +216,7 @@ def inference_panaroma(args):
                 "agent_distance_idxes": agent_distance_idxes,
                 "agent_sep_idxes": agent_sep_idxes
             }
+            # from IPython import embed; embed(using=False); os._exit(0)
 
             for key in batch_data.keys():
                 batch_data[key] = torch.Tensor(batch_data[key]).to(device)
@@ -301,7 +301,7 @@ def inference_distance(args):
     configs = read_yaml(config_yaml)
 
     simulator_configs = configs["simulator_configs"]
-    mics_meta = load_mics_meta(simulator_configs["mics_yaml"])
+    mics_meta = read_yaml(simulator_configs["mics_yaml"])
     mics_num = len(mics_meta["microphone_coordinates"])
 
     device = configs["train"]["device"]
@@ -463,7 +463,7 @@ def inference_sep(args):
     configs = read_yaml(config_yaml)
 
     simulator_configs = configs["simulator_configs"]
-    mics_meta = load_mics_meta(simulator_configs["mics_yaml"])
+    mics_meta = read_yaml(simulator_configs["mics_yaml"])
     mics_num = len(mics_meta["microphone_coordinates"])
 
     device = configs["train"]["device"]

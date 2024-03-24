@@ -11,7 +11,7 @@ import pickle
 from scipy.signal import fftconvolve
 import matplotlib.pyplot as plt
 
-from nesd.utils import db_to_scale, sph2cart, normalize, random_direction, get_included_angle, random_positive_direction, triangle_function, random_negative_direction, random_positive_distance, random_negative_distance, expand_along_frame_axis, Agent
+from nesd.utils import read_yaml, db_to_scale, sph2cart, normalize, random_direction, get_included_angle, random_positive_direction, triangle_function, random_negative_direction, random_positive_distance, random_negative_distance, expand_along_frame_axis, Agent
 from nesd.data.engine import ImageSourceEngine
 from nesd.constants import PAD
 
@@ -53,7 +53,7 @@ class Dataset:
         self.audio_paths = sorted(list(Path(self.audios_dir).glob("*.wav")))
 
         # Microphones
-        self.mics_meta = self.load_mics_meta(mics_yaml=simulator_configs["mics_yaml"])
+        self.mics_meta = read_yaml(simulator_configs["mics_yaml"])
         self.mic_spatial_irs_path = simulator_configs["mic_spatial_irs_path"]
         self.mic_noise_dir = simulator_configs["{}_mic_noise".format(split)]
 
@@ -188,13 +188,6 @@ class Dataset:
         }
 
         return data
-
-    def load_mics_meta(self, mics_yaml):
-
-        with open(mics_yaml, 'r') as f:
-            mics_meta = yaml.load(f, Loader=yaml.FullLoader)
-
-        return mics_meta
 
     def load_mic_noise_paths(self, mic_noise_dir):
         if mic_noise_dir:

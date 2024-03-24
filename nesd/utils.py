@@ -267,9 +267,9 @@ class Agent:
         self.look_at_distance_has_source = look_at_distance_has_source
 
 
-def load_mics_meta(mics_yaml):
+# def load_mics_meta(mics_yaml):
 
-    with open(mics_yaml, 'r') as f:
-        mics_meta = yaml.load(f, Loader=yaml.FullLoader)
+#     with open(mics_yaml, 'r') as f:
+#         mics_meta = yaml.load(f, Loader=yaml.FullLoader)
 
-    return mics_meta
+#     return mics_meta

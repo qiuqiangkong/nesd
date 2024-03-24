@@ -5,7 +5,7 @@ import torch
 import time
 from pathlib import Path
 
-from nesd.utils import read_yaml, load_mics_meta
+from nesd.utils import read_yaml
 from nesd.data.dataset import Dataset
 from nesd.data.collate import collate_fn
 from nesd.losses import get_loss
@@ -30,7 +30,7 @@ def train(args) -> NoReturn:
     configs = read_yaml(config_yaml)
 
     simulator_configs = configs["simulator_configs"]
-    mics_meta = load_mics_meta(simulator_configs["mics_yaml"])
+    mics_meta = read_yaml(simulator_configs["mics_yaml"])
     mics_num = len(mics_meta["microphone_coordinates"])
 
     device = configs["train"]["device"]
