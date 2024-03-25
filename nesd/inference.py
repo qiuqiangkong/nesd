@@ -572,10 +572,16 @@ def inference_sep(args):
             output_dict[key] = np.concatenate(output_dict[key], axis=1)
 
         sep_wavs = output_dict["agent_look_at_direction_reverb_wav"][0]
-        
+
+        if "agent_look_at_direction_direct_wav" in output_dict.keys():
+            sep_direct_wavs = output_dict["agent_look_at_direction_direct_wav"][0]
+
         for i in range(sep_wavs.shape[0]):
             soundfile.write(file="_zz_{}.wav".format(i), data=sep_wavs[i], samplerate=24000)
             soundfile.write(file="_yy_{}.wav".format(i), data=sources[i], samplerate=24000)
+
+            if "agent_look_at_direction_direct_wav" in output_dict.keys():
+                soundfile.write(file="_zz_direct_{}.wav".format(i), data=sep_direct_wavs[i], samplerate=24000)
 
         from IPython import embed; embed(using=False); os._exit(0)
 
