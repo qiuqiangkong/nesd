@@ -24,9 +24,9 @@ simulator_configs:
     test_audios: "/home/qiuqiangkong/workspaces/nesd/audios/vctk_2s_segments/test"
     sources_num:
         min: 0
+        # max: 0
         # min: 2
-        # max: 2
-        max: 0
+        max: 2
     source_gain_db:
         # min: -18.
         # max: 6.
@@ -42,8 +42,6 @@ simulator_configs:
 
     train_mic_noise: "/home/qiuqiangkong/workspaces/nesd/audios/tau_noise/train"
     test_mic_noise: "/home/qiuqiangkong/workspaces/nesd/audios/tau_noise/test"
-    train_mic_noise:
-    test_mic_noise:
     noise_gain_db:
         # min: -12
         # max: 12
@@ -69,8 +67,8 @@ simulator_configs:
 
 train:
     device: "cuda"
-    # num_workers: 32
-    num_workers: 0
+    num_workers: 32
+    # num_workers: 0
     batch_size_per_device: 16
     model_name: NeSD4
     # model_name: Model02

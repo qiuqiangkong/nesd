@@ -186,6 +186,9 @@ class Dataset:
             "agent_look_at_direction_direct_wav": agent_look_at_direction_direct_wav,
             "agent_look_at_direction_reverb_wav": agent_look_at_direction_reverb_wav
         }
+        # from IPython import embed; embed(using=False); os._exit(0)
+        # soundfile.write(file="_zz.wav", data=agent_look_at_direction_direct_wav[0], samplerate=24000)
+        # soundfile.write(file="_zz2.wav", data=agent_look_at_direction_reverb_wav[0], samplerate=24000)
 
         return data
 

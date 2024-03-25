@@ -29,3 +29,6 @@ tmp.yaml    works
 13b.yaml	0-2 srcs, others same as 13a
 14a.yaml	Nesd4b, direct + reverb
 15a.yaml	Nesd5, fix
+
+17a.yaml	Nesd4, add noise
+17b.yaml	Nesd4, add noise, 0-2 srcs
