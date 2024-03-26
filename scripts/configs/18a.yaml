@@ -34,7 +34,7 @@ simulator_configs:
     source_apprent_diameter_deg: 10
     
     # Microphones
-    mics_yaml: "./microphones/eigenmike.yaml"
+    mics_yaml: "./microphones/eigenmike_3_3_1.yaml"
     mic_spatial_irs_path: /home/qiuqiangkong/workspaces/nesd/mic_spatial_irs/rigid_sphere.pkl
     # mic_spatial_irs_path:
 

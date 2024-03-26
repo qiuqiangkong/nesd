@@ -518,6 +518,23 @@ def add28():
     from IPython import embed; embed(using=False); os._exit(0)
 
 
+def add29():
+
+    azi_deg = -135
+    ele_deg = 35
+    r = 0.042
+
+    pos = sph2cart(
+        azimuth=np.deg2rad(azi_deg), 
+        elevation=np.deg2rad(ele_deg),
+        r=r,
+    )
+
+    pos = pos + np.array([3,3,1])
+
+    print(pos)
+
+
 if __name__ == "__main__":
 
-    add27()
+    add29()
