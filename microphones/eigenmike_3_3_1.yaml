@@ -1,0 +1,23 @@
+coordinate_type: "absolute"
+microphone_coordinates:
+  - x: 3.02432757
+    y: 3.02432757
+    z: 1.02409021
+  - x: 3.02432757
+    y: 2.97567243
+    z: 0.97590979
+  - x: 2.97567243
+    y: 3.02432757
+    z: 0.97590979
+  - x: 2.97567243
+    y: 2.97567243
+    z: 1.02409021
+microphone_orientations:
+  - azimuth_deg: 45.
+    elevation_deg: 35.
+  - azimuth_deg: -45.
+    elevation_deg: -35.
+  - azimuth_deg: 135.
+    elevation_deg: -35.
+  - azimuth_deg: -135.
+    elevation_deg: 35.
