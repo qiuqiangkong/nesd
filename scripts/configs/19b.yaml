@@ -35,8 +35,8 @@ simulator_configs:
     
     # Microphones
     mics_yaml: "./microphones/eigenmike.yaml"
-    lowpass: 1000
-    mic_spatial_irs_path: /home/qiuqiangkong/workspaces/nesd/mic_spatial_irs/open_sphere.pkl
+    mic_cutoff_freq: 500
+    mic_spatial_irs_path: /home/qiuqiangkong/workspaces/nesd/mic_spatial_irs/rigid_sphere.pkl
     train_mic_noise: "/home/qiuqiangkong/workspaces/nesd/audios/tau_noise/train"
     test_mic_noise: "/home/qiuqiangkong/workspaces/nesd/audios/tau_noise/test"
     noise_gain_db:

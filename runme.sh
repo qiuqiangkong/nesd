@@ -43,3 +43,4 @@ python evaluate/dcase2019_task3.py inference \
 	--config_yaml="./scripts/configs/13a.yaml" \
 	--checkpoint_path="/home/qiuqiangkong/workspaces/nesd/checkpoints/train/13a/step=300000.pth"
 	
+python evaluate/dcase2019_task3.py plot_panaroma

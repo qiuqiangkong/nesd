@@ -9,6 +9,8 @@ import numpy as np
 import logging
 import librosa
 import random
+import torch
+import torchaudio
 import matplotlib.pyplot as plt
 from scipy.spatial.transform import Rotation
 
@@ -267,9 +269,10 @@ class Agent:
         self.look_at_distance_has_source = look_at_distance_has_source
 
 
-# def load_mics_meta(mics_yaml):
-
-#     with open(mics_yaml, 'r') as f:
-#         mics_meta = yaml.load(f, Loader=yaml.FullLoader)
-
-#     return mics_meta
+def apply_lowpass_filter(audio, cutoff_freq, sample_rate):
+    audio = torchaudio.functional.lowpass_biquad(
+        waveform=torch.Tensor(audio),
+        sample_rate=sample_rate,
+        cutoff_freq=cutoff_freq,
+    ).data.cpu().numpy()
+    return audio

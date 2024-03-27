@@ -188,7 +188,7 @@ def inference_panaroma(args):
 
         ##
         rays_num = agent_poss.shape[1]
-        batch_size = 1000
+        batch_size = 10000
         pointer = 0
 
         # output_dicts = []
@@ -613,7 +613,7 @@ def get_all_agent_look_at_distances():
 def forward_in_batch(model, data):
 
     rays_num = input_dict['agent_positions'].shape[1]
-    batch_size = 1000
+    batch_size = 10000
     pointer = 0
 
     output_dicts = []

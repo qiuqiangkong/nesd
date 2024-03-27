@@ -30,5 +30,10 @@ tmp.yaml    works
 14a.yaml	Nesd4b, direct + reverb
 15a.yaml	Nesd5, fix
 
-17a.yaml	Nesd4, add noise
++ 17a.yaml	Nesd4, add noise
 17b.yaml	Nesd4, add noise, 0-2 srcs
+
+18a.yaml	mic fix 3_3_1, others same as 17b
+
+19a.yaml	Nesd4, add noise, lowpass, open
+19b.yaml	Nesd4, add noise, lowpass, rigid

@@ -11,7 +11,7 @@ import pickle
 from scipy.signal import fftconvolve
 import matplotlib.pyplot as plt
 
-from nesd.utils import read_yaml, db_to_scale, sph2cart, normalize, random_direction, get_included_angle, random_positive_direction, triangle_function, random_negative_direction, random_positive_distance, random_negative_distance, expand_along_frame_axis, Agent
+from nesd.utils import read_yaml, db_to_scale, sph2cart, normalize, random_direction, get_included_angle, random_positive_direction, triangle_function, random_negative_direction, random_positive_distance, random_negative_distance, expand_along_frame_axis, Agent, apply_lowpass_filter
 from nesd.data.engine import ImageSourceEngine
 from nesd.constants import PAD
 
@@ -54,6 +54,10 @@ class Dataset:
 
         # Microphones
         self.mics_meta = read_yaml(simulator_configs["mics_yaml"])
+        if "mic_cutoff_freq" in simulator_configs.keys():
+            self.mic_cutoff_freq = simulator_configs["mic_cutoff_freq"]
+        else:
+            self.mic_cutoff_freq = None
         self.mic_spatial_irs_path = simulator_configs["mic_spatial_irs_path"]
         self.mic_noise_dir = simulator_configs["{}_mic_noise".format(split)]
 
@@ -408,6 +412,14 @@ class Dataset:
 
         sources_num = len(sources)
         mics_num = len(mic_positions)
+
+        if self.mic_cutoff_freq is not None:
+            for i in range(sources_num):
+                sources[i] = apply_lowpass_filter(
+                    audio=sources[i], 
+                    cutoff_freq=self.mic_cutoff_freq,
+                    sample_rate=self.sample_rate,
+                )
 
         # Get static source and mic positions
         static_src_poss = [self.get_static_position(position=src_pos) for src_pos in source_positions]
