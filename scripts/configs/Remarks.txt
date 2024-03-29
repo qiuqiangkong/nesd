@@ -39,3 +39,5 @@ tmp.yaml    works
 19b.yaml	Nesd4, add noise, lowpass, rigid, not good in d19t3
 20a.yaml	Models02, add noise, lowpass, open
 20b.yaml	Models02, add noise, lowpass, rigid
+21a.yaml	Models02, add noise, lowpass, open, 331
+21b.yaml	Models02, add noise, lowpass, rigid, 331
