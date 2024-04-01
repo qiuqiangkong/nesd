@@ -1738,26 +1738,33 @@ class NeSD4(Fourier):
         # shape: (B, R, T', 1664)
 
         # ------ 5a. Spatial detection. ------
-        agent_detect_idxes = data["agent_detect_idxes"]
-        det_feat = get_tensor_from_indexes(total_feat, agent_detect_idxes)
-        det_feat = self.det_mlp(det_feat)
-        # shape: (B, R_det, T', 1)
+        output_dict = {}
 
-        look_at_direction_has_source = det_feat.repeat_interleave(
-            repeats=self.downsample_ratio, dim=2)[:, :, 0 : frames_num, 0]
-        # shape: (B, R_det, T)
+        agent_detect_idxes = data["agent_detect_idxes"]
+        detect_rays = agent_detect_idxes.shape[1]
+
+        if detect_rays > 0:
+            det_feat = get_tensor_from_indexes(total_feat, agent_detect_idxes)
+            det_feat = self.det_mlp(det_feat)
+            # shape: (B, R_det, T', 1)
+
+            look_at_direction_has_source = det_feat.repeat_interleave(
+                repeats=self.downsample_ratio, dim=2)[:, :, 0 : frames_num, 0]
+            # shape: (B, R_det, T)
+
+            output_dict["agent_look_at_direction_has_source"] = look_at_direction_has_source
         
         # ------ 5b. Spatial distance estimation. ------
         agent_dist_idxes = data["agent_distance_idxes"]
-        dist_feat = get_tensor_from_indexes(total_feat, agent_dist_idxes)
-        dist_feat = self.dist_mlp(dist_feat)
-        look_at_distance_has_source = dist_feat.repeat_interleave(repeats=self.downsample_ratio, dim=2)[:, :, 0 : frames_num, 0]
-        # shape: (B, dist_rays, T)
+        dist_rays = agent_dist_idxes.shape[1]
 
-        output_dict = {
-            "agent_look_at_direction_has_source": look_at_direction_has_source,
-            "agent_look_at_distance_has_source": look_at_distance_has_source
-        }
+        if dist_rays > 0:
+            dist_feat = get_tensor_from_indexes(total_feat, agent_dist_idxes)
+            dist_feat = self.dist_mlp(dist_feat)
+            look_at_distance_has_source = dist_feat.repeat_interleave(repeats=self.downsample_ratio, dim=2)[:, :, 0 : frames_num, 0]
+            # shape: (B, dist_rays, T)
+
+            output_dict["agent_look_at_distance_has_source"] = look_at_distance_has_source
 
         # ------ 5c. Spatial source separation. ------
         agent_sep_idxes = data["agent_sep_idxes"]
@@ -1786,6 +1793,8 @@ class NeSD4(Fourier):
 
             output_dict["agent_look_at_direction_reverb_wav"] = look_at_direction_wav
             
+        # from IPython import embed; embed(using=False); os._exit(0)
+
         return output_dict
 
     def calculate_diff_phases(self, mic_phase):

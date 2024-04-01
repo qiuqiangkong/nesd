@@ -188,7 +188,7 @@ def inference_panaroma(args):
 
         ##
         rays_num = agent_poss.shape[1]
-        batch_size = 10000
+        batch_size = 2000
         pointer = 0
 
         # output_dicts = []

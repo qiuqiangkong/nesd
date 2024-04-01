@@ -156,7 +156,10 @@ class Dataset:
 
         agent_distance_masks = (agent_look_at_distances >=0).astype(np.float32)
 
+        # from IPython import embed; embed(using=False); os._exit(0)
+
         # Task dependent indexes
+        '''
         agent_detect_idxes = np.stack([i for i in range(agents_num) if agents[i].look_at_direction_has_source is not None], axis=0)
 
         agent_distance_idxes = np.stack([i for i in range(agents_num) if agents[i].look_at_distance_has_source is not None], axis=0)
@@ -171,6 +174,21 @@ class Dataset:
         agent_look_at_direction_direct_wav = np.stack([agents[i].look_at_direction_direct_waveform for i in agent_sep_idxes], axis=0)
 
         agent_look_at_direction_reverb_wav = np.stack([agents[i].look_at_direction_reverb_waveform for i in agent_sep_idxes], axis=0)
+        '''
+        agent_detect_idxes = np.array([i for i in range(agents_num) if agents[i].look_at_direction_has_source is not None])
+
+        agent_distance_idxes = np.array([i for i in range(agents_num) if agents[i].look_at_distance_has_source is not None])
+
+        agent_sep_idxes = np.array([i for i in range(agents_num) if agents[i].look_at_direction_direct_waveform is not None])
+
+        # Targets
+        agent_look_at_direction_has_source = np.array([agents[i].look_at_direction_has_source for i in agent_detect_idxes])
+
+        agent_look_at_distance_has_source = np.array([agents[i].look_at_distance_has_source for i in agent_distance_idxes])
+
+        agent_look_at_direction_direct_wav = np.array([agents[i].look_at_direction_direct_waveform for i in agent_sep_idxes])
+
+        agent_look_at_direction_reverb_wav = np.array([agents[i].look_at_direction_reverb_waveform for i in agent_sep_idxes])
 
         data = {
             "source": sources,
