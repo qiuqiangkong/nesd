@@ -18,6 +18,7 @@ simulator_configs:
         min: 2
         max: 4
     room_margin: 0.2
+    collision_raidus: 0.5
 
     # Sources
     train_audios: "/home/qiuqiangkong/workspaces/nesd/audios/vctk_2s_segments/train"

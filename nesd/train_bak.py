@@ -2,7 +2,6 @@ import argparse
 import os
 from typing import Dict, List, NoReturn
 import torch
-from torch.optim.lr_scheduler import LambdaLR
 import time
 from pathlib import Path
 
@@ -11,13 +10,6 @@ from nesd.data.dataset import Dataset
 from nesd.data.collate import collate_fn
 from nesd.losses import get_loss
 from nesd.data.samplers import InfiniteRandomSampler
-
-
-def warmup_lambda(step, warm_up_steps=1000):
-    if step <= warm_up_steps:
-        return step / warm_up_steps
-    else:
-        return 1.
 
 
 def train(args) -> NoReturn:
@@ -92,8 +84,6 @@ def train(args) -> NoReturn:
         amsgrad=True,
     )
 
-    scheduler = LambdaLR(optimizer=optimizer, lr_lambda=warmup_lambda)
-
     for step, data in enumerate(dataloader):
         
         for key in data.keys():
@@ -110,7 +100,6 @@ def train(args) -> NoReturn:
         loss.backward()
 
         optimizer.step()
-        scheduler.step()
 
         if step % 100000 == 0:
             checkpoint_path = Path(checkpoints_dir, "step={}.pth".format(step))

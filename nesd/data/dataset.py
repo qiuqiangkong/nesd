@@ -11,7 +11,7 @@ import pickle
 from scipy.signal import fftconvolve
 import matplotlib.pyplot as plt
 
-from nesd.utils import read_yaml, db_to_scale, sph2cart, normalize, random_direction, get_included_angle, random_positive_direction, triangle_function, random_negative_direction, random_positive_distance, random_negative_distance, expand_along_frame_axis, Agent, apply_lowpass_filter
+from nesd.utils import read_yaml, db_to_scale, sph2cart, normalize, random_direction, get_included_angle, random_positive_direction, triangle_function, random_negative_direction, random_positive_distance, random_negative_distance, expand_along_frame_axis, Agent, apply_lowpass_filter, is_collide
 from nesd.data.engine import ImageSourceEngine
 from nesd.constants import PAD
 
@@ -38,6 +38,10 @@ class Dataset:
         self.min_room_height = simulator_configs["room_height"]["min"]
         self.max_room_height = simulator_configs["room_height"]["max"]
         self.room_margin = simulator_configs["room_margin"]
+        if "collision_raidus" in simulator_configs.keys():
+            self.collision_raidus = simulator_configs["collision_raidus"]
+        else:
+            self.collision_raidus = 0.5
         self.ndim = 3
 
         # Sources
@@ -81,6 +85,7 @@ class Dataset:
         self.agent_sep_max_pos_rays = simulator_configs["agent_sep_rays"]["max_positive"]
         self.agent_sep_total_rays = simulator_configs["agent_sep_rays"]["total"]
 
+    '''
     def __getitem__(self, _):
         # print(meta)
 
@@ -106,6 +111,7 @@ class Dataset:
         )
         # shape: (sources_num, frames_num, ndim)
 
+        # Source orientation is not used.
         src_orientations = self.sample_source_orientations(
             sources_num=len(sources),
         )
@@ -159,7 +165,7 @@ class Dataset:
         # from IPython import embed; embed(using=False); os._exit(0)
 
         # Task dependent indexes
-        '''
+        """
         agent_detect_idxes = np.stack([i for i in range(agents_num) if agents[i].look_at_direction_has_source is not None], axis=0)
 
         agent_distance_idxes = np.stack([i for i in range(agents_num) if agents[i].look_at_distance_has_source is not None], axis=0)
@@ -174,7 +180,142 @@ class Dataset:
         agent_look_at_direction_direct_wav = np.stack([agents[i].look_at_direction_direct_waveform for i in agent_sep_idxes], axis=0)
 
         agent_look_at_direction_reverb_wav = np.stack([agents[i].look_at_direction_reverb_waveform for i in agent_sep_idxes], axis=0)
-        '''
+        """
+        agent_detect_idxes = np.array([i for i in range(agents_num) if agents[i].look_at_direction_has_source is not None])
+
+        agent_distance_idxes = np.array([i for i in range(agents_num) if agents[i].look_at_distance_has_source is not None])
+
+        agent_sep_idxes = np.array([i for i in range(agents_num) if agents[i].look_at_direction_direct_waveform is not None])
+
+        # Targets
+        agent_look_at_direction_has_source = np.array([agents[i].look_at_direction_has_source for i in agent_detect_idxes])
+
+        agent_look_at_distance_has_source = np.array([agents[i].look_at_distance_has_source for i in agent_distance_idxes])
+
+        agent_look_at_direction_direct_wav = np.array([agents[i].look_at_direction_direct_waveform for i in agent_sep_idxes])
+
+        agent_look_at_direction_reverb_wav = np.array([agents[i].look_at_direction_reverb_waveform for i in agent_sep_idxes])
+
+        data = {
+            "source": sources,
+            "source_position": src_positions,
+            "mic_wavs": mic_wavs,
+            "mic_positions": mic_positions,
+            "mic_orientations": mic_orientations,
+            "agent_positions": agent_positions,
+            "agent_look_at_directions": agent_look_at_directions,
+            "agent_look_at_distances": agent_look_at_distances,
+            "agent_distance_masks": agent_distance_masks,
+            "agent_detect_idxes": agent_detect_idxes,
+            "agent_distance_idxes": agent_distance_idxes,
+            "agent_sep_idxes": agent_sep_idxes,
+            "agent_look_at_direction_has_source": agent_look_at_direction_has_source,
+            "agent_look_at_distance_has_source": agent_look_at_distance_has_source,
+            "agent_look_at_direction_direct_wav": agent_look_at_direction_direct_wav,
+            "agent_look_at_direction_reverb_wav": agent_look_at_direction_reverb_wav
+        }
+        # from IPython import embed; embed(using=False); os._exit(0)
+        # soundfile.write(file="_zz.wav", data=agent_look_at_direction_direct_wav[0], samplerate=24000)
+        # soundfile.write(file="_zz2.wav", data=agent_look_at_direction_reverb_wav[0], samplerate=24000)
+
+        return data
+    '''
+    def __getitem__(self, _):
+        # print(meta)
+
+        # ------ 1. Sample environment. ------
+        room_length, room_width, room_height = self.sample_environment()
+
+        environment = {
+            "room_length": room_length,
+            "room_width": room_width,
+            "room_height": room_height,
+            "room_margin": self.room_margin,
+            "max_room_distance": math.sqrt(room_length ** 2 + room_width ** 2 + room_height ** 2)
+        }
+
+        # ------ 2. Sample sources, mics, and agents positions. ------
+        srcs_num = random.randint(a=self.min_sources_num, b=self.max_sources_num)
+
+        # Sample until source positions do not collide with mics and agent positions.
+        while True:
+
+            # Sample source positions.
+            src_positions = self.sample_source_positions(
+                sources_num=srcs_num,
+                environment=environment,
+            )
+            # shape: (sources_num, frames_num, ndim)
+
+            # Sample mic positions.
+            mic_positions = self.sample_mic_positions(
+                environment=environment,
+                mics_meta=self.mics_meta
+            )
+            # (mics_num, frames_num, ndim)
+
+            # Sample agent positions.
+            agent_position = self.sample_agent_positions(
+                environment=environment,
+                mic_positions=mic_positions,
+            )
+            # (frames_num, ndim)
+
+            src_mic_collide = is_collide(
+                trajs1=src_positions, 
+                trajs2=mic_positions, 
+                collision_raidus=self.collision_raidus
+            )
+            src_agent_collide = is_collide(
+                trajs1=src_positions, 
+                trajs2=agent_position[None, :, :], 
+                collision_raidus=self.collision_raidus
+            )
+
+            if src_mic_collide or src_agent_collide:
+                continue
+            else:
+                break
+
+        # ------ 3. Sample sources and mics orientations. ------
+        src_orientations = self.sample_source_orientations(
+            sources_num=srcs_num,
+        )
+        # shape: (sources_num, frames_num, ndim)
+
+        mic_orientations = self.sample_mic_orientations()
+        # (mics_num, frames_num, ndim)
+
+        sources = self.sample_sources(srcs_num)
+        # shape: (sources_num, samples_num)
+
+        # ------ 4. Simulate mics signals. ------
+
+        mic_wavs = self.simulate_mic_waveforms(
+            environment=environment, 
+            sources=sources, 
+            source_positions=src_positions, 
+            mic_positions=mic_positions, 
+            mic_orientations=mic_orientations
+        )
+
+        # ------ 5. Sample agents orientations and signals. ------
+        
+        agents = self.sample_agents(
+            sources=sources, 
+            source_positions=src_positions, 
+            agent_position=agent_position, 
+            environment=environment
+        )
+
+        # ------ 6. Collect data. ------
+        agents_num = len(agents)
+        agent_positions = np.stack([a.position for a in agents], axis=0)
+        agent_look_at_directions = np.stack([a.look_at_direction for a in agents], axis=0)
+        agent_look_at_distances = np.stack([a.look_at_distance for a in agents], axis=0)
+        agent_distance_masks = (agent_look_at_distances >= 0).astype(np.float32)
+
+        # Task dependent indexes
         agent_detect_idxes = np.array([i for i in range(agents_num) if agents[i].look_at_direction_has_source is not None])
 
         agent_distance_idxes = np.array([i for i in range(agents_num) if agents[i].look_at_distance_has_source is not None])
@@ -219,7 +360,6 @@ class Dataset:
             return sorted(list(Path(mic_noise_dir).glob("*.wav")))
         else:
             return None
-
 
     def sample_environment(self):
 
@@ -330,6 +470,7 @@ class Dataset:
 
         return position
 
+    '''
     def sample_sources(self):
         srcs_num = random.randint(a=self.min_sources_num, b=self.max_sources_num)
 
@@ -353,6 +494,31 @@ class Dataset:
 
         if srcs_num > 0:
             srcs = np.stack(srcs, axis=0)
+
+        return srcs
+    '''
+    def sample_sources(self, sources_num):
+        srcs_num = random.randint(a=self.min_sources_num, b=self.max_sources_num)
+
+        srcs = []
+
+        # Sample source.
+        for _ in range(sources_num):
+
+            # Load audio.
+            src_path = random.choice(self.audio_paths)
+            src, _ = librosa.load(path=src_path, sr=self.sample_rate, mono=True)
+
+            # Get random gain.
+            src_gain_db = random.uniform(a=self.min_source_gain_db, b=self.max_source_gain_db)
+            src_gain_scale = db_to_scale(src_gain_db)
+
+            # Gain augmentation.
+            src *= src_gain_scale
+
+            srcs.append(src)
+
+        srcs = np.array(srcs)
 
         return srcs
 
@@ -867,4 +1033,3 @@ class Dataset:
 
     # def __len__(self):
     #     return 100
-

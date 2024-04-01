@@ -276,3 +276,13 @@ def apply_lowpass_filter(audio, cutoff_freq, sample_rate):
         cutoff_freq=cutoff_freq,
     ).data.cpu().numpy()
     return audio
+
+
+def is_collide(trajs1, trajs2, collision_raidus):
+    for tr1 in trajs1:
+        for tr2 in trajs2: 
+            dists = np.linalg.norm(tr1 - tr2, axis=-1)
+            if np.min(dists) < collision_raidus:
+                return True
+
+    return False

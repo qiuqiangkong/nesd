@@ -54,6 +54,8 @@ def detection_bce(output_dict, target_dict):
         input=output_dict['agent_look_at_direction_has_source'], 
         target=target_dict['agent_look_at_direction_has_source'],
     )
+    # if loss.item() > 1:
+    #     from IPython import embed; embed(using=False); os._exit(0)
     return loss
 
 
