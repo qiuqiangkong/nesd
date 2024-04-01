@@ -41,3 +41,6 @@ tmp.yaml    works
 20b.yaml	Models02, add noise, lowpass, rigid
 21a.yaml	Models02, add noise, lowpass, open, 331
 21b.yaml	Models02, add noise, lowpass, rigid, 331
+
+22a.yaml	Nesd, lowpass, open
+22b.yaml	Nesd, lowpass, open, 331
