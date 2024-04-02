@@ -598,6 +598,7 @@ class Dataset:
         mics_num = len(mic_positions)
 
         if self.mic_cutoff_freq is not None:
+            asdf
             for i in range(sources_num):
                 sources[i] = apply_lowpass_filter(
                     audio=sources[i], 
