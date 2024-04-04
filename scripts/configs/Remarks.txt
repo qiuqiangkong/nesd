@@ -47,3 +47,6 @@ tmp.yaml    works
 
 23a.yaml	Nesd4, open, 331
 23b.yaml	Nesd4, rigid, 331
+
+24a.yaml	Nesd4, open, 333
+24b.yaml	Nesd4, lowpass, open, 333
