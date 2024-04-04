@@ -44,16 +44,13 @@ class ImageSourceEngine:
         # Add microphone to the room.
         room.add_microphone(self.mic_position)
 
-        # Render image sources.
+        # Render image sources
         room.image_source_model()
 
         srcs_images = []
 
         for s in range(srcs_num):
-
-            images = room.sources[s].images.T
-            # shape: (images_num, ndim)
-
+            images = room.sources[s].images.T  # (images_num, ndim)
             srcs_images.append(images)
 
         srcs_h_direct = []
@@ -75,7 +72,6 @@ class ImageSourceEngine:
                 h_delay = distance_gain * fractional_delay_filter(delayed_samples)
                 
                 if self.mic_spatial_irs:
-
                     # Mic spatial IR.
                     incident_angle = get_included_angle(a=self.mic_orientation, b=mic_to_img)
                     incident_angle_deg = np.rad2deg(incident_angle)
@@ -126,16 +122,15 @@ class ImageSourceEngine:
 
         return srcs_h_direct, srcs_h_reverb
 
-    def build_shoebox_room(self):
 
-        env = self.environment
+    def build_shoebox_room(self):
 
         # Initialize a room.
         corners = np.array([
-            [env["x0"], env["y0"]], 
-            [env["x0"], env["y1"]], 
-            [env["x1"], env["y1"]], 
-            [env["x1"], env["y0"]]
+            [0, 0], 
+            [0, self.environment["room_width"]], 
+            [self.environment["room_length"], self.environment["room_width"]], 
+            [self.environment["room_length"], 0]
         ]).T
         # shape: (2, 4)
 
@@ -144,13 +139,12 @@ class ImageSourceEngine:
             max_order=self.image_source_order,
         )
 
-        room.extrude(height=env["z1"])
+        room.extrude(height=self.environment["room_height"])
 
         return room
 
     def safe_add_source(self, room, source_position):
-        # Write a loop to fix the bug when Pyroomacoustics fail to add sources 
-        # sometimes. 
+
         while True:
             try:
                 room.add_source(source_position)

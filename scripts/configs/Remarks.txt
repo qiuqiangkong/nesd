@@ -50,3 +50,7 @@ tmp.yaml    works
 
 24a.yaml	Nesd4, open, 333
 24b.yaml	Nesd4, lowpass, open, 333
+
+--- new coord ---
+25a.yaml	Nesd4, open, 333
+25b.yaml	Nesd4, lowpass, open, 333

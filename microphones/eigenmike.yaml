@@ -1,5 +1,5 @@
 coordinate_type: "relative"
-microphone_coordinates:
+mic_coordinates:
   - azimuth_deg: 45.
     elevation_deg: 35.
     radius: 0.042
@@ -12,7 +12,7 @@ microphone_coordinates:
   - azimuth_deg: -135.
     elevation_deg: 35.
     radius: 0.042
-microphone_orientations:
+mic_orientations:
   - azimuth_deg: 45.
     elevation_deg: 35.
   - azimuth_deg: -45.
