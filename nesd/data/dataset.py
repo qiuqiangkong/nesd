@@ -223,6 +223,7 @@ class Dataset:
         else:
             return None
 
+    '''
     def sample_environment(self):
 
         room_length = random.uniform(a=self.min_room_length, b=self.max_room_length)
@@ -238,6 +239,40 @@ class Dataset:
             "y1": room_width / 2,
             "z0": 0,
             "z1": room_height,
+            "ndim": self.ndim,
+            "room_length": room_length,
+            "room_width": room_width,
+            "room_height": room_height,
+            "max_room_distance": max_room_distance,
+            "room_margin": self.room_margin
+        }
+
+        return environment
+    '''
+    def sample_environment(self):
+
+        room_length = random.uniform(a=self.min_room_length, b=self.max_room_length)
+        room_width = random.uniform(a=self.min_room_width, b=self.max_room_width)
+        room_height = random.uniform(a=self.min_room_height, b=self.max_room_height)
+        max_room_distance = math.sqrt(room_length ** 2 + room_width ** 2 + room_height ** 2)
+
+        # x=0, y=0 is the center of a 2D polygon. z=0 is the floor.
+        x1 = random.uniform(a=self.room_margin, b=room_length - self.room_margin)
+        x0 = x1 - room_length
+
+        y1 = random.uniform(a=self.room_margin, b=room_width - self.room_margin)
+        y0 = y1 - room_width
+
+        z1 = room_height
+        z0 = 0.
+
+        environment = {
+            "x0": x0,
+            "x1": x1,
+            "y0": y0,
+            "y1": y1,
+            "z0": z0,
+            "z1": z1,
             "ndim": self.ndim,
             "room_length": room_length,
             "room_width": room_width,
@@ -524,7 +559,7 @@ class Dataset:
         mic_wavs = np.stack(mic_wavs, axis=0)
 
         # from IPython import embed; embed(using=False); os._exit(0)
-        # soundfile.write(file="_zz.wav", data=mic_noise, samplerate=self.sample_rate)
+        # soundfile.write(file="_zz.wav", data=mic_wav, samplerate=self.sample_rate)
 
         return mic_wavs
 
@@ -666,12 +701,15 @@ class Dataset:
         look_at_distance = PAD * np.ones(self.frames_num)
 
         # 
+        '''
         included_angles = get_included_angle(look_at_direction, agent_to_src)
 
         look_at_direction_has_source = triangle_function(
             x=included_angles, 
             r=np.deg2rad(self.source_apprent_diameter_deg / 2)
         )
+        '''
+        look_at_direction_has_source = np.ones(self.frames_num)
 
         agent = Agent(
             position=agent_position,
@@ -679,7 +717,7 @@ class Dataset:
             look_at_distance=look_at_distance,
             look_at_direction_has_source=look_at_direction_has_source
         )
-
+        
         return agent
 
     def random_negative_detection_agent(self, source_positions, agent_position):
@@ -741,11 +779,13 @@ class Dataset:
             r=self.source_radius,
         )
         '''
-        look_at_distance_has_source = 1.
+        
         # shape: (1,)
         
         look_at_distance = look_at_distance * np.ones(self.frames_num)
-        look_at_distance_has_source = look_at_distance_has_source * np.ones(self.frames_num)
+        # look_at_distance_has_source = look_at_distance_has_source * np.ones(self.frames_num)
+
+        look_at_distance_has_source = np.ones(self.frames_num)
 
         agent = Agent(
             position=agent_position,

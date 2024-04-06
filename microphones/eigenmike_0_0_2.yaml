@@ -1,0 +1,23 @@
+coordinate_type: "absolute"
+mic_coordinates:
+  - x: 0.02432757
+    y: 0.02432757
+    z: 2.02409021
+  - x: 0.02432757
+    y: -0.02432757
+    z: 1.97590979
+  - x: -0.02432757
+    y: 0.02432757
+    z: 1.97590979
+  - x: -0.02432757
+    y: -0.02432757
+    z: 2.02409021
+mic_orientations:
+  - azimuth_deg: 45.
+    elevation_deg: 35.
+  - azimuth_deg: -45.
+    elevation_deg: -35.
+  - azimuth_deg: 135.
+    elevation_deg: -35.
+  - azimuth_deg: -135.
+    elevation_deg: 35.

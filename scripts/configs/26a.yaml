@@ -15,7 +15,7 @@ simulator_configs:
         min: 4
         max: 8
     room_height:
-        min: 2
+        min: 4
         max: 4
     room_margin: 0.2
     collision_raidus: 0.5
@@ -35,7 +35,7 @@ simulator_configs:
     source_apprent_diameter_deg: 10
     
     # Microphones
-    mics_yaml: "./microphones/eigenmike_0_0_1.yaml"
+    mics_yaml: "./microphones/eigenmike_0_0_2.yaml"
     mic_positions_type: "center_of_room"
     mic_cutoff_freq: 
     mic_spatial_irs_path: /home/qiuqiangkong/workspaces/nesd/mic_spatial_irs/open_sphere.pkl
@@ -66,8 +66,8 @@ simulator_configs:
 
 train:
     device: "cuda"
-    # num_workers: 32
-    num_workers: 0
+    num_workers: 32
+    # num_workers: 0
     batch_size_per_device: 16
     model_name: NeSD4
     # model_name: Model02
