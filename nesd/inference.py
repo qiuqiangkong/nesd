@@ -602,6 +602,15 @@ def get_all_agent_look_at_directions(grid_deg):
 
     agent_look_at_directions = sph2cart(azimuth=azis, elevation=eles, r=1.)
 
+    # agent_look_at_directions = np.zeros((16200, 3))
+
+    # agent_look_at_directions[0 : 2] = np.array([
+    #     [1,2,3],
+    #     [-1,2,3]
+    # ])
+
+    # from IPython import embed; embed(using=False); os._exit(0)
+
     return agent_look_at_directions
 
 

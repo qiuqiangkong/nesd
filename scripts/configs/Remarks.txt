@@ -57,3 +57,6 @@ tmp.yaml    works
 
 26a.yaml	Nesd4, open, 002, fix room
 26b.yaml	low pass, others sme as 26a
+
+27a.yaml	Nesd4, open, 002, fix room, fix pos encoding
+27b.yaml	low pass, others sme as 26a
