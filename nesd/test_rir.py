@@ -11,6 +11,8 @@ import soundfile
 from pathlib import Path
 from scipy.signal import fftconvolve
 
+from nesd.utils import sph2cart, fractional_delay_filter
+
 
 def add():
     sample_rate = 24000
@@ -62,8 +64,51 @@ def add():
     ys = np.stack(ys, axis=0)
 
     soundfile.write(file="_uu.wav", data=ys.T, samplerate=sample_rate)
+    ys0 = np.tile(ys, 30)
+    soundfile.write(file="_uu0.wav", data=ys0.T, samplerate=sample_rate)
+    from IPython import embed; embed(using=False); os._exit(0)
+
+    fig, axs = plt.subplots(4, 1, sharex=True)
+    for i in range(4):
+        axs[i].stem(a1[:, i, n][0:50])
+    plt.savefig("_zz.pdf")
+
+    
+
+
+def add2():
+
+    sample_rate = 24000
+    audio_path = "/datasets/vctk/wav48/p225/p225_366.wav"
+    audio, _ = librosa.load(path=audio_path, sr=sample_rate, mono=True)
+
+    tmp = sph2cart(
+        azimuth=np.deg2rad(45),
+        elevation=np.deg2rad(35),
+        r=0.042,
+    )[0]
+    delayed_samples = (tmp * 2) / 343 * sample_rate
+
+    h = fractional_delay_filter(delayed_samples)
+    delayed_audio = fftconvolve(in1=audio, in2=h, mode="same")
+
+    y = np.array([
+        audio,
+        audio,
+        delayed_audio,
+        delayed_audio,
+    ])
+
+    # fig, axs = plt.subplots(2, 1, sharex=True)
+    # axs[0].stem(audio[0:100])
+    # axs[1].stem(delayed_audio[0:100])
+    # plt.savefig("_zz.pdf")
+
+    soundfile.write(file="_uu3.wav", data=y.T, samplerate=sample_rate)
 
     from IPython import embed; embed(using=False); os._exit(0)
+    # fractional_delay_filter()
+
 
 
 if __name__ == '__main__':

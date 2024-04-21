@@ -118,6 +118,7 @@ def random_direction(
     return orientation
 
 
+'''
 def fractional_delay_filter(delayed_samples):
     r"""Fractional delay with Whittaker–Shannon interpolation formula. 
     Ref: https://tomroelandts.com/articles/how-to-create-a-fractional-delay-filter
@@ -156,6 +157,47 @@ def fractional_delay_filter(delayed_samples):
     bgn = new_len // 2 + delayed_samples_integer - (N - 1) // 2
     end = new_len // 2 + delayed_samples_integer + (N - 1) // 2
     new_h[bgn : end + 1] = h
+
+    return new_h
+'''
+
+def fractional_delay_filter(delayed_samples):
+    r"""Fractional delay with Whittaker–Shannon interpolation formula. 
+    Ref: https://tomroelandts.com/articles/how-to-create-a-fractional-delay-filter
+
+    Args:
+        x: np.array (1D), input signal
+        delay_samples: float >= 0., e.g., 3.3
+
+    Outputs:
+        y: np.array (1D), delayed signal
+    """
+
+    delayed_samples_integer = math.floor(delayed_samples)
+    delayed_samples_fraction = delayed_samples % 1
+
+    N = 99     # Filter length.
+    n = np.arange(N)
+
+    # Compute sinc filter.
+    center = (N - 1) // 2
+    h = np.sinc(n - center - delayed_samples_fraction)
+
+    # from IPython import embed; embed(using=False); os._exit(0)
+
+    # Multiply sinc filter by window.
+    h *= np.blackman(N)
+    
+    # Normalize to get unity gain.
+    h /= np.sum(h)
+
+    # Combined filter.
+    new_len = delayed_samples_integer * 2 + N
+    new_h = np.zeros(new_len)
+
+    bgn = delayed_samples_integer * 2
+    end = delayed_samples_integer * 2 + N
+    new_h[bgn : end] = h
 
     return new_h
 

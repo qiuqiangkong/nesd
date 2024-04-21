@@ -535,6 +535,55 @@ def add29():
     print(pos)
 
 
+def add30():
+
+    from nesd.data.engine import ImageSourceEngine
+
+    environment = {
+     'x0': -2.,
+     'x1': 2.,
+     'y0': -2.,
+     'y1': 2.,
+     'z0': 0.0,
+     'z1': 4.0,
+     'ndim': 3,
+     'room_length': 4.,
+     'room_width': 4.,
+     'room_height': 4.0,
+     'max_room_distance': 10,
+     'room_margin': 0.2}
+
+    engine = ImageSourceEngine(
+        environment=environment, 
+        source_positions=np.array([[1., 1., 1.]]),
+        mic_position=np.array([0., 0., 2.]), 
+        mic_orientation=np.array([1., 1., 1.]),
+        mic_spatial_irs=None,
+        image_source_order=3,
+        speed_of_sound=343.,
+        sample_rate=24000.,
+        compute_direct_ir_only=False)
+
+    engine.compute_spatial_ir()
+
+
+def add31():
+
+    from nesd.utils import fractional_delay_filter
+    h = fractional_delay_filter(2.1)
+    
+    x1 = np.zeros(200)
+    x1[0] = 1
+    y1 = fftconvolve(in1=x1, in2=h, mode="same")
+    import matplotlib.pyplot as plt
+    fig, axs = plt.subplots(2, 1, sharex=False)
+    axs[0].stem(h)
+    axs[1].stem(y1[0:20])
+    plt.savefig("_zz.pdf")
+
+    from IPython import embed; embed(using=False); os._exit(0)
+
+
 if __name__ == "__main__":
 
-    add29()
+    add30()

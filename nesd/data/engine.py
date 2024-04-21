@@ -109,6 +109,17 @@ class ImageSourceEngine:
                     h_composed = h_delay
                 
                 h_list.append(h_composed)
+                
+                
+                # x1 = np.zeros(200)
+                # x1[0] = 1
+                # y1 = fftconvolve(in1=x1, in2=h_delay, mode="same")
+                # import matplotlib.pyplot as plt
+                # fig, axs = plt.subplots(2, 1, sharex=False)
+                # axs[0].stem(h_delay)
+                # axs[1].stem(y1[100:130])
+                # plt.savefig("_zz.pdf")
+            # from IPython import embed; embed(using=False); os._exit(0)
             
             # Sum the IR of all images.
             h_direct = h_list[0]
