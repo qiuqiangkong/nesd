@@ -67,8 +67,8 @@ train:
     num_workers: 32
     # num_workers: 0
     batch_size_per_device: 16
-    model_name: NeSD7
-    loss_name: detection_distance_sep_direct_reverb_loss
+    model_name: NeSD6
+    loss_name: detection_distance_sep_loss
     # loss_name: detection_bce
     optimizer_name: AdamW
     learning_rate: 1e-3

@@ -27,10 +27,8 @@ simulator_configs:
         min: 0
         max: 2
     source_gain_db:
-        # min: -18.
-        # max: 6.
-        min: 0
-        max: 0
+        min: -20.
+        max: 0.
     source_radius: 0.1
     source_apprent_diameter_deg: 10
     
@@ -42,10 +40,8 @@ simulator_configs:
     train_mic_noise: "/home/qiuqiangkong/workspaces/nesd/audios/tau_noise/train"
     test_mic_noise: "/home/qiuqiangkong/workspaces/nesd/audios/tau_noise/test"
     noise_gain_db:
-        # min: -12
-        # max: 12
-        min: 0
-        max: 0
+        min: 0.
+        max: 20.
 
     # Simulator
     image_source_order: 3
@@ -69,7 +65,6 @@ train:
     batch_size_per_device: 16
     model_name: NeSD7
     loss_name: detection_distance_sep_direct_reverb_loss
-    # loss_name: detection_bce
     optimizer_name: AdamW
     learning_rate: 1e-3
     save_step_frequency: 1000

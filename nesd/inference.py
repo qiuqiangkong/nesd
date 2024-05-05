@@ -28,7 +28,7 @@ def inference(args):
 
     simulator_configs = configs["simulator_configs"]
     mics_meta = read_yaml(simulator_configs["mics_yaml"])
-    mics_num = len(mics_meta["microphone_coordinates"])
+    mics_num = len(mics_meta["mic_coordinates"])
 
     device = configs["train"]["device"]
     batch_size_per_device = configs["train"]["batch_size_per_device"]
@@ -302,7 +302,7 @@ def inference_distance(args):
 
     simulator_configs = configs["simulator_configs"]
     mics_meta = read_yaml(simulator_configs["mics_yaml"])
-    mics_num = len(mics_meta["microphone_coordinates"])
+    mics_num = len(mics_meta["mic_coordinates"])
 
     device = configs["train"]["device"]
     batch_size_per_device = configs["train"]["batch_size_per_device"]
@@ -464,7 +464,7 @@ def inference_sep(args):
 
     simulator_configs = configs["simulator_configs"]
     mics_meta = read_yaml(simulator_configs["mics_yaml"])
-    mics_num = len(mics_meta["microphone_coordinates"])
+    mics_num = len(mics_meta["mic_coordinates"])
 
     device = configs["train"]["device"]
     batch_size_per_device = configs["train"]["batch_size_per_device"]

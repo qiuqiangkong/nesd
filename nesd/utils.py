@@ -192,12 +192,12 @@ def fractional_delay_filter(delayed_samples):
     h /= np.sum(h)
 
     # Combined filter.
-    new_len = delayed_samples_integer * 2 + N
+    new_len = np.abs(delayed_samples_integer) * 2 + N
     new_h = np.zeros(new_len)
 
-    bgn = delayed_samples_integer * 2
-    end = delayed_samples_integer * 2 + N
-    new_h[bgn : end] = h
+    bgn = (new_len - 1) // 2 + delayed_samples_integer - (N - 1) // 2
+    end = (new_len - 1) // 2 + delayed_samples_integer + (N - 1) // 2
+    new_h[bgn : end + 1] = h
 
     return new_h
 
@@ -328,3 +328,40 @@ def is_collide(trajs1, trajs2, collision_raidus):
                 return True
 
     return False
+
+
+def fractional_delay_filter_old(delayed_samples):
+    r"""Fractional delay with Whittaker–Shannon interpolation formula. 
+    Ref: https://tomroelandts.com/articles/how-to-create-a-fractional-delay-filter
+
+    Args:
+        x: np.array (1D), input signal
+        delay_samples: float >= 0., e.g., 3.3
+
+    Outputs:
+        y: np.array (1D), delayed signal
+    """
+    t1 = time.time()
+    integer = int(delayed_samples)
+    fraction = delayed_samples % 1
+
+    N = 21     # Filter length.
+    n = np.arange(N)
+
+    # Compute sinc filter.
+    h = np.sinc(n - (N - 1) // 2 - fraction)
+     
+    # Multiply sinc filter by window
+    h *= np.blackman(N)
+     
+    # Normalize to get unity gain.
+    h /= np.sum(h)
+
+    if integer < N // 2:
+        print(integer, N//2)
+
+    assert integer >= N // 2
+    new_h = np.zeros(integer + N // 2 + 1)
+    new_h[integer - N // 2 : integer + N // 2 + 1] = h
+    # print(time.time() - t1)
+    return new_h

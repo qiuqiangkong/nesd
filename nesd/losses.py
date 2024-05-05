@@ -12,6 +12,9 @@ def get_loss(loss_name):
     elif loss_name == "detection_bce":
         return detection_bce
 
+    elif loss_name == "detection_bce_srcs_num_ce":
+        return detection_bce_srcs_num_ce
+
     else:
         raise NotImplementedError
 
@@ -54,8 +57,7 @@ def detection_bce(output_dict, target_dict):
         input=output_dict['agent_look_at_direction_has_source'], 
         target=target_dict['agent_look_at_direction_has_source'],
     )
-    # if loss.item() > 1:
-    #     from IPython import embed; embed(using=False); os._exit(0)
+
     return loss
 
 
@@ -87,3 +89,22 @@ def sep_direct_l1(output_dict, target_dict):
 def l1(x, y):
     loss = torch.mean(torch.abs(x - y))
     return loss
+
+
+def sources_num_ce(output_dict, target_dict):
+    
+    loss = F.nll_loss(
+        input=output_dict["sources_num"].flatten(0, 1),
+        target=target_dict["sources_num"].flatten()
+    )
+    return loss
+
+
+def detection_bce_srcs_num_ce(output_dict, target_dict):
+    
+    det_loss = detection_bce(output_dict, target_dict)
+    srcs_num_loss = sources_num_ce(output_dict, target_dict)
+
+    total_loss = det_loss + srcs_num_loss
+    
+    return total_loss

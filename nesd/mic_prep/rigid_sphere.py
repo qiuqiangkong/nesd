@@ -50,7 +50,46 @@ def calcualte_spaital_impulse_responses(args):
     Path(mic_spatial_irs_path).parent.mkdir(parents=True, exist_ok=True)
     pickle.dump(spatial_irs, open(mic_spatial_irs_path, "wb"))
     print("Write out to {}".format(mic_spatial_irs_path))
+
+
+'''
+def calcualte_spaital_impulse_responses(args):
     
+    mic_spatial_irs_path = args.mic_spatial_irs_path 
+
+    spatial_irs = {}
+
+    # Inclined angle between mic_orientation and mic_to_source.
+    for deg in range(0, 181, 1):
+    # for deg in [180]:
+
+        print("Inclined angle degree: {}".format(deg))
+
+        h_rigid, H_rigid = get_rigid_sph_array(
+            angle=np.deg2rad(deg), 
+            nfft=NFFT, 
+            radius=RADIUS,
+            fs=SAMPLE_RATE,
+            c=SPEED_OF_SOUND,
+            order=30
+        )
+
+        # Get delay impulse response.
+        distance = RADIUS * np.cos(np.deg2rad(deg))
+        delayed_samples = (distance / SPEED_OF_SOUND) * SAMPLE_RATE
+        h_delay = fractional_delay_filter(delayed_samples)
+        # from IPython import embed; embed(using=False); os._exit(0)
+
+        # Total impulse response.
+        h_total = fftconvolve(in1=h_rigid, in2=h_delay, mode="full")
+
+        # spatial_irs.append(h)
+        spatial_irs[deg] = h_total
+
+    Path(mic_spatial_irs_path).parent.mkdir(parents=True, exist_ok=True)
+    pickle.dump(spatial_irs, open(mic_spatial_irs_path, "wb"))
+    print("Write out to {}".format(mic_spatial_irs_path))
+'''
 
 def get_rigid_sph_array(angle, nfft, radius, fs, c, order):
     """Rigid spherical array response simulation.

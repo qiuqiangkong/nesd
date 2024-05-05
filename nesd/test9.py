@@ -570,10 +570,10 @@ def add30():
 def add31():
 
     from nesd.utils import fractional_delay_filter
-    h = fractional_delay_filter(2.1)
+    h = fractional_delay_filter(-2.3)
     
     x1 = np.zeros(200)
-    x1[0] = 1
+    x1[10] = 1
     y1 = fftconvolve(in1=x1, in2=h, mode="same")
     import matplotlib.pyplot as plt
     fig, axs = plt.subplots(2, 1, sharex=False)
@@ -584,6 +584,16 @@ def add31():
     from IPython import embed; embed(using=False); os._exit(0)
 
 
+def add32():
+    audio_path = "/datasets/tau-srir/TAU-SNoise_DB/01_bomb_center/ambience_tetra_24k_edited.wav"
+    audio, _ = librosa.load(path=audio_path, sr=24000, mono=False)
+    soundfile.write(file="_uu2.wav", data=audio[:, 0 : 10 * 24000].T, samplerate=24000)
+
+
+def add33():
+    soundfile.write(file="_uu3.wav", data=np.zeros((24000 * 10, 4)), samplerate=24000)
+
+
 if __name__ == "__main__":
 
-    add30()
+    add32() 

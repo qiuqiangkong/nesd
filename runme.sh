@@ -38,9 +38,44 @@ python nesd/inference.py inference \
 	--config_yaml="./scripts/configs/01a.yaml" \
 	--checkpoint_path="/home/qiuqiangkong/workspaces/nesd/checkpoints/NeSD/step=100000.pth"
 	
+# evaluate dcase2019
 CUDA_VISIBLE_DEVICES=6 python evaluate/dcase2019_task3.py inference \
 	--workspace=$WORKSPACE \
-	--config_yaml="./scripts/configs/13a.yaml" \
-	--checkpoint_path="/home/qiuqiangkong/workspaces/nesd/checkpoints/train/13a/step=300000.pth"
+	--config_yaml="./scripts/configs/31a.yaml" \
+	--checkpoint_path="/home/qiuqiangkong/workspaces/nesd/checkpoints/train/31a/step=300000.pth"
 	
 python evaluate/dcase2019_task3.py plot_panaroma
+
+CUDA_VISIBLE_DEVICES=6 python evaluate/dcase2019_task3.py inference_distance \
+	--workspace=$WORKSPACE \
+	--config_yaml="./scripts/configs/31a.yaml" \
+	--checkpoint_path="/home/qiuqiangkong/workspaces/nesd/checkpoints/train/31a/step=300000.pth"
+
+CUDA_VISIBLE_DEVICES=6 python evaluate/dcase2019_task3.py inference_sep \
+	--workspace=$WORKSPACE \
+	--config_yaml="./scripts/configs/31a.yaml" \
+	--checkpoint_path="/home/qiuqiangkong/workspaces/nesd/checkpoints/train/31a/step=300000.pth"
+
+# evaluate dcase2020, no distance in the labels.
+CUDA_VISIBLE_DEVICES=6 python evaluate/dcase2020_task3.py inference \
+	--workspace=$WORKSPACE \
+	--config_yaml="./scripts/configs/31a.yaml" \
+	--checkpoint_path="/home/qiuqiangkong/workspaces/nesd/checkpoints/train/31a/step=300000.pth"
+	
+python evaluate/dcase2020_task3.py plot_panaroma
+
+CUDA_VISIBLE_DEVICES=6 python evaluate/dcase2020_task3.py inference_depth \
+	--workspace=$WORKSPACE \
+	--config_yaml="./scripts/configs/31a.yaml" \
+	--checkpoint_path="/home/qiuqiangkong/workspaces/nesd/checkpoints/train/31a/step=300000.pth"
+
+CUDA_VISIBLE_DEVICES=6 python evaluate/dcase2020_task3.py inference_sep \
+	--workspace=$WORKSPACE \
+	--config_yaml="./scripts/configs/31a.yaml" \
+	--checkpoint_path="/home/qiuqiangkong/workspaces/nesd/checkpoints/train/31a/step=300000.pth"
+
+
+####
+python nesd/train_old.py \
+	--workspace=$WORKSPACE \
+	--config_yaml="./scripts/configs/01a.yaml"
