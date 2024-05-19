@@ -75,6 +75,10 @@ def inference(args):
         gt_dir = data["agent_look_at_direction_has_source"].cpu().numpy()
         gt_dist = data["agent_look_at_distance_has_source"].cpu().numpy()
         gt_wav = data["agent_look_at_direction_reverb_wav"].cpu().numpy()
+
+        # from IPython import embed; embed(using=False); os._exit(0)
+        # soundfile.write(file="_zz.wav", data=data['mic_wavs'][1,0].cpu().numpy(), samplerate=24000)
+        
         
         pred_dir = output_dict["agent_look_at_direction_has_source"].cpu().numpy()
         pred_dist = output_dict["agent_look_at_distance_has_source"].cpu().numpy()

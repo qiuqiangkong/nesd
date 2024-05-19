@@ -43,8 +43,12 @@ CUDA_VISIBLE_DEVICES=6 python evaluate/dcase2019_task3.py inference \
 	--workspace=$WORKSPACE \
 	--config_yaml="./scripts/configs/31a.yaml" \
 	--checkpoint_path="/home/qiuqiangkong/workspaces/nesd/checkpoints/train/31a/step=300000.pth"
-	
+
+python evaluate/dcase2019_task3.py write_loc_csv
+
 python evaluate/dcase2019_task3.py plot_panaroma
+
+python evaluate/d19t3_test.py
 
 CUDA_VISIBLE_DEVICES=6 python evaluate/dcase2019_task3.py inference_distance \
 	--workspace=$WORKSPACE \
@@ -62,7 +66,8 @@ CUDA_VISIBLE_DEVICES=6 python evaluate/dcase2020_task3.py inference \
 	--config_yaml="./scripts/configs/31a.yaml" \
 	--checkpoint_path="/home/qiuqiangkong/workspaces/nesd/checkpoints/train/31a/step=300000.pth"
 	
-python evaluate/dcase2020_task3.py plot_panaroma
+python evaluate/dcase2020_task3.py plot_panaroma \
+	--workspace=$WORKSPACE
 
 CUDA_VISIBLE_DEVICES=6 python evaluate/dcase2020_task3.py inference_depth \
 	--workspace=$WORKSPACE \

@@ -7,6 +7,7 @@ from typing import Dict, List, NoReturn, Tuple, Callable, Any
 
 from nesd.models.fourier import Fourier
 from nesd.models.base import PositionEncoder, OrientationEncoder, DistanceEncoder, AngleEncoder
+from torchaudio.transforms import MelSpectrogram
 
 
 class NeSD(Fourier):
@@ -3547,6 +3548,7 @@ class NeSD7(Fourier):
         return x
 
 
+
 class NeSD7_srcs_num(Fourier):
     def __init__(self, 
         mics_num: int,
@@ -3650,7 +3652,18 @@ class NeSD7_srcs_num(Fourier):
             hop_length=hop_length
         )
 
-        self.sources_num_mlp = MLP_nll_loss(in_channels=1024, hid_channels=1024, out_channels=16)
+        # Eng predict
+        self.mel_extractor = MelSpectrogram(
+            sample_rate=24000,
+            n_fft=1024,
+            hop_length=240,
+            f_min=0.,
+            f_max=12000,
+            n_mels=64,
+            power=2.0,
+            normalized=True,
+        )
+        self.sources_num_mlp = MLP_nll_loss(in_channels=64, hid_channels=1024, out_channels=16)
 
     def forward(
         self, 
@@ -3838,14 +3851,14 @@ class NeSD7_srcs_num(Fourier):
             output_dict["agent_look_at_direction_direct_wav"] = look_at_direction_direct_wav
 
         if True:
-            pred_sources_num = self.sources_num_mlp(mic_wav_feat)
+            
 
-            pred_sources_num = pred_sources_num.repeat_interleave(
-                repeats=self.downsample_ratio, dim=1)[:, 0 : frames_num, :]
-            # shape: (B, T, 1)
-
+            x = self.mel_extractor(torch.mean(mic_wavs, dim=1))
+            x = torch.log10(torch.clamp(x, 1e-10))
+            x = rearrange(x, 'b c t -> b t c')
+            pred_sources_num = self.sources_num_mlp(x)
             output_dict["sources_num"] = pred_sources_num
-        
+
         return output_dict
 
     def calculate_diff_phases(self, mic_phase):

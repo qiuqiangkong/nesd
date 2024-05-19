@@ -27,10 +27,8 @@ simulator_configs:
         min: 0
         max: 2
     source_gain_db:
-        # min: -18.
-        # max: 6.
-        min: 0
-        max: 0
+        min: -20.
+        max: 0.
     source_radius: 0.1
     source_apprent_diameter_deg: 10
     
@@ -42,34 +40,32 @@ simulator_configs:
     train_mic_noise: "/home/qiuqiangkong/workspaces/nesd/audios/tau_noise/train"
     test_mic_noise: "/home/qiuqiangkong/workspaces/nesd/audios/tau_noise/test"
     noise_gain_db:
-        # min: -12
-        # max: 12
-        min: 0
-        max: 0
+        min: 0.
+        max: 20.
 
     # Simulator
     image_source_order: 3
 
     # Agents
     agent_positions_type: "center_of_mics"  # "random_in_env" | "center_of_mics"
-    agent_detection_rays:
+    agent_detection_rays: 
         max_positive: 10
-        total: 20
+        total: 100 
     agent_distance_rays:
-        max_positive: 10
-        total: 20
+        max_positive: 0
+        total: 0
     agent_sep_rays: 
-        max_positive: 3
-        total: 5
+        max_positive: 0
+        # max_positive: 0
+        total: 0
 
 train:
     device: "cuda"
     num_workers: 32
     # num_workers: 0
     batch_size_per_device: 16
-    model_name: NeSD7
-    loss_name: detection_distance_sep_direct_reverb_loss
-    # loss_name: detection_bce
+    model_name: NeSD7_srcs_num
+    loss_name: detection_bce_srcs_num_ce
     optimizer_name: AdamW
     learning_rate: 1e-3
     save_step_frequency: 1000
