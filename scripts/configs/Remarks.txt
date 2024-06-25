@@ -69,9 +69,25 @@ old_01b.yaml	old dataloader, Nesd6, add noise
 
 --- After changes to mic_center works -----------------
 30a.yaml	0-2 srcs
-31a.yaml	det, sep, loc, others same as 30a.yaml
++ 31a.yaml	det, sep, loc, others same as 30a.yaml
 32a.yaml	det, sep_direct_reverb, loc, others same as 31a.yaml
 
-33a.yaml	0-2 srcs, aug scale, 100 rays
++ 33a.yaml	0-2 srcs, aug scale, 100 rays
 34a.yaml	0-2 srcs, det, sep_direct_reverb, loc, others same as 33a
-35a.yaml	add pred srcs_num, others same as 33a
+- 35a.yaml	add pred srcs_num, others same as 33a
+36a.yaml	0-4 srcs, aug scale, 100 rays
++ 37a.yaml	0-2 srcs, det, sep_reverb, loc, others same as 33a
+38a.yaml	src, noise 0 dB. Others same as 37a
+39a.yaml	0-2 srcs, same aug scale, 100 rays
+
+40a.yaml	copy 31a, not working
+42a.yaml	linear AngleEncoder2, others same as 31a, works
+42b.yaml	linear AngleEncoder2, sep, others same as 31a, works
+43a.yaml	cos AngleEncoder3, 10 det rays, others same as 31a, works
++ 43b.yaml	cos AngleEncoder3, 10 det rays, sep, others same as 31a, works
+44a.yaml	linear AngleEncoder2, 100 det rays
+44b.yaml	linear AngleEncoder2, sep, 100 det rays, worse than 10 rays
+45a.yaml	linear AngleEncoder2, 10 det rays
+45b.yaml	linear AngleEncoder2, sep, 10 det rays, worse than 10 rays, not as good as 43b
+
+46a.yaml	the same as 43b

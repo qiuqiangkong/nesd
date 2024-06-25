@@ -594,6 +594,120 @@ def add33():
     soundfile.write(file="_uu3.wav", data=np.zeros((24000 * 10, 4)), samplerate=24000)
 
 
+def load_directions_from_pred(
+    audio_path="/datasets/dcase2023/task3/mic_dev/dev-test-sony/fold4_room23_mix001.wav",
+    pred_csv_path="/home/qiuqiangkong/workspaces/nesd/results/dcase2024_task3/pred_csvs/fold4_room23_mix001.csv"):
+
+    import pandas as pd
+    df = pd.read_csv(pred_csv_path, sep=',', header=None)
+    frame_indexes = df[0].values
+    class_indexes = df[1].values
+    azis = df[3].values
+    eles = df[4].values
+    distances = df[5].values
+
+    azis = np.deg2rad(azis)
+    eles = np.deg2rad(eles)
+
+    buffer = []
+
+    for n in range(len(frame_indexes)):
+
+        tup = (frame_indexes[n], azis[n], eles[n])
+
+        finish = False
+
+        for tups in buffer:
+            if is_continus_event(tup, tups[-1]):
+                tups.append(tup)
+                finish = True
+        
+        if finish is False:
+            buffer.append([tup])
+
+    frames_per_sec = 10
+    segment_frames = 20
+
+    sample_rate = 24000
+    
+    # audio = np.zeros((4, sample_rate * 60))
+    audio, fs = librosa.load(path=audio_path, sr=sample_rate, mono=False)
+
+    list_data = []
+
+    #
+    for tups in buffer:
+
+        segment = None
+        look_at_directions = None
+
+        first_index = tups[0][0]
+        last_index = tups[-1][0]
+
+        seg_bgn_index = (first_index // 20) * 20
+        seg_end_index = int(np.ceil(last_index / 20) * 20)
+
+        seg_bgn_sample = seg_bgn_index * (sample_rate // 10)
+        seg_end_sample = seg_end_index * (sample_rate // 10)
+
+        clip = audio[:, seg_bgn_sample : seg_end_sample]
+        _azis = np.ones(seg_end_index - seg_bgn_index + 1) * math.nan
+        _eles = np.ones(seg_end_index - seg_bgn_index + 1) * math.nan
+        _masks = np.zeros(seg_end_index - seg_bgn_index + 1) 
+
+        for tup in tups:
+            frame_index, azi, ele = tup
+            _azis[frame_index - seg_bgn_index] = azi
+            _eles[frame_index - seg_bgn_index] = ele
+
+        for i in range(len(_azis)):
+            if not math.isnan(_azis[i]):
+                _masks[i] = 1
+
+        # Remove nan
+        for i in range(len(_azis)):
+            if math.isnan(_azis[i]):
+                for j in range(i, -1, -1):
+                    if not math.isnan(_azis[j]):
+                        _azis[i] = _azis[j]
+                        _eles[i] = _eles[j]
+                        break
+
+            if math.isnan(_azis[i]):
+                for j in range(i, len(_azis)):
+                    if not math.isnan(_azis[j]):
+                        _azis[i] = _azis[j]
+                        _eles[i] = _eles[j]
+                        break
+
+        look_at_directions = sph2cart(azimuth=_azis, elevation=_eles, r=1.)
+        look_at_directions = np.repeat(look_at_directions, repeats=10, axis=0)[0 : -9]
+        masks = np.repeat(_masks, repeats=10, axis=0)[0 : -9]
+
+        data = {
+            "begin_second": seg_bgn_index * 10,
+            "audio": clip,
+            "look_at_directions": look_at_directions,
+            "mask": masks
+        }
+        # from IPython import embed; embed(using=False); os._exit(0)
+
+        list_data.append(data)
+
+    return list_data
+
+
+def is_continus_event(tup, prev_tup):
+
+    if 0 < tup[0] - prev_tup[0] < 10:
+        curr_dir = sph2cart(azimuth=tup[1], elevation=tup[2], r=1.)
+        prev_dir = sph2cart(azimuth=prev_tup[1], elevation=prev_tup[2], r=1.)
+        if np.rad2deg(get_included_angle(curr_dir, prev_dir)) < 10:
+            return True
+        
+    return False
+
+
 if __name__ == "__main__":
 
-    add32() 
+    load_directions_from_pred()

@@ -24,7 +24,7 @@ simulator_configs:
     train_audios: "/home/qiuqiangkong/workspaces/nesd/audios/vctk_2s_segments/train"
     test_audios: "/home/qiuqiangkong/workspaces/nesd/audios/vctk_2s_segments/test"
     sources_num:
-        min: 2
+        min: 0
         max: 2
     source_gain_db:
         # min: 0
@@ -67,7 +67,7 @@ train:
     num_workers: 32
     # num_workers: 0
     batch_size_per_device: 16
-    model_name: NeSD9
+    model_name: NeSD8
     loss_name: detection_distance_sep_loss
     # loss_name: detection_bce
     optimizer_name: AdamW

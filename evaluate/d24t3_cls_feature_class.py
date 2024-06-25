@@ -519,7 +519,9 @@ class FeatureClass:
                 self.extract_file_vid_feature((file_cnt, mp4_path, vid_feat_path))
 
     # -------------------------------  DCASE OUTPUT  FORMAT FUNCTIONS -------------------------------
-    def load_output_format_file(self, _output_format_file, cm2m=False):  # TODO: Reconsider cm2m conversion
+    # def load_output_format_file(self, _output_format_file, cm2m=False):  # TODO: Reconsider cm2m 
+    #conversion
+    def load_output_format_file(self, _output_format_file, cm2m=True):  # TODO: Reconsider cm2m 
         """
         Loads DCASE output format csv file and returns it in dictionary format
 
@@ -546,6 +548,7 @@ class FeatureClass:
         _fid.close()
         if len(_words) == 7:
             _output_dict = self.convert_output_format_cartesian_to_polar(_output_dict)
+        # from IPython import embed; embed(using=False); os._exit(0)
         return _output_dict
 
     def write_output_format_file(self, _output_format_file, _output_format_dict):

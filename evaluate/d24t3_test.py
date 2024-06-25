@@ -67,6 +67,7 @@ class ComputeSELDResults(object):
             for ref_file in os.listdir(os.path.join(self._desc_dir, split)):
                 # Load reference description file
                 gt_dict = self._feat_cls.load_output_format_file(os.path.join(self._desc_dir, split, ref_file), cm2m=True)  # TODO: Reconsider the cm2m conversion
+                # from IPython import embed; embed(using=False); os._exit(0)
                 gt_dict = self._feat_cls.convert_output_format_polar_to_cartesian(gt_dict)
                 nb_ref_frames = max(list(gt_dict.keys()))
                 if self.segment_level:
@@ -120,6 +121,7 @@ class ComputeSELDResults(object):
         for pred_cnt, pred_file in enumerate(pred_files):
             # Load predicted output format file
             pred_dict = self._feat_cls.load_output_format_file(os.path.join(pred_files_path, pred_file))
+            # from IPython import embed; embed(using=False); os._exit(0)
             pred_dict = self._feat_cls.convert_output_format_polar_to_cartesian(pred_dict)
             if self.segment_level:
                 pred_labels = self._feat_cls.segment_labels(pred_dict, self._ref_labels[pred_file][1])
@@ -128,6 +130,7 @@ class ComputeSELDResults(object):
                 pred_labels = self._feat_cls.organize_labels(pred_dict, self._ref_labels[pred_file][1])
                 # pred_labels[frame-index][class-index][track-index] := [azimuth, elevation]
             # Calculated scores
+            # from IPython import embed; embed(using=False); os._exit(0)
             eval.update_seld_scores(pred_labels, self._ref_labels[pred_file][0], eval_dist=self.evaluate_distance)
             if is_jackknife:
                 pred_labels_dict[pred_file] = pred_labels
@@ -234,6 +237,7 @@ class ComputeSELDResults(object):
                 for pred_cnt, pred_file in enumerate(split_cnt_dict[split_key]):
                     # Load predicted output format file
                     pred_dict = self._feat_cls.load_output_format_file(os.path.join(pred_output_format_files, pred_file))
+                    # from IPython import embed; embed(using=False); os._exit(0)
                     pred_dict = self._feat_cls.convert_output_format_polar_to_cartesian(pred_dict)
                     if self.segment_level:
                         pred_labels = self._feat_cls.segment_labels(pred_dict, self._ref_labels[pred_file][1])
@@ -267,15 +271,18 @@ def reshape_3Dto2D(A):
 if __name__ == "__main__":
     # pred_output_format_files = 'Submissions/Task_A/Politis_TAU_task3a_1/Politis_TAU_task3a_1'  # Path of the DCASEoutput format files
 
-    pred_output_format_files = "/home/qiuqiangkong/workspaces/nesd/results/dcase2023_task3/pred_csvs"
+    pred_output_format_files = "/home/qiuqiangkong/workspaces/nesd/results/dcase2024_task3/pred_csvs"
     ref_files_folder = "/datasets/dcase2023/task3/metadata_dev"
+
+    evaluate_distance = False
 
     params = parameters.get_params()
     # Compute just the DCASE final results
     use_jackknife = False
-    eval_dist = params['evaluate_distance'] if 'evaluate_distance' in params else False
-    score_obj = ComputeSELDResults(params, ref_files_folder=ref_files_folder, evaluate_distance=False)
-    if eval_dist:
+    # eval_dist = params['evaluate_distance'] if 'evaluate_distance' in params else False
+    score_obj = ComputeSELDResults(params, ref_files_folder=ref_files_folder, evaluate_distance=evaluate_distance)
+    # if eval_dist:
+    if evaluate_distance:
         ER, F, AngE, DistE, RelsDistE, LR, seld_scr, classwise_test_scr = score_obj.get_SELD_Results(pred_output_format_files,
                                                                                                      is_jackknife=use_jackknife)
     else:
@@ -291,7 +298,7 @@ if __name__ == "__main__":
     print('DOA metrics: DOA error: {:0.1f} {}'.format(
         AngE[0] if use_jackknife else AngE,
         '[{:0.2f}, {:0.2f}]'.format(AngE[1][0], AngE[1][1]) if use_jackknife else ''))
-    if eval_dist:
+    if evaluate_distance:
         print('Distance metrics: Distance error: {:0.2f} {}, Relative distance error: {:0.2f} {}'.format(
             DistE[0] if use_jackknife else DistE,
             '[{:0.2f}, {:0.2f}]'.format(DistE[1][0], DistE[1][1]) if use_jackknife else '',
@@ -302,7 +309,8 @@ if __name__ == "__main__":
         print('Classwise results on unseen test data')
         print('Class\tF\tAngE\tDistE\tRelDistE\tSELD_score')
         for cls_cnt in range(params['unique_classes']):
-            if eval_dist:
+            if evaluate_distance:
+                # from IPython import embed; embed(using=False); os._exit(0)
                 print('{}\t{:0.2f} {}\t{:0.2f} {}\t{:0.2f} {}\t{:0.2f} {}\t{:0.2f} {}\t{:0.2f} {}\t{:0.2f} {}'.format(
                     cls_cnt,
                     #classwise_test_scr[0][0][cls_cnt] if use_jackknife else classwise_test_scr[0][cls_cnt],

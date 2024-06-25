@@ -39,7 +39,7 @@ LABELS = [
 LB_TO_ID = {lb: id for id, lb in enumerate(LABELS)}
 ID_TO_LB = {id: lb for id, lb in enumerate(LABELS)}
 
-SCALE = 10
+SCALE = 1
 
 
 dataset_dir = "/datasets/dcase2023/task3"
@@ -374,7 +374,7 @@ def inference_sep(args):
     segment_samples = int(segment_seconds * sample_rate)
     frames_num = int(segment_seconds * frames_per_sec) + 1
 
-    frame_indexes, class_indexes, azimuths, elevations, distances = read_dcase2020_task3_csv(csv_path=csv_path)
+    frame_indexes, class_indexes, azimuths, elevations, distances = read_dcase2020_task3_csv(csv_path=gt_csv_path)
 
     # Load checkpoint
     model = get_model(model_name, mics_num)
@@ -382,7 +382,7 @@ def inference_sep(args):
     model.to(device)
 
     # Load audio
-    audio, fs = librosa.load(path=audio_path, sr=sample_rate, mono=False)
+    audio, fs = librosa.load(path=audio_paths[0], sr=sample_rate, mono=False)
     audio_samples = audio.shape[-1]
 
     audio *= SCALE 

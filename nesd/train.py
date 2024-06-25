@@ -168,6 +168,14 @@ def get_model(model_name, mics_num):
         from nesd.models.nesd import NeSD7_srcs_num
         return NeSD7_srcs_num(mics_num=mics_num)
 
+    elif model_name == "NeSD8":
+        from nesd.models.nesd import NeSD8
+        return NeSD8(mics_num=mics_num)
+
+    elif model_name == "NeSD9":
+        from nesd.models.nesd import NeSD9
+        return NeSD9(mics_num=mics_num)
+
     elif model_name == "Model02":
         from nesd.old_models.models02 import Model02
         return Model02(mics_num=mics_num)

@@ -31,11 +31,15 @@ def detection_distance_sep_loss(output_dict, target_dict):
 
 def detection_distance_sep_loss(output_dict, target_dict):
 
+    
     det_loss = detection_bce(output_dict, target_dict)
     dist_loss = distance_bce(output_dict, target_dict)
     sep_loss = sep_reverb_l1(output_dict, target_dict)
 
     total_loss = det_loss + dist_loss + sep_loss
+    
+    print(det_loss.item(), dist_loss.item(), sep_loss.item())
+    # total_loss = detection_bce(output_dict, target_dict)
 
     return total_loss
 

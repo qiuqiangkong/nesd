@@ -586,9 +586,11 @@ def inference_sep(args):
 
             if "agent_look_at_direction_direct_wav" in output_dict.keys():
                 soundfile.write(file="_zz_direct_{}.wav".format(i), data=sep_direct_wavs[i], samplerate=24000)
+            print(i)
 
+        
+        soundfile.write(file="_zz.wav", data=mic_wavs[0].data.cpu().numpy().T, samplerate=24000)
         from IPython import embed; embed(using=False); os._exit(0)
-        soundfile.write(file="_uu2.wav", data=mic_wavs[0].data.cpu().numpy().T, samplerate=24000)
 
 
 def get_all_agent_look_at_directions(grid_deg):

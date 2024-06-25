@@ -35,7 +35,7 @@ LABELS = [
 LB_TO_ID = {lb: id for id, lb in enumerate(LABELS)}
 ID_TO_LB = {id: lb for id, lb in enumerate(LABELS)}
 
-SCALE = 10
+SCALE = 1 
 
 
 # split = "test"
@@ -355,6 +355,7 @@ def write_loc_csv(args):
         # No parallel is faster
         results = []
         for param in params:
+        # for param in params[7:]:
             result = _calculate_centers(param)
             results.append(result)
 
@@ -518,15 +519,54 @@ def _calculate_centers(param):
     
     for n_clusters in range(1, 10):
         kmeans = KMeans(n_clusters=n_clusters, random_state=0, n_init="auto").fit(tmp)
-        error = np.mean(np.abs(tmp - kmeans.cluster_centers_[kmeans.labels_]))
-        if error < 10:
+        distances = np.linalg.norm(tmp - kmeans.cluster_centers_[kmeans.labels_], axis=-1)
+        if np.mean(distances) < 5:
             break
-
     
     locs = np.deg2rad(kmeans.cluster_centers_ * grid_deg) - np.array([math.pi, math.pi / 2])
 
+    # plt.matshow(x.T, origin='lower', aspect='auto', cmap='jet')
+    # plt.savefig("_zz.pdf")
+    # from IPython import embed; embed(using=False); os._exit(0)
+
     return locs
 
+
+'''
+def _calculate_centers(param):
+
+    frame_index, x, grid_deg = param
+
+    print(frame_index)
+
+    tmp = np.stack(np.where(x > 0.8), axis=1)
+
+    azi = np.deg2rad(tmp[:, 0] * grid_deg) - math.pi
+    ele = np.deg2rad(tmp[:, 1] * grid_deg) - math.pi / 2
+    tmp = sph2cart(azimuth=azi, elevation=ele, r=1.)
+    
+    if len(tmp) == 0:
+        return []
+
+    from coclust.clustering import SphericalKmeans
+
+    for n_clusters in range(1, 10):
+        
+        kmeans = SphericalKmeans(n_clusters=n_clusters, random_state=0, n_init=1)
+        kmeans.fit(tmp)
+        from IPython import embed; embed(using=False); os._exit(0)
+        distances = np.linalg.norm(tmp - kmeans.cluster_centers_[kmeans.labels_], axis=-1)
+        if np.mean(distances) < 0.05:
+            break
+    
+    # locs = np.deg2rad(kmeans.cluster_centers_ * grid_deg) - np.array([math.pi, math.pi / 2])
+
+    plt.matshow(x.T, origin='lower', aspect='auto', cmap='jet')
+    plt.savefig("_zz.pdf")
+    from IPython import embed; embed(using=False); os._exit(0)
+
+    return locs
+'''
 
 def plot_center_to_mat(centers, x, grid_deg):
     
@@ -587,7 +627,7 @@ def inference_distance(args):
     segment_samples = int(segment_seconds * sample_rate)
     frames_num = int(segment_seconds * frames_per_sec) + 1
 
-    frame_indexes, class_indexes, azimuths, elevations, distances = read_dcase2019_task3_csv(csv_path=csv_path)
+    frame_indexes, class_indexes, azimuths, elevations, distances = read_dcase2019_task3_csv(csv_path=gt_csv_path)
 
     # Load checkpoint
     model = get_model(model_name, mics_num)
@@ -595,7 +635,7 @@ def inference_distance(args):
     model.to(device)
 
     # Load audio
-    audio, fs = librosa.load(path=audio_path, sr=sample_rate, mono=False)
+    audio, fs = librosa.load(path=audio_paths[0], sr=sample_rate, mono=False)
     audio_samples = audio.shape[-1]
 
     audio *= SCALE 
@@ -748,7 +788,7 @@ def inference_sep(args):
     segment_samples = int(segment_seconds * sample_rate)
     frames_num = int(segment_seconds * frames_per_sec) + 1
 
-    frame_indexes, class_indexes, azimuths, elevations, distances = read_dcase2019_task3_csv(csv_path=csv_path)
+    frame_indexes, class_indexes, azimuths, elevations, distances = read_dcase2019_task3_csv(csv_path=gt_csv_path)
 
     # Load checkpoint
     model = get_model(model_name, mics_num)
@@ -756,7 +796,7 @@ def inference_sep(args):
     model.to(device)
 
     # Load audio
-    audio, fs = librosa.load(path=audio_path, sr=sample_rate, mono=False)
+    audio, fs = librosa.load(path=audio_paths[0], sr=sample_rate, mono=False)
     audio_samples = audio.shape[-1]
 
     audio *= SCALE 

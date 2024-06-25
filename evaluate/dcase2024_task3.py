@@ -39,7 +39,7 @@ LABELS = [
 LB_TO_ID = {lb: id for id, lb in enumerate(LABELS)}
 ID_TO_LB = {id: lb for id, lb in enumerate(LABELS)}
 
-SCALE = 10
+SCALE = 1
 
 
 dataset_dir = "/datasets/dcase2023/task3"
@@ -54,17 +54,37 @@ if select == "1":
     panaroma_paths = [Path(workspace, "results/dcase2024_task3/panaroma/fold4_room23_mix001.pkl")]
 
     pred_csvs_dir = Path(workspace, "results/dcase2024_task3/pred_csvs")
+    pred_csv_path = Path(pred_csvs_dir, "fold4_room23_mix001.csv")
 
     gt_csv_path = Path(dataset_dir, "metadata_dev", "dev-test-sony", "fold4_room23_mix001.csv")
+    gt_csvs_dir = Path(dataset_dir, "metadata_dev", "test_all")
+    
+if select == "1b":
+    audio_paths = [Path(dataset_dir, "mic_dev", "dev-test-tau", "fold4_room8_mix001.wav")]
+
+    panaromas_dir = Path(workspace, "results/dcase2024_task3/panaroma")
+    panaroma_paths = [Path(workspace, "results/dcase2024_task3/panaroma/fold4_room8_mix001.pkl")]
+
+    pred_csvs_dir = Path(workspace, "results/dcase2024_task3/pred_csvs")
+
+    gt_csv_path = Path(dataset_dir, "metadata_dev", "dev-test-tau", "fold4_room8_mix001.csv")
+    gt_csvs_dir = Path(dataset_dir, "metadata_dev", "test_all")
     
 elif select == "2":
-    audios_dir = Path(dataset_dir, "mic_eval")
-    audio_paths = sorted(list(Path(audios_dir).glob("*.wav")))
+    audios_dir1 = Path(dataset_dir, "mic_dev", "dev-test-sony")
+    audio_paths1 = sorted(list(Path(audios_dir1).glob("*.wav")))
 
-    panaromas_dir = Path(workspace, "results/dcase2020_task3/panaroma")
+    audios_dir2 = Path(dataset_dir, "mic_dev", "dev-test-tau")
+    audio_paths2 = sorted(list(Path(audios_dir2).glob("*.wav")))
+
+    audio_paths = audio_paths1 + audio_paths2
+
+    panaromas_dir = Path(workspace, "results/dcase2024_task3/panaroma")
     panaroma_paths = sorted(list(Path(panaromas_dir).glob("*.pkl")))
 
-    pred_csvs_dir = Path(workspace, "results/dcase2020_task3/pred_csvs")
+    pred_csvs_dir = Path(workspace, "results/dcase2024_task3/pred_csvs")
+
+    gt_csvs_dir = Path(dataset_dir, "metadata_dev", "test_all")
 
 
 def inference(args):
@@ -235,8 +255,10 @@ def write_loc_csv(args):
 
     # Calculate prediction center.
     for panaroma_path in panaroma_paths:
+    # for panaroma_path in panaroma_paths[10:]:
 
-        csv_path = Path(pred_csvs_dir, "{}.csv".format(Path(panaroma_path).stem))
+        pred_csv_path = Path(pred_csvs_dir, "{}.csv".format(Path(panaroma_path).stem))
+        gt_csv_path = Path(gt_csvs_dir, "{}.csv".format(Path(panaroma_path).stem))
 
         pred_tensor = pickle.load(open(panaroma_path, "rb"))
         frames_num, azi_grids, ele_grids = pred_tensor.shape
@@ -249,6 +271,7 @@ def write_loc_csv(args):
         # No parallel is faster
         results = []
         for param in params:
+        # for param in params[7:]:
             result = _calculate_centers(param)
             results.append(result)
 
@@ -257,9 +280,55 @@ def write_loc_csv(args):
 
         locss = list(results)
 
-        # Write result to csv
-        class_ids = [[1] * len(locs) for locs in locss]
-        write_locss_to_csv(locss, class_ids, csv_path, grid_deg)
+        if True:
+            
+            frame_indexes, class_indexes, azimuths, elevations, distances = read_dcase2020_task3_csv(csv_path=gt_csv_path)
+
+            class_ids = []
+
+            for n in range(len(locss)):
+
+                if len(locss[n]) == 0:
+                    class_ids.append([])
+
+                elif len(locss[n]) > 0:
+
+                    centers = locss[n]
+                    tmp = []
+
+                    for center in centers:
+
+                        pred_xyz = sph2cart(azimuth=center[0], elevation=center[1], r=1.)
+
+                        _idxes = np.where(frame_indexes == n)[0]
+
+                        if len(_idxes) > 0:
+
+                            best_idx = -1
+                            min_included_angle = 9999
+
+                            for _idx in _idxes:
+
+                                gt_xyz = sph2cart(azimuth=azimuths[_idx], elevation=elevations[_idx], r=1.)
+                                included_angle = get_included_angle(pred_xyz, gt_xyz)
+
+                                if included_angle < min_included_angle:
+                                    best_idx = _idx
+                                    min_included_angle = included_angle
+
+                            best_class_id = class_indexes[best_idx]
+                            tmp.append(best_class_id)
+
+                        else:
+                            tmp.append(-1)                            
+
+                    class_ids.append(tmp)    
+        
+        else:
+            # Write result to csv
+            class_ids = [[1] * len(locs) for locs in locss]
+            
+        write_locss_to_csv(locss, class_ids, pred_csv_path, grid_deg)
 
     return pred_tensor, locss
 
@@ -317,7 +386,7 @@ def plot_panaroma(args):
 
     # for param in params:
     #     _multiple_process_plot(param)
-
+    
     with ProcessPoolExecutor(max_workers=None) as pool: # Maximum workers on the machine.
         pool.map(_multiple_process_plot, params)
 
@@ -339,13 +408,13 @@ def write_locss_to_csv(locss, class_ids, csv_path, grid_deg):
                 azi = np.rad2deg(centers[i][0])
                 ele = np.rad2deg(centers[i][1])
 
-                # track_id = 0
+                track_id = 0
                 distance = 100
 
-                fw.write("{},{},{},{},{}\n".format(
+                fw.write("{},{},{},{},{},{}\n".format(
                     frame_index, 
                     class_ids[frame_index][i], 
-                    # track_id,
+                    track_id,
                     int(np.around(azi)), 
                     int(np.around(ele)),
                     distance,
@@ -376,7 +445,7 @@ def inference_sep(args):
     segment_samples = int(segment_seconds * sample_rate)
     frames_num = int(segment_seconds * frames_per_sec) + 1
 
-    frame_indexes, class_indexes, azimuths, elevations, distances = read_dcase2020_task3_csv(csv_path=csv_path)
+    frame_indexes, class_indexes, azimuths, elevations, distances = read_dcase2020_task3_csv(csv_path=gt_csv_path)
 
     # Load checkpoint
     model = get_model(model_name, mics_num)
@@ -384,11 +453,10 @@ def inference_sep(args):
     model.to(device)
 
     # Load audio
-    audio, fs = librosa.load(path=audio_path, sr=sample_rate, mono=False)
+    audio, fs = librosa.load(path=audio_paths[0], sr=sample_rate, mono=False)
     audio_samples = audio.shape[-1]
 
     audio *= SCALE 
-    # audi
 
     if False:
         audio = apply_lowpass_filter(
@@ -507,7 +575,149 @@ def inference_sep(args):
 
     pred_wavs = np.concatenate(pred_wavs, axis=-1)
     for i in range(pred_wavs.shape[0]):
-        soundfile.write(file="_zz_{}.wav".format(i), data=pred_wavs[i], samplerate=sample_rate)
+        soundfile.write(file="_zz_{}.wav".format(i), data=pred_wavs[i] / SCALE, samplerate=sample_rate)
+        print(i)
+
+    from IPython import embed; embed(using=False); os._exit(0)
+
+
+def inference_sep2(args):
+
+    workspace = args.workspace
+    config_yaml = args.config_yaml
+    checkpoint_path = args.checkpoint_path
+    filename = Path(__file__).stem
+    
+    configs = read_yaml(config_yaml)
+
+    simulator_configs = configs["simulator_configs"]
+    sample_rate = simulator_configs["sample_rate"]
+    segment_seconds = simulator_configs["segment_seconds"]
+    frames_per_sec = simulator_configs["frames_per_sec"]
+    mics_meta = read_yaml(simulator_configs["mics_yaml"])
+    mics_num = len(mics_meta["mic_coordinates"])
+
+    device = configs["train"]["device"]
+    model_name = configs["train"]["model_name"]
+
+    segment_samples = int(segment_seconds * sample_rate)
+    frames_num = int(segment_seconds * frames_per_sec) + 1
+
+    from nesd.test9 import load_directions_from_pred
+    list_data = load_directions_from_pred(
+        audio_path=audio_paths[0],
+        pred_csv_path=pred_csv_path
+    )
+
+    # Load checkpoint
+    model = get_model(model_name, mics_num)
+    model.load_state_dict(torch.load(checkpoint_path))
+    model.to(device)
+
+    # Load audio
+    for m, data in enumerate(list_data):
+        
+        audio = data["audio"]
+        audio_samples = audio.shape[-1]
+        
+        audio *= SCALE 
+
+        # Mic positions
+        mics_center_pos = np.array([0, 0, 2])
+        mic_poss = get_mic_positions(mics_meta, frames_num)
+        mic_poss = mic_poss[None, :, :, :]
+
+        # Mic orientations
+        mic_oriens = get_mic_orientations(mics_meta, frames_num)
+        mic_oriens = mic_oriens[None, :, :, :]
+
+        ##
+        rays_num = 1
+        agent_poss = np.repeat(mics_center_pos[None, None, None, :], repeats=frames_num, axis=2)
+        agent_poss = np.repeat(agent_poss, repeats=rays_num, axis=1)
+        # (1, rays_num, frames_num, 3)
+
+        
+
+        ##
+        bgn_sample = 0
+        pred_wavs = []
+
+        while bgn_sample < audio_samples:
+
+            bgn_sec = bgn_sample / 24000
+            bgn_frame_index = int(bgn_sec * 100)
+            print(bgn_sec)
+
+            agent_look_at_distances = np.ones((1, 1, frames_num)) * PAD
+            
+            agent_look_at_directions = data["look_at_directions"][bgn_frame_index : bgn_frame_index + 201][None, None ,:, :]
+            # (1, rays_num, frames_num)
+
+            agent_distance_masks = np.zeros((1, 1, frames_num))
+            # (1, rays_num, frames_num)
+
+            #
+            mic_wavs = audio[None, :, bgn_sample : bgn_sample + segment_samples]
+            mic_wavs = librosa.util.fix_length(data=mic_wavs, size=segment_samples, axis=-1)
+
+            pointer = 0
+            batch_size = 2000
+            output_dict = {}
+
+            while pointer < rays_num:
+                # print(pointer)
+
+                _len = min(batch_size, rays_num - pointer)
+
+                agent_detect_idxes = torch.Tensor(np.arange(0)[None, :])
+                agent_distance_idxes = torch.Tensor(np.arange(0)[None, :])
+                agent_sep_idxes = torch.Tensor(np.arange(_len)[None, :])
+
+                batch_data = {
+                    "mic_wavs": mic_wavs,
+                    "mic_positions": mic_poss,
+                    "mic_orientations": mic_oriens,
+                    "agent_positions": agent_poss[:, pointer : pointer + batch_size, :, :],
+                    "agent_look_at_directions": agent_look_at_directions[:, pointer : pointer + batch_size, :, :],
+                    "agent_look_at_distances": agent_look_at_distances[:, pointer : pointer + batch_size, :],
+                    "agent_distance_masks": agent_distance_masks[:, pointer : pointer + batch_size, :],
+                    "agent_detect_idxes": agent_detect_idxes,
+                    "agent_distance_idxes": agent_distance_idxes,
+                    "agent_sep_idxes": agent_sep_idxes
+                }
+                
+                for key in batch_data.keys():
+                    batch_data[key] = torch.Tensor(batch_data[key]).to(device)
+
+                with torch.no_grad():
+                    model.eval()
+                    # from IPython import embed; embed(using=False); os._exit(0)
+                    batch_output_dict = model(batch_data)
+
+                if len(output_dict) == 0:
+                    for key in batch_output_dict.keys():
+                        output_dict[key] = []
+
+                for key in batch_output_dict.keys():
+                    output_dict[key].append(batch_output_dict[key].cpu().numpy())
+
+                pointer += batch_size
+
+            bgn_sample += segment_samples
+
+            for key in output_dict.keys():
+                output_dict[key] = np.concatenate(output_dict[key], axis=1)
+
+            pred_wav = output_dict["agent_look_at_direction_reverb_wav"][0]
+            pred_wavs.append(pred_wav)
+
+        pred_wavs = np.concatenate(pred_wavs, axis=-1)
+        Path('_tmp_wav').mkdir(parents=True, exist_ok=True)
+        # for i in range(pred_wavs.shape[0]):
+        soundfile.write(file="_tmp_wav/_zz_{}.wav".format(m), data=pred_wavs[0], samplerate=sample_rate)
+        print(m)
+
 
     from IPython import embed; embed(using=False); os._exit(0)
 
@@ -533,6 +743,11 @@ if __name__ == "__main__":
     parser_inference.add_argument('--config_yaml', type=str)
     parser_inference.add_argument("--checkpoint_path", type=str)
 
+    parser_sep2 = subparsers.add_parser("inference_sep2")
+    parser_sep2.add_argument('--workspace', type=str)
+    parser_sep2.add_argument('--config_yaml', type=str)
+    parser_sep2.add_argument("--checkpoint_path", type=str)
+
     args = parser.parse_args()
 
     if args.mode == "inference":
@@ -546,6 +761,9 @@ if __name__ == "__main__":
 
     elif args.mode == "inference_sep":
         inference_sep(args)
+
+    elif args.mode == "inference_sep2":
+        inference_sep2(args)
 
     else:
         raise Exception("Error argument!")
