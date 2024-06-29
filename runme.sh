@@ -48,8 +48,25 @@ python evaluate/dcase2019_task3.py write_loc_csv
 
 python evaluate/dcase2019_task3.py plot_panaroma
 
+#
+CUDA_VISIBLE_DEVICES=3 python sed/inference.py
+
+python evaluate/dcase2019_task3.py write_loc_csv_with_sed
+
+# Write segments and locs to classify
+python evaluate/dcase2019_task3.py panaroma_to_events
+
+CUDA_VISIBLE_DEVICES=0 python evaluate/dcase2019_task3.py segs_sep \
+	--workspace=$WORKSPACE \
+	--config_yaml="./scripts/configs/43b.yaml" \
+	--checkpoint_path="/home/qiuqiangkong/workspaces/nesd/checkpoints/train/43b/step=900000.pth"
+
+CUDA_VISIBLE_DEVICES=6 python evaluate/dcase2019_task3.py segs_classify
+
+
 python evaluate/d19t3_test.py
 
+##
 CUDA_VISIBLE_DEVICES=6 python evaluate/dcase2019_task3.py inference_distance \
 	--workspace=$WORKSPACE \
 	--config_yaml="./scripts/configs/31a.yaml" \
@@ -84,3 +101,9 @@ CUDA_VISIBLE_DEVICES=6 python evaluate/dcase2020_task3.py inference_sep \
 python nesd/train_old.py \
 	--workspace=$WORKSPACE \
 	--config_yaml="./scripts/configs/01a.yaml"
+
+
+##### SED
+CUDA_VISIBLE_DEVICES=2 python sed/train_d21t3.py
+
+CUDA_VISIBLE_DEVICES=3 python sed/inference_d21t3.py

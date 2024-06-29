@@ -34,8 +34,10 @@ LABELS = [
 
 LB_TO_ID = {lb: id for id, lb in enumerate(LABELS)}
 ID_TO_LB = {id: lb for id, lb in enumerate(LABELS)}
+LABELS_NUM = len(LABELS)
 
-SCALE = 1 
+SCALE = 1
+
 
 
 # split = "test"
@@ -50,6 +52,7 @@ if select == "1":
 
     panaromas_dir = Path(workspace, "results/dcase2019_task3/panaroma")
     panaroma_paths = [Path(panaromas_dir, "split0_1.pkl")]
+    sed_dir = Path(workspace, "results/dcase2019_task3/sed")
 
     pred_csvs_dir = Path(workspace, "results/dcase2019_task3/pred_csvs")
 
@@ -258,6 +261,8 @@ def inference(args):
         pickle.dump(pred_directions, open(pickle_path, "wb"))
         print("Write out to {}".format(pickle_path))
 
+        from IPython import embed; embed(using=False); os._exit(0)
+
         # soundfile.write(file="_zz.wav", data=audio.T, samplerate=sample_rate)
         # soundfile.write(file="_zz.wav", data=mic_wavs[0].T, samplerate=sample_rate)
 
@@ -370,6 +375,220 @@ def write_loc_csv(args):
         write_locss_to_csv(locss, class_ids, csv_path, grid_deg)
 
     return pred_tensor, locss
+
+
+def write_loc_csv_with_sed(args):
+
+    workspace = args.workspace
+    grid_deg = 2
+
+    # Calculate prediction center.
+    for panaroma_path in panaroma_paths:
+
+        csv_path = Path(pred_csvs_dir, "{}.csv".format(Path(panaroma_path).stem))
+
+        pana_tensor = pickle.load(open(panaroma_path, "rb"))
+        frames_num, azi_grids, ele_grids = pana_tensor.shape
+
+        sed_path = Path(sed_dir, "{}.pkl".format(Path(panaroma_path).stem))
+        sed_tensor = pickle.load(open(sed_path, "rb"))
+
+        params = []
+        for frame_index in range(frames_num):
+            # param = (frame_index, pred_tensor[frame_index], sed_mat[frame_index], grid_deg)
+            param = (frame_index, pana_tensor[frame_index], grid_deg)
+            params.append(param)
+
+        # No parallel is faster
+        results = []
+        for param in params:
+            result = _calculate_centers(param)
+            results.append(result)
+
+        # with ProcessPoolExecutor(max_workers=None) as pool: # Maximum workers on the machine.
+        #     results = pool.map(_calculate_centers, params)
+
+        locss = list(results)
+        list_buffers = []
+
+        bgn = 0
+        segment_frames = 20
+
+        while bgn < pana_tensor.shape[0]:
+            # tmp1 = pana_tensor[bgn : bgn + segment_frames]
+            # tmp2 = sed_tensor[bgn : bgn + segment_frames]
+            locss_part = locss[bgn : bgn + segment_frames]
+            sed_part = sed_tensor[bgn : bgn + segment_frames]
+
+            buffer = grouping(locss_part, bgn)
+
+            for key, data in buffer.items():
+
+                tmp = np.mean(sed_tensor[np.array(data["frame_index"])], axis=0)
+                # todo IOU max
+
+                max_k = np.argmax(tmp)
+                buffer[key]["class_index"] = max_k
+
+            list_buffers.append(buffer)
+            bgn += segment_frames
+
+        write_list_buffers_to_csv(list_buffers, csv_path, grid_deg)
+        # print("Write out to {}".format(csv_path))
+
+        from IPython import embed; embed(using=False); os._exit(0)
+
+    # return pred_tensor, locss
+
+
+def grouping(part_locss, start_frame):
+
+    # tmp = {}
+    all_events = {}
+    buffer = {}
+    event_id = 0
+
+    for i in range(len(part_locss)):
+
+        curr_locs = part_locss[i]
+
+        for curr_loc in curr_locs:
+
+            curr_loc_pos = sph2cart(azimuth=curr_loc[0], elevation=curr_loc[1], r=1.)
+
+            new_event = True
+
+            for key, data in buffer.items():
+
+                if data["frame_index"][-1] == i - 1:
+
+                    _loc = data["loc"][-1]
+                    _loc_pos = sph2cart(azimuth=_loc[0], elevation=_loc[1], r=1.)
+
+                    included_angle = np.rad2deg(get_included_angle(curr_loc_pos, _loc_pos))
+                    if included_angle < 10.:
+                        buffer[key]["frame_index"].append(start_frame + i)
+                        buffer[key]["loc"].append(curr_loc)
+                        new_event = False
+                        break
+
+            if new_event:
+                buffer[event_id] = {"frame_index": [start_frame + i], "loc": [curr_loc]}
+                event_id += 1
+
+    return buffer
+
+
+def panaroma_to_events(args):
+
+    workspace = args.workspace
+    sample_rate = 24000
+    grid_deg = 2
+
+    # Calculate prediction center.
+    for name_idx, panaroma_path in enumerate(panaroma_paths):
+
+        csv_path = Path(pred_csvs_dir, "{}.csv".format(Path(panaroma_path).stem))
+
+        pana_tensor = pickle.load(open(panaroma_path, "rb"))
+        frames_num, azi_grids, ele_grids = pana_tensor.shape
+
+        params = []
+        for frame_index in range(frames_num):
+            # param = (frame_index, pred_tensor[frame_index], sed_mat[frame_index], grid_deg)
+            param = (frame_index, pana_tensor[frame_index], grid_deg)
+            params.append(param)
+
+        # No parallel is faster
+        results = []
+        for param in params:
+            result = _calculate_centers(param)
+            results.append(result)
+
+        # with ProcessPoolExecutor(max_workers=None) as pool: # Maximum workers on the machine.
+        #     results = pool.map(_calculate_centers, params)
+
+        locss = list(results)
+
+        bgn = 0
+        buffer = grouping(locss, bgn)
+
+        # 
+        new_buffer = {}
+
+        for key in buffer.keys():
+            if len(buffer[key]["frame_index"]) > 2:
+                new_buffer[key] = buffer[key]
+
+        buffer = new_buffer
+
+        #
+        audio_path = audio_paths[name_idx]
+        audio, fs = librosa.load(path=audio_path, sr=sample_rate, mono=False)
+        # audio_samples = audio.shape[-1]
+
+        segments_dir = "_tmp_segments/{}".format(panaroma_path.stem)
+        Path(segments_dir).mkdir(parents=True, exist_ok=True)
+
+        # 
+        for key in buffer.keys():
+
+            frame_indexes = buffer[key]["frame_index"]
+            locs = np.repeat(np.stack(buffer[key]["loc"], axis=0), repeats=10, axis=0)
+            locs = np.concatenate((locs, locs[-1:]), axis=0)
+            
+            bgn_sec = frame_indexes[0] / 10
+            end_sec = (frame_indexes[-1] + 1) / 10
+            bgn_sample = round(bgn_sec * sample_rate)
+            end_sample = round(end_sec * sample_rate)
+            segment = audio[:, bgn_sample : end_sample]
+            segment = librosa.util.fix_length(data=segment, size=end_sample - bgn_sample, axis=-1)
+            # print(bgn_sec, end_sec, segment.shape)
+            
+            out_segment_path = Path(segments_dir, "{}_{}s_{}s.wav".format(panaroma_path.stem, bgn_sec, end_sec))
+            out_loc_path = Path(segments_dir, "{}_{}s_{}s.pkl".format(panaroma_path.stem, bgn_sec, end_sec))
+
+            soundfile.write(file=out_segment_path, data=segment.T, samplerate=sample_rate)
+            pickle.dump(locs, open(out_loc_path, "wb"))
+            print("Write out to {}".format(out_segment_path))
+            print("Write out to {}".format(out_loc_path))
+
+        from IPython import embed; embed(using=False); os._exit(0)
+
+
+        list_buffers = []
+
+
+
+        bgn = 0
+        segment_frames = 20
+
+        while bgn < pana_tensor.shape[0]:
+            # tmp1 = pana_tensor[bgn : bgn + segment_frames]
+            # tmp2 = sed_tensor[bgn : bgn + segment_frames]
+            locss_part = locss[bgn : bgn + segment_frames]
+            sed_part = sed_tensor[bgn : bgn + segment_frames]
+
+            buffer = grouping(locss_part, bgn)
+
+            for key, data in buffer.items():
+
+                tmp = np.mean(sed_tensor[np.array(data["frame_index"])], axis=0)
+                # todo IOU max
+
+                max_k = np.argmax(tmp)
+                buffer[key]["class_index"] = max_k
+
+            list_buffers.append(buffer)
+            bgn += segment_frames
+
+        write_list_buffers_to_csv(list_buffers, csv_path, grid_deg)
+        # print("Write out to {}".format(csv_path))
+
+        from IPython import embed; embed(using=False); os._exit(0)
+
+    # return pred_tensor, locss
+
 
 
 def plot_panaroma(args):
@@ -532,6 +751,32 @@ def _calculate_centers(param):
     return locs
 
 
+def _calculate_centers_with_sed(param):
+
+    frame_index, x, sed_array, grid_deg = param
+
+    print(frame_index)
+
+    tmp = np.stack(np.where(x > 0.8), axis=1)
+
+    if len(tmp) == 0:
+        return []
+    
+    for n_clusters in range(1, 10):
+        kmeans = KMeans(n_clusters=n_clusters, random_state=0, n_init="auto").fit(tmp)
+        distances = np.linalg.norm(tmp - kmeans.cluster_centers_[kmeans.labels_], axis=-1)
+        if np.mean(distances) < 5:
+            break
+    
+    locs = np.deg2rad(kmeans.cluster_centers_ * grid_deg) - np.array([math.pi, math.pi / 2])
+
+    # plt.matshow(x.T, origin='lower', aspect='auto', cmap='jet')
+    # plt.savefig("_zz.pdf")
+    # from IPython import embed; embed(using=False); os._exit(0)
+
+    return locs
+
+
 '''
 def _calculate_centers(param):
 
@@ -602,6 +847,42 @@ def write_locss_to_csv(locss, class_ids, csv_path, grid_deg):
                         int(np.around(ele, -1))
                     ))
 
+    print("Write out to {}".format(csv_path))
+
+
+def write_list_buffers_to_csv(list_buffers, csv_path, grid_deg):
+
+    Path(csv_path).parent.mkdir(parents=True, exist_ok=True)
+
+    tmp = []
+
+    for buffer in list_buffers:
+
+        for key, data in buffer.items():
+
+            for i in range(len(data["frame_index"])):
+
+                frame_index = data["frame_index"][i]
+                class_index = data["class_index"]
+                azi = np.rad2deg(data["loc"][i][0])
+                ele = np.rad2deg(data["loc"][i][1])
+                tmp.append((frame_index, class_index, azi, ele))
+        
+    with open(csv_path, 'w') as fw:
+
+        for i in range(len(tmp)):
+        
+            frame_index, class_index, azi, ele = tmp[i]
+
+            for j in range(5):
+                fw.write("{},{},{},{}\n".format(
+                    5 * frame_index + j, 
+                    class_index, 
+                    int(np.around(azi, -1)), 
+                    int(np.around(ele, -1))
+                ))
+
+    # from IPython import embed; embed(using=False); os._exit(0)
     print("Write out to {}".format(csv_path))
 
 
@@ -916,6 +1197,108 @@ def inference_sep(args):
     from IPython import embed; embed(using=False); os._exit(0)
 
 
+def segs_sep(args):
+
+    workspace = args.workspace
+    config_yaml = args.config_yaml
+    checkpoint_path = args.checkpoint_path
+    filename = Path(__file__).stem
+    
+    configs = read_yaml(config_yaml)
+
+    simulator_configs = configs["simulator_configs"]
+    sample_rate = simulator_configs["sample_rate"]
+    segment_seconds = simulator_configs["segment_seconds"]
+    frames_per_sec = simulator_configs["frames_per_sec"]
+    mics_meta = read_yaml(simulator_configs["mics_yaml"])
+    mics_num = len(mics_meta["mic_coordinates"])
+
+    device = configs["train"]["device"]
+    model_name = configs["train"]["model_name"]
+
+    segment_samples = int(segment_seconds * sample_rate)
+
+    # Load checkpoint
+    model = get_model(model_name, mics_num)
+    model.load_state_dict(torch.load(checkpoint_path))
+    model.to(device)
+
+    for audio_path in audio_paths:
+        segs_dir = "_tmp_segments/{}".format(audio_path.stem)
+
+        seg_paths = sorted(list(Path(segs_dir).glob("*.wav")))
+
+        for seg_path in seg_paths:
+            print(seg_path)
+
+            segment, fs = librosa.load(path=seg_path, sr=sample_rate, mono=False)
+
+            #
+            frames_num = segment.shape[-1] // 240 + 1
+            mics_center_pos = np.array([0, 0, 2])
+            mic_poss = get_mic_positions(mics_meta, frames_num)
+            mic_poss = mic_poss[None, :, :, :]
+
+            # Mic orientations
+            mic_oriens = get_mic_orientations(mics_meta, frames_num)
+            mic_oriens = mic_oriens[None, :, :, :]
+
+            rays_num = 1
+            agent_poss = np.repeat(mics_center_pos[None, None, None, :], repeats=frames_num, axis=2)
+            agent_poss = np.repeat(agent_poss, repeats=rays_num, axis=1)
+            # (1, rays_num, frames_num, 3)
+
+            agent_look_at_distances = np.ones((1, rays_num, frames_num)) * PAD
+            # (1, rays_num, frames_num)
+
+            agent_distance_masks = np.zeros((1, rays_num, frames_num))
+            # (1, rays_num, frames_num)
+
+            #
+            segments_dir = "/{}".format(seg_path.stem)
+            loc_path = Path("_tmp_segments", audio_path.stem, "{}.pkl".format(seg_path.stem))
+            locs = pickle.load(open(loc_path, "rb"))
+            
+            agent_look_at_directions = np.array(sph2cart(locs[:, 0], locs[:, 1], 1.))
+            agent_look_at_directions = agent_look_at_directions[None, None, :, :]
+
+            #
+            agent_detect_idxes = torch.Tensor(np.arange(0)[None, :])
+            agent_distance_idxes = torch.Tensor(np.arange(0)[None, :])
+            agent_sep_idxes = torch.Tensor(np.arange(rays_num)[None, :])
+
+            batch_data = {
+                "mic_wavs": segment[None, :, :],
+                "mic_positions": mic_poss,
+                "mic_orientations": mic_oriens,
+                "agent_positions": agent_poss,
+                "agent_look_at_directions": agent_look_at_directions,
+                "agent_look_at_distances": agent_look_at_distances,
+                "agent_distance_masks": agent_distance_masks,
+                "agent_detect_idxes": agent_detect_idxes,
+                "agent_distance_idxes": agent_distance_idxes,
+                "agent_sep_idxes": agent_sep_idxes
+            }
+            
+            for key in batch_data.keys():
+                batch_data[key] = torch.Tensor(batch_data[key]).to(device)
+
+            with torch.no_grad():
+                model.eval()
+                batch_output_dict = model(batch_data)
+
+            out_wav = batch_output_dict["agent_look_at_direction_reverb_wav"].data.cpu().numpy()[0, 0]
+
+            out_path = "_tmp_segments_results/{}/{}.wav".format(audio_path.stem, seg_path.stem)
+            Path(out_path).parent.mkdir(parents=True, exist_ok=True)
+            soundfile.write(file=out_path, data=out_wav, samplerate=sample_rate)
+            print("write out to {}".format(out_path))
+
+        from IPython import embed; embed(using=False); os._exit(0)
+
+
+
+
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="")
@@ -928,6 +1311,12 @@ if __name__ == "__main__":
 
     parser_write_loc_csv = subparsers.add_parser("write_loc_csv")
     parser_write_loc_csv.add_argument('--workspace', type=str)
+
+    parser_write_loc_csv_with_sed = subparsers.add_parser("write_loc_csv_with_sed")
+    parser_write_loc_csv_with_sed.add_argument('--workspace', type=str)
+
+    parser_panaroma_to_events = subparsers.add_parser("panaroma_to_events")
+    parser_panaroma_to_events.add_argument('--workspace', type=str)
 
     parser_plot_panaroma = subparsers.add_parser("plot_panaroma")
     parser_plot_panaroma.add_argument('--workspace', type=str)
@@ -942,6 +1331,11 @@ if __name__ == "__main__":
     parser_inference.add_argument('--config_yaml', type=str)
     parser_inference.add_argument("--checkpoint_path", type=str)
 
+    parser_segs_sep = subparsers.add_parser("segs_sep")
+    parser_segs_sep.add_argument('--workspace', type=str)
+    parser_segs_sep.add_argument('--config_yaml', type=str)
+    parser_segs_sep.add_argument("--checkpoint_path", type=str)
+
     args = parser.parse_args()
 
     if args.mode == "inference":
@@ -949,6 +1343,12 @@ if __name__ == "__main__":
 
     elif args.mode == "write_loc_csv":
         write_loc_csv(args)
+
+    elif args.mode == "write_loc_csv_with_sed":
+        write_loc_csv_with_sed(args)
+
+    elif args.mode == "panaroma_to_events":
+        panaroma_to_events(args)
 
     elif args.mode == "plot_panaroma":
         plot_panaroma(args)
@@ -958,6 +1358,12 @@ if __name__ == "__main__":
 
     elif args.mode == "inference_sep":
         inference_sep(args)
+
+    elif args.mode == "segs_sep":
+        segs_sep(args)
+
+    elif args.mode == "segs_classify":
+        segs_classify(args)
 
     else:
         raise Exception("Error argument!")

@@ -30,7 +30,7 @@ def get_nb_files(_pred_file_list, _group='split'):
 # pred_output_format_files = "/home/qiuqiangkong/workspaces/nesd/results/dcase2019_task3/pred_csvs"
 
 ref_desc_files = "./tmp_gt/d19t3_metadata_eval"
-pred_output_format_files = "/home/qiuqiangkong/workspaces/nesd/results/dcase2019_task3/pred_csvs_1"
+pred_output_format_files = "/home/qiuqiangkong/workspaces/nesd/results/dcase2019_task3/pred_csvs"
 
 # Load feature class
 feat_cls = cls_feature_class.FeatureClass()

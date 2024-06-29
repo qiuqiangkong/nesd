@@ -61,10 +61,10 @@ elif select == "2":
     audios_dir = Path(dataset_dir, "mic_eval")
     audio_paths = sorted(list(Path(audios_dir).glob("*.wav")))
 
-    panaromas_dir = Path(workspace, "results/dcase2020_task3/panaroma")
+    panaromas_dir = Path(workspace, "results/dcase2022_task3/panaroma")
     panaroma_paths = sorted(list(Path(panaromas_dir).glob("*.pkl")))
 
-    pred_csvs_dir = Path(workspace, "results/dcase2020_task3/pred_csvs")
+    pred_csvs_dir = Path(workspace, "results/dcase2022_task3/pred_csvs")
 
 
 def inference(args):
@@ -374,7 +374,7 @@ def inference_sep(args):
     segment_samples = int(segment_seconds * sample_rate)
     frames_num = int(segment_seconds * frames_per_sec) + 1
 
-    frame_indexes, class_indexes, azimuths, elevations, distances = read_dcase2020_task3_csv(csv_path=csv_path)
+    frame_indexes, class_indexes, azimuths, elevations, distances = read_dcase2020_task3_csv(csv_path=gt_csv_path)
 
     # Load checkpoint
     model = get_model(model_name, mics_num)
@@ -382,7 +382,7 @@ def inference_sep(args):
     model.to(device)
 
     # Load audio
-    audio, fs = librosa.load(path=audio_path, sr=sample_rate, mono=False)
+    audio, fs = librosa.load(path=audio_paths[0], sr=sample_rate, mono=False)
     audio_samples = audio.shape[-1]
 
     audio *= SCALE 
@@ -505,7 +505,9 @@ def inference_sep(args):
 
     pred_wavs = np.concatenate(pred_wavs, axis=-1)
     for i in range(pred_wavs.shape[0]):
-        soundfile.write(file="_zz_{}.wav".format(i), data=pred_wavs[i], samplerate=sample_rate)
+        audio_path = "_zz_{}.wav".format(i)
+        soundfile.write(file=audio_path, data=pred_wavs[i], samplerate=sample_rate)
+        print(audio_path)
 
     from IPython import embed; embed(using=False); os._exit(0)
 

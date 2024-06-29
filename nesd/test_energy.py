@@ -9,9 +9,9 @@ def add():
     sample_rate = 24000
     segment_samples = 24000 * 2
 
-    audios_dir = "/home/qiuqiangkong/workspaces/nesd/audios/tau_noise/train"
+    # audios_dir = "/home/qiuqiangkong/workspaces/nesd/audios/tau_noise/train"
     # audios_dir = "/home/qiuqiangkong/workspaces/nesd/audios/vctk_2s_segments/train"
-    # audios_dir = "/datasets/dcase2019/task3/mic_dev"
+    audios_dir = "/datasets/dcase2019/task3/mic_dev"
 
     audio_paths = sorted(list(Path(audios_dir).glob("*.wav")))
 

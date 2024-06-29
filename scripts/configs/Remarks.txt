@@ -90,4 +90,5 @@ old_01b.yaml	old dataloader, Nesd6, add noise
 45a.yaml	linear AngleEncoder2, 10 det rays
 45b.yaml	linear AngleEncoder2, sep, 10 det rays, worse than 10 rays, not as good as 43b
 
-46a.yaml	the same as 43b
+46a.yaml	noise to 40 dB
+46b.yaml	noise to 40 dB, sep
