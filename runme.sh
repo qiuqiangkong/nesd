@@ -38,35 +38,40 @@ python nesd/inference.py inference \
 	--config_yaml="./scripts/configs/01a.yaml" \
 	--checkpoint_path="/home/qiuqiangkong/workspaces/nesd/checkpoints/NeSD/step=100000.pth"
 	
-# evaluate dcase2019
+### --- evaluate dcase2019 ---
 CUDA_VISIBLE_DEVICES=6 python evaluate/dcase2019_task3.py inference \
 	--workspace=$WORKSPACE \
 	--config_yaml="./scripts/configs/31a.yaml" \
 	--checkpoint_path="/home/qiuqiangkong/workspaces/nesd/checkpoints/train/31a/step=300000.pth"
 
-python evaluate/dcase2019_task3.py write_loc_csv
+# python evaluate/dcase2019_task3.py write_loc_csv
+# python evaluate/dcase2019_task3.py write_loc_csv_with_sed
 
+# optional
 python evaluate/dcase2019_task3.py plot_panaroma
-
-#
-CUDA_VISIBLE_DEVICES=3 python sed/inference.py
-
-python evaluate/dcase2019_task3.py write_loc_csv_with_sed
 
 # Write segments and locs to classify
 python evaluate/dcase2019_task3.py panaroma_to_events
+
+CUDA_VISIBLE_DEVICES=3 python sed/inference_d19t3.py inference --model_name=CRnn2
 
 CUDA_VISIBLE_DEVICES=0 python evaluate/dcase2019_task3.py segs_sep \
 	--workspace=$WORKSPACE \
 	--config_yaml="./scripts/configs/43b.yaml" \
 	--checkpoint_path="/home/qiuqiangkong/workspaces/nesd/checkpoints/train/43b/step=900000.pth"
 
-CUDA_VISIBLE_DEVICES=6 python evaluate/dcase2019_task3.py segs_classify
+CUDA_VISIBLE_DEVICES=0 python evaluate/dcase2019_task3.py segs_distance \
+	--workspace=$WORKSPACE \
+	--config_yaml="./scripts/configs/43b.yaml" \
+	--checkpoint_path="/home/qiuqiangkong/workspaces/nesd/checkpoints/train/43b/step=900000.pth"
 
+CUDA_VISIBLE_DEVICES=3 python sed/inference_d19t3.py inference_many --model_name=CRnn2
+
+python evaluate/dcase2019_task3.py combine_results
 
 python evaluate/d19t3_test.py
 
-##
+###
 CUDA_VISIBLE_DEVICES=6 python evaluate/dcase2019_task3.py inference_distance \
 	--workspace=$WORKSPACE \
 	--config_yaml="./scripts/configs/31a.yaml" \
@@ -104,6 +109,6 @@ python nesd/train_old.py \
 
 
 ##### SED
-CUDA_VISIBLE_DEVICES=2 python sed/train_d21t3.py
+CUDA_VISIBLE_DEVICES=2 python sed/train_d19t3.py
 
-CUDA_VISIBLE_DEVICES=3 python sed/inference_d21t3.py
+
