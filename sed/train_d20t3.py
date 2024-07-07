@@ -18,10 +18,8 @@ import wandb
 import torch
 import torch.nn.functional as F
 
-# from nesd.evaluate.dcase2019_task3 import LABELS, LABELS_NUM, LB_TO_ID, ID_TO_LB
+from sed.train_d19t3 import get_model, Sampler, play_audio, bce_loss
 
-# from data.tokenizers import Tokenizer
-# from losses import regress_onset_offset_frame_velocity_bce, regress_onset_offset_frame_velocity_bce2
 
 LABELS = [
     "alarm",
@@ -59,7 +57,7 @@ def train(args):
     training_steps = 100000
     debug = False
     filename = Path(__file__).stem
-    segment_seconds = 4.
+    segment_seconds = 2.
     sample_rate = 24000
     wandb_log = False
 
@@ -152,50 +150,10 @@ def train(args):
             break
 
 
-def get_model(model_name, classes_num):
-    if model_name == "Cnn":
-        return Cnn(classes_num=classes_num)
-    elif model_name == "CRnn":
-        return CRnn(classes_num=classes_num)
-    else:
-        raise NotImplementedError
-
-
-class Sampler:
-    def __init__(self, dataset_size):
-        self.indexes = list(range(dataset_size))
-        random.shuffle(self.indexes)
-        
-    def __iter__(self):
-
-        pointer = 0
-
-        while True:
-
-            if pointer == len(self.indexes):
-                random.shuffle(self.indexes)
-                pointer = 0
-                
-            index = self.indexes[pointer]
-            pointer += 1
-
-            yield index
-
-
-def bce_loss(output, target):
-    return F.binary_cross_entropy(output, target)
-
-
-def play_audio(mixture, target):
-    soundfile.write(file="tmp_mixture.wav", data=mixture[0].cpu().numpy().T, samplerate=44100)
-    soundfile.write(file="tmp_target.wav", data=target[0].cpu().numpy().T, samplerate=44100)
-    from IPython import embed; embed(using=False); os._exit(0)
-
-
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('--model_name', type=str, default="Cnn")
+    parser.add_argument('--model_name', type=str, required=True)
     args = parser.parse_args()
 
     train(args)

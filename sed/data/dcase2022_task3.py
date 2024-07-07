@@ -31,13 +31,11 @@ class DCASE2022Task3:
 
         self.frames_per_sec = 100
 
-        # if split == "train":
         audios_dir1 = Path(self.root, "mic_dev", "dev-{}-sony".format(split))
         audios_dir2 = Path(self.root, "mic_dev", "dev-{}-tau".format(split))
 
         self.metas_dir1 = Path(self.root, "metadata_dev", "dev-{}-sony".format(split))
         self.metas_dir2 = Path(self.root, "metadata_dev", "dev-{}-tau".format(split))
-
 
         self.audio_paths = sorted(
             list(Path(audios_dir1).glob("*.wav")) + list(Path(audios_dir2).glob("*.wav"))

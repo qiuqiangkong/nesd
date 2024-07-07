@@ -130,7 +130,6 @@ class ComputeSELDResults(object):
                 pred_labels = self._feat_cls.organize_labels(pred_dict, self._ref_labels[pred_file][1])
                 # pred_labels[frame-index][class-index][track-index] := [azimuth, elevation]
             # Calculated scores
-            # from IPython import embed; embed(using=False); os._exit(0)
             eval.update_seld_scores(pred_labels, self._ref_labels[pred_file][0], eval_dist=self.evaluate_distance)
             if is_jackknife:
                 pred_labels_dict[pred_file] = pred_labels
@@ -270,11 +269,13 @@ def reshape_3Dto2D(A):
 
 if __name__ == "__main__":
     # pred_output_format_files = 'Submissions/Task_A/Politis_TAU_task3a_1/Politis_TAU_task3a_1'  # Path of the DCASEoutput format files
-
+    
+    # pred_output_format_files = "/home/qiuqiangkong/workspaces/nesd/results/dcase2024_task3/pred_csvs"
     pred_output_format_files = "/home/qiuqiangkong/workspaces/nesd/results/dcase2024_task3/pred_csvs"
     ref_files_folder = "/datasets/dcase2023/task3/metadata_dev"
 
-    evaluate_distance = False
+    # evaluate_distance = False
+    evaluate_distance = True
 
     params = parameters.get_params()
     # Compute just the DCASE final results
@@ -313,9 +314,9 @@ if __name__ == "__main__":
                 # from IPython import embed; embed(using=False); os._exit(0)
                 print('{}\t{:0.2f} {}\t{:0.2f} {}\t{:0.2f} {}\t{:0.2f} {}\t{:0.2f} {}\t{:0.2f} {}\t{:0.2f} {}'.format(
                     cls_cnt,
-                    #classwise_test_scr[0][0][cls_cnt] if use_jackknife else classwise_test_scr[0][cls_cnt],
-                    #'[{:0.2f}, {:0.2f}]'.format(classwise_test_scr[1][0][cls_cnt][0],
-                    #                            classwise_test_scr[1][0][cls_cnt][1]) if use_jackknife else '',
+                    classwise_test_scr[0][0][cls_cnt] if use_jackknife else classwise_test_scr[0][cls_cnt],
+                    '[{:0.2f}, {:0.2f}]'.format(classwise_test_scr[1][0][cls_cnt][0],
+                                               classwise_test_scr[1][0][cls_cnt][1]) if use_jackknife else '',
                     classwise_test_scr[0][1][cls_cnt] if use_jackknife else classwise_test_scr[1][cls_cnt],
                     '[{:0.2f}, {:0.2f}]'.format(classwise_test_scr[1][1][cls_cnt][0],
                                                 classwise_test_scr[1][1][cls_cnt][1]) if use_jackknife else '',
@@ -328,9 +329,9 @@ if __name__ == "__main__":
                     classwise_test_scr[0][4][cls_cnt] if use_jackknife else classwise_test_scr[4][cls_cnt],
                     '[{:0.2f}, {:0.2f}]'.format(classwise_test_scr[1][4][cls_cnt][0],
                                                 classwise_test_scr[1][4][cls_cnt][1]) if use_jackknife else '',
-                    #classwise_test_scr[0][5][cls_cnt] if use_jackknife else classwise_test_scr[5][cls_cnt],
-                    #'[{:0.2f}, {:0.2f}]'.format(classwise_test_scr[1][5][cls_cnt][0],
-                    #                            classwise_test_scr[1][5][cls_cnt][1]) if use_jackknife else '',
+                    classwise_test_scr[0][5][cls_cnt] if use_jackknife else classwise_test_scr[5][cls_cnt],
+                    '[{:0.2f}, {:0.2f}]'.format(classwise_test_scr[1][5][cls_cnt][0],
+                                               classwise_test_scr[1][5][cls_cnt][1]) if use_jackknife else '',
                     classwise_test_scr[0][6][cls_cnt] if use_jackknife else classwise_test_scr[6][cls_cnt],
                     '[{:0.2f}, {:0.2f}]'.format(classwise_test_scr[1][6][cls_cnt][0],
                                                 classwise_test_scr[1][6][cls_cnt][1]) if use_jackknife else ''))

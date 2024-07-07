@@ -57,8 +57,9 @@ class DCASE2019Task3:
         # Load audio.
         audio = self.load_audio(audio_path, segment_start_time)
 
-        targets = self.load_targets(meta_path, segment_start_time)
-
+        max_frames_num = round(duration * self.frames_per_sec) + 100
+        targets = self.load_targets(meta_path, max_frames_num, segment_start_time)
+        
         data = {
             "audio": audio,
             "target": targets
@@ -93,18 +94,15 @@ class DCASE2019Task3:
 
         return audio
 
-    def load_targets(self, meta_path, segment_start_time):
+    def load_targets(self, meta_path, max_frames_num, segment_start_time):
 
         start_frame = round(segment_start_time * self.frames_per_sec)
         segment_frames = int(self.segment_seconds * self.frames_per_sec)
         end_frame = start_frame + segment_frames
 
-        max_frames_num = end_frame + 100
         targets = read_dcase2019_task3_csv(meta_path, self.frames_per_sec, max_frames_num, self.lb_to_id)
 
         tmp = targets[start_frame : end_frame + 1, :]
-
-        # print(targets.shape, start_frame, end_frame, tmp.shape)
 
         return tmp
 

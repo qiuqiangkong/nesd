@@ -38,11 +38,18 @@ python nesd/inference.py inference \
 	--config_yaml="./scripts/configs/01a.yaml" \
 	--checkpoint_path="/home/qiuqiangkong/workspaces/nesd/checkpoints/NeSD/step=100000.pth"
 	
+###### SED ######
+CUDA_VISIBLE_DEVICES=2 python sed/train_d19t3.py --model_name=CRnn1b
+CUDA_VISIBLE_DEVICES=2 python sed/train_d20t3.py --model_name=CRnn1b
+CUDA_VISIBLE_DEVICES=2 python sed/train_d21t3.py --model_name=CRnn1b
+CUDA_VISIBLE_DEVICES=3 python sed/train_d22t3.py --model_name=CRnn1b
+CUDA_VISIBLE_DEVICES=1 python sed/train_d23t3.py --model_name=CRnn1b
+
 ### --- evaluate dcase2019 ---
-CUDA_VISIBLE_DEVICES=6 python evaluate/dcase2019_task3.py inference \
+CUDA_VISIBLE_DEVICES=0 python evaluate/dcase2019_task3.py inference \
 	--workspace=$WORKSPACE \
-	--config_yaml="./scripts/configs/31a.yaml" \
-	--checkpoint_path="/home/qiuqiangkong/workspaces/nesd/checkpoints/train/31a/step=300000.pth"
+	--config_yaml="./scripts/configs/43b.yaml" \
+	--checkpoint_path="/home/qiuqiangkong/workspaces/nesd/checkpoints/train/43b/step=900000.pth"
 
 # python evaluate/dcase2019_task3.py write_loc_csv
 # python evaluate/dcase2019_task3.py write_loc_csv_with_sed
@@ -53,7 +60,7 @@ python evaluate/dcase2019_task3.py plot_panaroma
 # Write segments and locs to classify
 python evaluate/dcase2019_task3.py panaroma_to_events
 
-CUDA_VISIBLE_DEVICES=3 python sed/inference_d19t3.py inference --model_name=CRnn2
+CUDA_VISIBLE_DEVICES=3 python sed/inference_d19t3.py inference --model_name=CRnn1b
 
 CUDA_VISIBLE_DEVICES=0 python evaluate/dcase2019_task3.py segs_sep \
 	--workspace=$WORKSPACE \
@@ -65,50 +72,234 @@ CUDA_VISIBLE_DEVICES=0 python evaluate/dcase2019_task3.py segs_distance \
 	--config_yaml="./scripts/configs/43b.yaml" \
 	--checkpoint_path="/home/qiuqiangkong/workspaces/nesd/checkpoints/train/43b/step=900000.pth"
 
-CUDA_VISIBLE_DEVICES=3 python sed/inference_d19t3.py inference_many --model_name=CRnn2
+CUDA_VISIBLE_DEVICES=3 python sed/inference_d19t3.py inference_many --model_name=CRnn1b
 
 python evaluate/dcase2019_task3.py combine_results
 
 python evaluate/d19t3_test.py
 
-###
-CUDA_VISIBLE_DEVICES=6 python evaluate/dcase2019_task3.py inference_distance \
-	--workspace=$WORKSPACE \
-	--config_yaml="./scripts/configs/31a.yaml" \
-	--checkpoint_path="/home/qiuqiangkong/workspaces/nesd/checkpoints/train/31a/step=300000.pth"
 
-CUDA_VISIBLE_DEVICES=6 python evaluate/dcase2019_task3.py inference_sep \
+### New!! --- evaluate dcase2019 ---
+CUDA_VISIBLE_DEVICES=0 python evaluate/dcase2019_task3.py inference \
 	--workspace=$WORKSPACE \
-	--config_yaml="./scripts/configs/31a.yaml" \
-	--checkpoint_path="/home/qiuqiangkong/workspaces/nesd/checkpoints/train/31a/step=300000.pth"
+	--config_yaml="./scripts/configs/43b.yaml" \
+	--checkpoint_path="/home/qiuqiangkong/workspaces/nesd/checkpoints/train/43b/step=900000.pth"
 
-# evaluate dcase2020, no distance in the labels.
-CUDA_VISIBLE_DEVICES=6 python evaluate/dcase2020_task3.py inference \
+# python evaluate/dcase2019_task3.py write_loc_csv
+# python evaluate/dcase2019_task3.py write_loc_csv_with_sed
+
+# optional
+python evaluate/dcase2019_task3.py plot_panaroma
+
+# Write segments and locs to classify
+python evaluate/dcase2019_task3.py panaroma_to_events
+
+CUDA_VISIBLE_DEVICES=3 python sed/inference_d19t3.py inference --model_name=CRnn1b
+
+CUDA_VISIBLE_DEVICES=0 python evaluate/dcase2019_task3.py segs_sep \
 	--workspace=$WORKSPACE \
-	--config_yaml="./scripts/configs/31a.yaml" \
-	--checkpoint_path="/home/qiuqiangkong/workspaces/nesd/checkpoints/train/31a/step=300000.pth"
+	--config_yaml="./scripts/configs/43b.yaml" \
+	--checkpoint_path="/home/qiuqiangkong/workspaces/nesd/checkpoints/train/43b/step=900000.pth"
+
+CUDA_VISIBLE_DEVICES=0 python evaluate/dcase2019_task3.py segs_distance \
+	--workspace=$WORKSPACE \
+	--config_yaml="./scripts/configs/43b.yaml" \
+	--checkpoint_path="/home/qiuqiangkong/workspaces/nesd/checkpoints/train/43b/step=900000.pth"
+
+CUDA_VISIBLE_DEVICES=3 python sed/inference_d19t3.py inference_many --model_name=CRnn1b
+
+python evaluate/dcase2019_task3.py combine_results
+
+python evaluate/d19t3_test.py
+
+### --- evaluate dcase2020 ---
+CUDA_VISIBLE_DEVICES=0 python evaluate/dcase2020_task3.py inference \
+	--workspace=$WORKSPACE \
+	--config_yaml="./scripts/configs/43b.yaml" \
+	--checkpoint_path="/home/qiuqiangkong/workspaces/nesd/checkpoints/train/43b/step=900000.pth"
+
+# optional
+python evaluate/dcase2020_task3.py plot_panaroma
+
+# Write segments and locs to classify
+python evaluate/dcase2020_task3.py panaroma_to_events
+
+CUDA_VISIBLE_DEVICES=0 python sed/inference_d20t3.py inference --model_name=CRnn1b
+
+CUDA_VISIBLE_DEVICES=0 python evaluate/dcase2020_task3.py segs_sep \
+	--workspace=$WORKSPACE \
+	--config_yaml="./scripts/configs/43b.yaml" \
+	--checkpoint_path="/home/qiuqiangkong/workspaces/nesd/checkpoints/train/43b/step=900000.pth"
+
+CUDA_VISIBLE_DEVICES=0 python evaluate/dcase2020_task3.py segs_distance \
+	--workspace=$WORKSPACE \
+	--config_yaml="./scripts/configs/43b.yaml" \
+	--checkpoint_path="/home/qiuqiangkong/workspaces/nesd/checkpoints/train/43b/step=900000.pth"
+
+CUDA_VISIBLE_DEVICES=0 python sed/inference_d20t3.py inference_many --model_name=CRnn1b
+
+python evaluate/dcase2020_task3.py combine_results
+
+python evaluate/d20t3_test.py
+
+### --- evaluate dcase2021 ---
+CUDA_VISIBLE_DEVICES=0 python evaluate/dcase2021_task3.py inference \
+	--workspace=$WORKSPACE \
+	--config_yaml="./scripts/configs/43b.yaml" \
+	--checkpoint_path="/home/qiuqiangkong/workspaces/nesd/checkpoints/train/43b/step=900000.pth"
+
+# optional
+python evaluate/dcase2021_task3.py plot_panaroma
+
+# Write segments and locs to classify
+python evaluate/dcase2021_task3.py panaroma_to_events
+
+CUDA_VISIBLE_DEVICES=3 python sed/inference_d21t3.py inference --model_name=CRnn1b
+
+CUDA_VISIBLE_DEVICES=0 python evaluate/dcase2021_task3.py segs_sep \
+	--workspace=$WORKSPACE \
+	--config_yaml="./scripts/configs/43b.yaml" \
+	--checkpoint_path="/home/qiuqiangkong/workspaces/nesd/checkpoints/train/43b/step=900000.pth"
+
+CUDA_VISIBLE_DEVICES=0 python evaluate/dcase2021_task3.py segs_distance \
+	--workspace=$WORKSPACE \
+	--config_yaml="./scripts/configs/43b.yaml" \
+	--checkpoint_path="/home/qiuqiangkong/workspaces/nesd/checkpoints/train/43b/step=900000.pth"
+
+CUDA_VISIBLE_DEVICES=3 python sed/inference_d21t3.py inference_many --model_name=CRnn1b
+
+python evaluate/dcase2021_task3.py combine_results
+
+python evaluate/d21t3_test.py
+
+### --- evaluate dcase2022 ---
+CUDA_VISIBLE_DEVICES=0 python evaluate/dcase2022_task3.py inference \
+	--workspace=$WORKSPACE \
+	--config_yaml="./scripts/configs/43b.yaml" \
+	--checkpoint_path="/home/qiuqiangkong/workspaces/nesd/checkpoints/train/43b/step=900000.pth"
+
+# optional
+python evaluate/dcase2022_task3.py plot_panaroma
+
+# Write segments and locs to classify
+python evaluate/dcase2022_task3.py panaroma_to_events
+
+CUDA_VISIBLE_DEVICES=3 python sed/inference_d22t3.py inference --model_name=CRnn1b
+
+CUDA_VISIBLE_DEVICES=0 python evaluate/dcase2022_task3.py segs_sep \
+	--workspace=$WORKSPACE \
+	--config_yaml="./scripts/configs/43b.yaml" \
+	--checkpoint_path="/home/qiuqiangkong/workspaces/nesd/checkpoints/train/43b/step=900000.pth"
+
+CUDA_VISIBLE_DEVICES=0 python evaluate/dcase2022_task3.py segs_distance \
+	--workspace=$WORKSPACE \
+	--config_yaml="./scripts/configs/43b.yaml" \
+	--checkpoint_path="/home/qiuqiangkong/workspaces/nesd/checkpoints/train/43b/step=900000.pth"
+
+CUDA_VISIBLE_DEVICES=3 python sed/inference_d22t3.py inference_many --model_name=CRnn1b
+
+python evaluate/dcase2022_task3.py combine_results
+
+python evaluate/d22t3_test.py
+
+### --- evaluate dcase2023 ---
+CUDA_VISIBLE_DEVICES=0 python evaluate/dcase2023_task3.py inference \
+	--workspace=$WORKSPACE \
+	--config_yaml="./scripts/configs/43b.yaml" \
+	--checkpoint_path="/home/qiuqiangkong/workspaces/nesd/checkpoints/train/43b/step=900000.pth"
+
+# optional
+python evaluate/dcase2023_task3.py plot_panaroma
+
+# Write segments and locs to classify
+python evaluate/dcase2023_task3.py panaroma_to_events
+
+CUDA_VISIBLE_DEVICES=3 python sed/inference_d23t3.py inference --model_name=CRnn1b
+
+CUDA_VISIBLE_DEVICES=0 python evaluate/dcase2023_task3.py segs_sep \
+	--workspace=$WORKSPACE \
+	--config_yaml="./scripts/configs/43b.yaml" \
+	--checkpoint_path="/home/qiuqiangkong/workspaces/nesd/checkpoints/train/43b/step=900000.pth"
+
+CUDA_VISIBLE_DEVICES=0 python evaluate/dcase2023_task3.py segs_distance \
+	--workspace=$WORKSPACE \
+	--config_yaml="./scripts/configs/43b.yaml" \
+	--checkpoint_path="/home/qiuqiangkong/workspaces/nesd/checkpoints/train/43b/step=900000.pth"
+
+CUDA_VISIBLE_DEVICES=3 python sed/inference_d23t3.py inference_many --model_name=CRnn1b
+
+python evaluate/dcase2023_task3.py combine_results
+
+python evaluate/d23t3_test.py
+
+### --- evaluate dcase2024 ---
+CUDA_VISIBLE_DEVICES=0 python evaluate/dcase2024_task3.py inference \
+	--workspace=$WORKSPACE \
+	--config_yaml="./scripts/configs/43b.yaml" \
+	--checkpoint_path="/home/qiuqiangkong/workspaces/nesd/checkpoints/train/43b/step=900000.pth"
+
+# optional
+python evaluate/dcase2024_task3.py plot_panaroma
+
+# Write segments and locs to classify
+python evaluate/dcase2024_task3.py panaroma_to_events
+
+CUDA_VISIBLE_DEVICES=3 python sed/inference_d24t3.py inference --model_name=CRnn1b
+
+CUDA_VISIBLE_DEVICES=0 python evaluate/dcase2024_task3.py segs_sep \
+	--workspace=$WORKSPACE \
+	--config_yaml="./scripts/configs/43b.yaml" \
+	--checkpoint_path="/home/qiuqiangkong/workspaces/nesd/checkpoints/train/43b/step=900000.pth"
+
+CUDA_VISIBLE_DEVICES=0 python evaluate/dcase2024_task3.py segs_distance \
+	--workspace=$WORKSPACE \
+	--config_yaml="./scripts/configs/43b.yaml" \
+	--checkpoint_path="/home/qiuqiangkong/workspaces/nesd/checkpoints/train/43b/step=900000.pth"
+
+CUDA_VISIBLE_DEVICES=3 python sed/inference_d24t3.py inference_many --model_name=CRnn1b
+
+python evaluate/dcase2024_task3.py combine_results
+
+python evaluate/d24t3_test.py
+
+
+# ###
+# CUDA_VISIBLE_DEVICES=6 python evaluate/dcase2019_task3.py inference_distance \
+# 	--workspace=$WORKSPACE \
+# 	--config_yaml="./scripts/configs/31a.yaml" \
+# 	--checkpoint_path="/home/qiuqiangkong/workspaces/nesd/checkpoints/train/31a/step=300000.pth"
+
+# CUDA_VISIBLE_DEVICES=6 python evaluate/dcase2019_task3.py inference_sep \
+# 	--workspace=$WORKSPACE \
+# 	--config_yaml="./scripts/configs/31a.yaml" \
+# 	--checkpoint_path="/home/qiuqiangkong/workspaces/nesd/checkpoints/train/31a/step=300000.pth"
+
+# # evaluate dcase2020, no distance in the labels.
+# CUDA_VISIBLE_DEVICES=6 python evaluate/dcase2020_task3.py inference \
+# 	--workspace=$WORKSPACE \
+# 	--config_yaml="./scripts/configs/31a.yaml" \
+# 	--checkpoint_path="/home/qiuqiangkong/workspaces/nesd/checkpoints/train/31a/step=300000.pth"
 	
-python evaluate/dcase2020_task3.py plot_panaroma \
-	--workspace=$WORKSPACE
+# python evaluate/dcase2020_task3.py plot_panaroma \
+# 	--workspace=$WORKSPACE
 
-CUDA_VISIBLE_DEVICES=6 python evaluate/dcase2020_task3.py inference_depth \
-	--workspace=$WORKSPACE \
-	--config_yaml="./scripts/configs/31a.yaml" \
-	--checkpoint_path="/home/qiuqiangkong/workspaces/nesd/checkpoints/train/31a/step=300000.pth"
+# CUDA_VISIBLE_DEVICES=6 python evaluate/dcase2020_task3.py inference_depth \
+# 	--workspace=$WORKSPACE \
+# 	--config_yaml="./scripts/configs/31a.yaml" \
+# 	--checkpoint_path="/home/qiuqiangkong/workspaces/nesd/checkpoints/train/31a/step=300000.pth"
 
-CUDA_VISIBLE_DEVICES=6 python evaluate/dcase2020_task3.py inference_sep \
-	--workspace=$WORKSPACE \
-	--config_yaml="./scripts/configs/31a.yaml" \
-	--checkpoint_path="/home/qiuqiangkong/workspaces/nesd/checkpoints/train/31a/step=300000.pth"
-
-
-####
-python nesd/train_old.py \
-	--workspace=$WORKSPACE \
-	--config_yaml="./scripts/configs/01a.yaml"
+# CUDA_VISIBLE_DEVICES=6 python evaluate/dcase2020_task3.py inference_sep \
+# 	--workspace=$WORKSPACE \
+# 	--config_yaml="./scripts/configs/31a.yaml" \
+# 	--checkpoint_path="/home/qiuqiangkong/workspaces/nesd/checkpoints/train/31a/step=300000.pth"
 
 
-##### SED
-CUDA_VISIBLE_DEVICES=2 python sed/train_d19t3.py
+# ####
+# python nesd/train_old.py \
+# 	--workspace=$WORKSPACE \
+# 	--config_yaml="./scripts/configs/01a.yaml"
+
+
+
 
 

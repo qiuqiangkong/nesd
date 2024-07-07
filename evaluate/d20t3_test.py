@@ -91,9 +91,6 @@ for score_type in score_type_list:
 
             eval.update_seld_scores(pred_labels, gt_labels)
 
-            # from IPython import embed; embed(using=False); os._exit(0)
-
-
         # Overall SED and DOA scores
         er, f, de, de_f = eval.compute_seld_scores()
         seld_scr = SELD_evaluation_metrics.early_stopping_metric([er, f], [de, de_f])

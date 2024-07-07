@@ -111,26 +111,26 @@ class DCASE2021Task3:
         return self.audios_num
 
 
-def read_dcase2021_task3_csv(meta_path, lb_to_id):
+# def read_dcase2021_task3_csv(meta_path, lb_to_id):
 
-    df = pd.read_csv(meta_path, sep=',', header=None)
+#     df = pd.read_csv(meta_path, sep=',', header=None)
 
-    frame_indexes = df[0].values
-    class_indexes = df[1].values
-    azimuths = df[3].values
-    elevations = df[4].values
-    distances = np.zeros(len(frame_indexes))
+#     frame_indexes = df[0].values
+#     class_indexes = df[1].values
+#     azimuths = df[3].values
+#     elevations = df[4].values
+#     distances = np.zeros(len(frame_indexes))
 
-    azimuths = np.deg2rad(np.array(azimuths))
-    elevations = np.deg2rad(np.array(elevations))
+#     azimuths = np.deg2rad(np.array(azimuths))
+#     elevations = np.deg2rad(np.array(elevations))
 
-    classes_num = len(lb_to_id)
-    targets = np.zeros((7000, classes_num))
+#     classes_num = len(lb_to_id)
+#     targets = np.zeros((7000, classes_num))
 
-    for i in range(len(frame_indexes)):
-        frame_index = frame_indexes[i]
-        class_index = class_indexes[i]
-        for j in range(10):
-            targets[frame_index * 10 + j, class_index] = 1
+#     for i in range(len(frame_indexes)):
+#         frame_index = frame_indexes[i]
+#         class_index = class_indexes[i]
+#         for j in range(10):
+#             targets[frame_index * 10 + j, class_index] = 1
 
-    return targets
+#     return targets

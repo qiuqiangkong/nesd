@@ -26,10 +26,10 @@ def get_nb_files(_pred_file_list, _group='split'):
 # Metric evaluation at a fixed hop length of 20 ms (=0.02 seconds) and 3000 frames for a 60s audio
 
 # INPUT DIRECTORY
-# ref_desc_files = "/datasets/dcase2019/task3/metadata_eval"
+ref_desc_files = "/datasets/dcase2019/task3/metadata_eval"
 # pred_output_format_files = "/home/qiuqiangkong/workspaces/nesd/results/dcase2019_task3/pred_csvs"
 
-ref_desc_files = "./tmp_gt/d19t3_metadata_eval"
+# ref_desc_files = "./tmp_gt/d19t3_metadata_eval"
 pred_output_format_files = "/home/qiuqiangkong/workspaces/nesd/results/dcase2019_task3/pred_csvs"
 
 # Load feature class
@@ -45,6 +45,7 @@ nb_ref_files = len(ref_files)
 
 # collect predicted files info
 pred_files = os.listdir(pred_output_format_files)
+# pred_files = sorted(pred_files)
 nb_pred_files = len(pred_files)
 
 if nb_ref_files != nb_pred_files:
@@ -81,6 +82,7 @@ for score_type in score_type_list:
             pred_labels = evaluation_metrics.output_format_dict_to_classification_labels(pred_dict, feat_cls)
 
             # Calculated SED and DOA scores
+            # from IPython import embed; embed(using=False); os._exit(0)
             eval.update_sed_scores(pred_labels.max(2), gt_labels.max(2))
             eval.update_doa_scores(pred_labels, gt_labels)
 
@@ -94,10 +96,9 @@ for score_type in score_type_list:
         print('SED metrics: er: {}, f:{}'.format(er, f))
         print('DOA metrics: doa error: {}, frame recall:{}'.format(doa_err, frame_recall))
 
-        import matplotlib.pyplot as plt
-        fig, axs = plt.subplots(2,1, sharex=True)
-        axs[0].matshow(pred_labels.max(2).T, origin='lower', aspect='auto', cmap='jet')
-        axs[1].matshow(gt_labels.max(2).T, origin='lower', aspect='auto', cmap='jet')
-        plt.savefig('_zz.pdf')
-        from IPython import embed; embed(using=False); os._exit(0)
+        # import matplotlib.pyplot as plt
+        # fig, axs = plt.subplots(2,1, sharex=True)
+        # axs[0].matshow(pred_labels.max(2).T, origin='lower', aspect='auto', cmap='jet')
+        # axs[1].matshow(gt_labels.max(2).T, origin='lower', aspect='auto', cmap='jet')
+        # plt.savefig('_zz.pdf')
         

@@ -9,6 +9,7 @@ from sklearn.cluster import KMeans
 from nesd.utils import read_yaml, sph2cart, expand_along_frame_axis, get_included_angle, normalize
 from nesd.train import get_model
 import librosa
+import os
 import pandas as pd
 import matplotlib.pyplot as plt
 from concurrent.futures import ProcessPoolExecutor
@@ -16,6 +17,7 @@ from concurrent.futures import ProcessPoolExecutor
 from nesd.inference import get_all_agent_look_at_directions
 from nesd.constants import PAD
 from nesd.utils import get_included_angle, apply_lowpass_filter
+from evaluate.utils import get_locss, _multiple_process_gt_mat, _multiple_process_plot, _calculate_centers
 
 
 LABELS = [
@@ -43,41 +45,35 @@ SCALE = 1
 # split = "test"
 dataset_dir = "/datasets/dcase2019/task3"
 workspace = "/home/qiuqiangkong/workspaces/nesd"
+results_dir = Path(workspace, "results/dcase2019_task3")
 
-select = "1"
+select = "2"
 
 if select == "1":
 
     audio_paths = [Path(dataset_dir, "mic_eval", "split0_1.wav")]
 
-    panaromas_dir = Path(workspace, "results/dcase2019_task3/panaroma")
+    panaromas_dir = Path(results_dir, "panaroma")
     panaroma_paths = [Path(panaromas_dir, "split0_1.pkl")]
-    sed_dir = Path(workspace, "results/dcase2019_task3/sed")
+    sed_dir = Path(results_dir, "sed")
 
-    pred_csvs_dir = Path(workspace, "results/dcase2019_task3/pred_csvs")
+    pred_csvs_dir = Path(results_dir, "pred_csvs")
 
-    gt_csv_path = Path(dataset_dir, "metadata_eval", "split0_1.csv")
+    # gt_csv_path = Path(dataset_dir, "metadata_eval", "split0_1.csv")
+    gt_csvs_dir = Path(dataset_dir, "metadata_eval")
     
 elif select == "2":
 
     audios_dir = Path(dataset_dir, "mic_eval")
     audio_paths = sorted(list(Path(audios_dir).glob("*.wav")))
 
-    panaromas_dir = Path(workspace, "results/dcase2019_task3/panaroma")
+    panaromas_dir = Path(results_dir, "panaroma")
     panaroma_paths = sorted(list(Path(panaromas_dir).glob("*.pkl")))
 
-    pred_csvs_dir = Path(workspace, "results/dcase2019_task3/pred_csvs")
+    pred_csvs_dir = Path(results_dir, "pred_csvs")
+
+    gt_csvs_dir = Path(dataset_dir, "metadata_eval")
     
-
-# audio_path = "/datasets/tau-srir/TAU-SNoise_DB/01_bomb_center/ambience_tetra_24k_edited.wav"
-# audio_path = "_uu.wav"
-# audio_path = "_uu2.wav"
-# audio_path = "_uu3.wav"
-# audio_path = "/datasets/dcase2020/task3/mic_dev/fold6_room1_mix100_ov2.wav"
-# audio_path = "/datasets/dcase2021/task3/mic_eval/eval-test/mix200.wav"
-# audio_path = "/datasets/dcase2022/task3/mic_eval/mix052.wav"
-# audio_path = "/datasets/dcase2023/task3/mic_dev/dev-test-sony/fold4_room24_mix016.wav"
-
 
 def coordinate_to_position(coordinate):
 
@@ -261,7 +257,7 @@ def inference(args):
         pickle.dump(pred_directions, open(pickle_path, "wb"))
         print("Write out to {}".format(pickle_path))
 
-        from IPython import embed; embed(using=False); os._exit(0)
+        # from IPython import embed; embed(using=False); os._exit(0)
 
         # soundfile.write(file="_zz.wav", data=audio.T, samplerate=sample_rate)
         # soundfile.write(file="_zz.wav", data=mic_wavs[0].T, samplerate=sample_rate)
@@ -374,6 +370,8 @@ def write_loc_csv(args):
         class_ids = [[0] * len(locs) for locs in locss]
         write_locss_to_csv(locss, class_ids, csv_path, grid_deg)
 
+        break
+
     return pred_tensor, locss
 
 
@@ -436,7 +434,7 @@ def write_loc_csv_with_sed(args):
         write_list_buffers_to_csv(list_buffers, csv_path, grid_deg)
         # print("Write out to {}".format(csv_path))
 
-        from IPython import embed; embed(using=False); os._exit(0)
+        # from IPython import embed; embed(using=False); os._exit(0)
 
     # return pred_tensor, locss
 
@@ -527,7 +525,7 @@ def panaroma_to_events(args):
         audio, fs = librosa.load(path=audio_path, sr=sample_rate, mono=False)
         # audio_samples = audio.shape[-1]
 
-        segments_dir = "_tmp_segments/{}".format(panaroma_path.stem)
+        segments_dir = Path(results_dir, "segs", panaroma_path.stem)
         Path(segments_dir).mkdir(parents=True, exist_ok=True)
 
         # 
@@ -559,7 +557,7 @@ def panaroma_to_events(args):
             print("Write out to {}".format(out_segment_path))
             print("Write out to {}".format(out_event_path))
 
-        from IPython import embed; embed(using=False); os._exit(0)
+    # from IPython import embed; embed(using=False); os._exit(0)
 
 
 def plot_panaroma(args):
@@ -567,232 +565,119 @@ def plot_panaroma(args):
     workspace = args.workspace
     grid_deg = 2
 
-    pred_tensor, locss = write_loc_csv(args)
-    frames_num, azi_grids, ele_grids = pred_tensor.shape
+    for panaroma_path in panaroma_paths:
 
-    # Get GT panaroma.
-    frame_indexes, class_indexes, azimuths, elevations, distances = read_dcase2019_task3_csv(csv_path=gt_csv_path)
+        csv_path = Path(pred_csvs_dir, "{}.csv".format(Path(panaroma_path).stem))
 
-    gt_tensor = np.zeros_like(pred_tensor)
-    half_angle = np.deg2rad(5)
+        pred_tensor = pickle.load(open(panaroma_path, "rb"))
 
-    params = []
+        locss = get_locss(pred_tensor)
+        frames_num, azi_grids, ele_grids = pred_tensor.shape
 
-    for n in range(len(frame_indexes)):
+        # Get GT panaroma.
+        gt_csv_path = Path(gt_csvs_dir, "{}.csv".format(panaroma_path.stem))
 
-        frame_index = frame_indexes[n]
-        class_index = class_indexes[n]
-        source_azi = azimuths[n]
-        source_ele = elevations[n]
+        frame_indexes, class_indexes, azimuths, elevations, distances = read_dcase2019_task3_csv(csv_path=gt_csv_path)
 
-        param = (frame_index, class_index, source_azi, source_ele, azi_grids, ele_grids, grid_deg, half_angle)
-        params.append(param)
+        gt_tensor = np.zeros_like(pred_tensor)
+        half_angle = np.deg2rad(5)
 
-    # for param in params:
-    #     _multiple_process_gt_mat(param)
+        params = []
 
-    with ProcessPoolExecutor(max_workers=None) as pool: # Maximum workers on the machine.
-        results = pool.map(_multiple_process_gt_mat, params)
+        for n in range(len(frame_indexes)):
 
-    gt_texts = [""] * frames_num
-    for (frame_index, class_index, gt_mat) in results:
-        gt_tensor[frame_index] += gt_mat
-        gt_texts[frame_index] += ID_TO_LB[class_index]
+            frame_index = frame_indexes[n]
+            class_index = class_indexes[n]
+            source_azi = azimuths[n]
+            source_ele = elevations[n]
 
-    # Get predicted panaroma.
-    params = []
+            param = (frame_index, class_index, source_azi, source_ele, azi_grids, ele_grids, grid_deg, half_angle)
+            params.append(param)
 
-    for frame_index in range(frames_num):
-        param = (
-            frame_index, 
-            gt_texts[frame_index], 
-            gt_tensor[frame_index], 
-            pred_tensor[frame_index], 
-            locss[frame_index],
-            grid_deg
-        )
-        params.append(param)
+        # for param in params:
+        #     _multiple_process_gt_mat(param)
 
-    # for param in params:
-    #     _multiple_process_plot(param)
+        with ProcessPoolExecutor(max_workers=None) as pool: # Maximum workers on the machine.
+            results = pool.map(_multiple_process_gt_mat, params)
 
-    with ProcessPoolExecutor(max_workers=None) as pool: # Maximum workers on the machine.
-        pool.map(_multiple_process_plot, params)
+        gt_texts = [""] * frames_num
+        for (frame_index, class_index, gt_mat) in results:
+            gt_tensor[frame_index] += gt_mat
+            gt_texts[frame_index] += ID_TO_LB[class_index]
 
-    from IPython import embed; embed(using=False); os._exit(0)
+        # Get predicted panaroma.
+        params = []
 
+        for frame_index in range(frames_num):
+            png_path = Path("_tmp", panaroma_path.stem, "{:04d}.png".format(frame_index))
+            Path(png_path.parent).mkdir(parents=True, exist_ok=True)
+            param = (
+                frame_index, 
+                gt_texts[frame_index], 
+                gt_tensor[frame_index], 
+                pred_tensor[frame_index], 
+                locss[frame_index],
+                grid_deg,
+                png_path
+            )
+            params.append(param)
 
-def _multiple_process_gt_mat(param):
+        # for param in params:
+        #     _multiple_process_plot(param)
 
-    frame_index, class_index, source_azi, source_ele, azi_grids, ele_grids, grid_deg, half_angle = param
-    print(frame_index)
+        with ProcessPoolExecutor(max_workers=None) as pool: # Maximum workers on the machine.
+            pool.map(_multiple_process_plot, params)
 
-    gt_mat = np.zeros((azi_grids, ele_grids))
+        out_video_path = Path(results_dir, "videos", "{}.mp4".format(panaroma_path.stem))
+        Path(out_video_path.parent).mkdir(parents=True, exist_ok=True)
+        os.system("ffmpeg -y -framerate 10 -i '{}/%04d.png' -r 30 -pix_fmt yuv420p {}".format(png_path.parent, out_video_path))
+        print("Write out to {}".format(out_video_path))
 
-    source_direction = np.array(sph2cart(source_azi, source_ele, 1.))
-
-    tmp = []
-    azi_grids, ele_grids = gt_mat.shape
-
-    for i in range(azi_grids):
-        for j in range(ele_grids):
-
-            _azi = np.deg2rad(i * grid_deg - 180)
-            _ele = np.deg2rad(j * grid_deg - 90)
-
-            plot_direction = np.array(sph2cart(_azi, _ele, 1))
-
-            ray_angle = get_included_angle(source_direction, plot_direction)
-
-            if ray_angle < half_angle:
-                gt_mat[i, j] = 1
-                tmp.append((i, j))
-
-    return frame_index, class_index, gt_mat
-
-
-def _multiple_process_plot(param):
-
-    frame_index, gt_text, gt_mat, pred_mat, locs, grid_deg = param
-    print("Plot: {}".format(frame_index))
-
-    azi_grids, ele_grids = gt_mat.shape
-
-    if len(locs) > 0:
-        centers = locs + np.array([math.pi, math.pi / 2])
-        centers = np.rad2deg(centers) / grid_deg
-        pred_mat = plot_center_to_mat(centers=locs, x=pred_mat, grid_deg=grid_deg)
-
-    plt.figure(figsize=(20, 10))
-    fig, axs = plt.subplots(2, 1, sharex=True)
-    axs[0].matshow(gt_mat.T, origin='lower', aspect='equal', cmap='jet', vmin=0, vmax=1)
-    axs[1].matshow(pred_mat.T, origin='lower', aspect='equal', cmap='jet', vmin=0, vmax=1)
-    for i in range(2):
-        axs[i].grid(color='w', linestyle='--', linewidth=0.1)
-        axs[i].xaxis.set_ticks(np.arange(0, azi_grids + 1, 10))
-        axs[i].yaxis.set_ticks(np.arange(0, ele_grids + 1, 10))
-        axs[i].xaxis.set_ticklabels(np.arange(0, 361, 10 * grid_deg), rotation=90)
-        axs[i].yaxis.set_ticklabels(np.arange(0, 181, 10 * grid_deg))
-    axs[0].set_title(gt_text)
-
-    Path("_tmp").mkdir(parents=True, exist_ok=True)
-    plt.savefig('_tmp/{:04d}.png'.format(frame_index))
-    
-
-
-def calculate_centers(x):
-
-    tmp = np.stack(np.where(x > 0.8), axis=1)
-
-    if len(tmp) == 0:
-        return []
-    
-    for n_clusters in range(1, 10):
-        kmeans = KMeans(n_clusters=n_clusters, random_state=0, n_init="auto").fit(tmp)
-        error = np.mean(np.abs(tmp - kmeans.cluster_centers_[kmeans.labels_]))
-        if error < 10:
-            break
-    
-    return kmeans.cluster_centers_
-
-
-def _calculate_centers(param):
-
-    frame_index, x, grid_deg = param
-
-    print(frame_index)
-
-    tmp = np.stack(np.where(x > 0.8), axis=1)
-
-    if len(tmp) == 0:
-        return []
-    
-    for n_clusters in range(1, 10):
-        kmeans = KMeans(n_clusters=n_clusters, random_state=0, n_init="auto").fit(tmp)
-        distances = np.linalg.norm(tmp - kmeans.cluster_centers_[kmeans.labels_], axis=-1)
-        if np.mean(distances) < 5:
-            break
-    
-    locs = np.deg2rad(kmeans.cluster_centers_ * grid_deg) - np.array([math.pi, math.pi / 2])
-
-    # plt.matshow(x.T, origin='lower', aspect='auto', cmap='jet')
-    # plt.savefig("_zz.pdf")
     # from IPython import embed; embed(using=False); os._exit(0)
 
-    return locs
 
 
-def _calculate_centers_with_sed(param):
+# def calculate_centers(x):
 
-    frame_index, x, sed_array, grid_deg = param
+#     tmp = np.stack(np.where(x > 0.8), axis=1)
 
-    print(frame_index)
-
-    tmp = np.stack(np.where(x > 0.8), axis=1)
-
-    if len(tmp) == 0:
-        return []
+#     if len(tmp) == 0:
+#         return []
     
-    for n_clusters in range(1, 10):
-        kmeans = KMeans(n_clusters=n_clusters, random_state=0, n_init="auto").fit(tmp)
-        distances = np.linalg.norm(tmp - kmeans.cluster_centers_[kmeans.labels_], axis=-1)
-        if np.mean(distances) < 5:
-            break
+#     for n_clusters in range(1, 10):
+#         kmeans = KMeans(n_clusters=n_clusters, random_state=0, n_init="auto").fit(tmp)
+#         error = np.mean(np.abs(tmp - kmeans.cluster_centers_[kmeans.labels_]))
+#         if error < 10:
+#             break
     
-    locs = np.deg2rad(kmeans.cluster_centers_ * grid_deg) - np.array([math.pi, math.pi / 2])
-
-    # plt.matshow(x.T, origin='lower', aspect='auto', cmap='jet')
-    # plt.savefig("_zz.pdf")
-    # from IPython import embed; embed(using=False); os._exit(0)
-
-    return locs
+#     return kmeans.cluster_centers_
 
 
-'''
-def _calculate_centers(param):
 
-    frame_index, x, grid_deg = param
+# def _calculate_centers_with_sed(param):
 
-    print(frame_index)
+#     frame_index, x, sed_array, grid_deg = param
 
-    tmp = np.stack(np.where(x > 0.8), axis=1)
+#     print(frame_index)
 
-    azi = np.deg2rad(tmp[:, 0] * grid_deg) - math.pi
-    ele = np.deg2rad(tmp[:, 1] * grid_deg) - math.pi / 2
-    tmp = sph2cart(azimuth=azi, elevation=ele, r=1.)
+#     tmp = np.stack(np.where(x > 0.8), axis=1)
+
+#     if len(tmp) == 0:
+#         return []
     
-    if len(tmp) == 0:
-        return []
-
-    from coclust.clustering import SphericalKmeans
-
-    for n_clusters in range(1, 10):
-        
-        kmeans = SphericalKmeans(n_clusters=n_clusters, random_state=0, n_init=1)
-        kmeans.fit(tmp)
-        from IPython import embed; embed(using=False); os._exit(0)
-        distances = np.linalg.norm(tmp - kmeans.cluster_centers_[kmeans.labels_], axis=-1)
-        if np.mean(distances) < 0.05:
-            break
+#     for n_clusters in range(1, 10):
+#         kmeans = KMeans(n_clusters=n_clusters, random_state=0, n_init="auto").fit(tmp)
+#         distances = np.linalg.norm(tmp - kmeans.cluster_centers_[kmeans.labels_], axis=-1)
+#         if np.mean(distances) < 5:
+#             break
     
-    # locs = np.deg2rad(kmeans.cluster_centers_ * grid_deg) - np.array([math.pi, math.pi / 2])
+#     locs = np.deg2rad(kmeans.cluster_centers_ * grid_deg) - np.array([math.pi, math.pi / 2])
 
-    plt.matshow(x.T, origin='lower', aspect='auto', cmap='jet')
-    plt.savefig("_zz.pdf")
-    from IPython import embed; embed(using=False); os._exit(0)
+#     # plt.matshow(x.T, origin='lower', aspect='auto', cmap='jet')
+#     # plt.savefig("_zz.pdf")
+#     # from IPython import embed; embed(using=False); os._exit(0)
 
-    return locs
-'''
-
-def plot_center_to_mat(centers, x, grid_deg):
-    
-    for center in centers:
-        center_azi = round(np.rad2deg(center[0] + math.pi) / grid_deg)
-        center_ele = round(np.rad2deg(center[1] + math.pi / 2) / grid_deg)
-        x[max(center_azi - 5, 0) : min(center_azi + 6, x.shape[0]), center_ele] = np.nan
-        x[center_azi, max(center_ele - 5, 0) : min(center_ele + 6, x.shape[1])] = np.nan
-    
-    return x
+#     return locs
 
 
 def write_locss_to_csv(locss, class_ids, csv_path, grid_deg):
@@ -1015,7 +900,7 @@ def inference_distance(args):
     axs[1].matshow(pred_distances.T, origin='lower', aspect='auto', cmap='jet', vmin=0, vmax=1.)
     plt.savefig("_zz.pdf")
     
-    from IPython import embed; embed(using=False); os._exit(0)
+    # from IPython import embed; embed(using=False); os._exit(0)
 
 
 def inference_sep(args):
@@ -1165,7 +1050,7 @@ def inference_sep(args):
     pred_wavs = np.concatenate(pred_wavs, axis=0)
     soundfile.write(file="_zz.wav", data=pred_wavs, samplerate=sample_rate)
 
-    from IPython import embed; embed(using=False); os._exit(0)
+    # from IPython import embed; embed(using=False); os._exit(0)
 
 
 def segs_sep(args):
@@ -1195,7 +1080,7 @@ def segs_sep(args):
     model.to(device)
 
     for audio_path in audio_paths:
-        segs_dir = "_tmp_segments/{}".format(audio_path.stem)
+        segs_dir = Path(results_dir, "segs/{}".format(audio_path.stem))
 
         seg_paths = sorted(list(Path(segs_dir).glob("*.wav")))
 
@@ -1219,7 +1104,7 @@ def segs_sep(args):
             agent_poss = np.repeat(agent_poss, repeats=rays_num, axis=1)
             # (1, rays_num, frames_num, 3)
 
-            event_path = Path("_tmp_segments", audio_path.stem, "{}.pkl".format(seg_path.stem))
+            event_path = Path(segs_dir, "{}.pkl".format(seg_path.stem))
             event = pickle.load(open(event_path, "rb"))
             locs = event["locs"]
             
@@ -1259,12 +1144,12 @@ def segs_sep(args):
 
             out_wav = batch_output_dict["agent_look_at_direction_reverb_wav"].data.cpu().numpy()[0, 0]
 
-            out_path = "_tmp_segments_results/{}/{}.wav".format(audio_path.stem, seg_path.stem)
+            out_path = Path(results_dir, "segs_wavs/{}/{}.wav".format(audio_path.stem, seg_path.stem))
             Path(out_path).parent.mkdir(parents=True, exist_ok=True)
             soundfile.write(file=out_path, data=out_wav, samplerate=sample_rate)
             print("write out to {}".format(out_path))
 
-        from IPython import embed; embed(using=False); os._exit(0)
+    # from IPython import embed; embed(using=False); os._exit(0)
 
 
 def segs_distance(args):
@@ -1294,7 +1179,7 @@ def segs_distance(args):
     model.to(device)
 
     for audio_path in audio_paths:
-        segs_dir = "_tmp_segments/{}".format(audio_path.stem)
+        segs_dir = Path(results_dir, "segs", audio_path.stem)
 
         seg_paths = sorted(list(Path(segs_dir).glob("*.wav")))
 
@@ -1323,7 +1208,7 @@ def segs_distance(args):
             agent_poss = np.repeat(agent_poss, repeats=rays_num, axis=1)
             # (1, rays_num, frames_num, 3)
 
-            event_path = Path("_tmp_segments", audio_path.stem, "{}.pkl".format(seg_path.stem))
+            event_path = Path(segs_dir, "{}.pkl".format(seg_path.stem))
             event = pickle.load(open(event_path, "rb"))
             locs = event["locs"]
             
@@ -1380,14 +1265,15 @@ def segs_distance(args):
 
             pred_distance = output_dict["agent_look_at_distance_has_source"][0].transpose(1, 0)
 
-            out_path = "_tmp_segments_results/{}/{}.pkl".format(audio_path.stem, seg_path.stem)
+            # out_path = "_tmp_segments_results/{}/{}.pkl".format(audio_path.stem, seg_path.stem)
+            out_path = Path(results_dir, "segs_dists", audio_path.stem, "{}.pkl".format(seg_path.stem))
             Path(out_path).parent.mkdir(parents=True, exist_ok=True)
             pickle.dump(pred_distance, open(out_path, "wb"))
             print("write out to {}".format(out_path))
 
             fig, axs = plt.subplots(2, 1, sharex=True)
             axs[1].matshow(pred_distance.T, origin='lower', aspect='auto', cmap='jet', vmin=0, vmax=1.)
-            out_path = "_tmp_segments_results/{}/{}.png".format(audio_path.stem, seg_path.stem)
+            out_path = Path(results_dir, "segs_dists", audio_path.stem, "{}.png".format(seg_path.stem))
             plt.savefig(out_path)
             print("write out to {}".format(out_path))
 
@@ -1404,10 +1290,10 @@ def combine_results(args):
         pana_tensor = pickle.load(open(panaroma_path, "rb"))
         frames_num, azi_grids, ele_grids = pana_tensor.shape
 
-        sed_path = Path(sed_dir, "{}.pkl".format(Path(panaroma_path).stem))
+        sed_path = Path(results_dir, "sed", "{}.pkl".format(Path(panaroma_path).stem))
         sed_tensor = pickle.load(open(sed_path, "rb"))
 
-        segs_dir = "_tmp_segments/{}".format(panaroma_path.stem)
+        segs_dir = Path(results_dir, "segs", panaroma_path.stem)
         event_paths = sorted(list(Path(segs_dir).glob("*.pkl")))
 
         list_tuples = []
@@ -1422,20 +1308,20 @@ def combine_results(args):
             end_time = event["end_time"]
             locs = event["locs"]
 
-            bgn_frame = int(bgn_time * frames_per_sec)
-            end_frame = int(end_time * frames_per_sec)
+            bgn_frame = round(bgn_time * frames_per_sec)
+            end_frame = round(end_time * frames_per_sec)
 
             sed_part = sed_tensor[bgn_frame : end_frame + 1, :]
 
             # Load part sep wav
-            wav_part_path = "_tmp_segments_results/{}/{}.wav".format(panaroma_path.stem, event_path.stem)
+            wav_part_path = Path(results_dir, "segs_wavs", panaroma_path.stem, "{}.wav".format(event_path.stem))
             wav_part, _ = librosa.load(path=wav_part_path, sr=sample_rate, mono=False)
 
             # Load part distance
-            dist_path = "_tmp_segments_results/{}/{}.pkl".format(panaroma_path.stem, event_path.stem)
+            dist_path = Path(results_dir, "segs_dists", panaroma_path.stem, "{}.pkl".format(event_path.stem))
             dist_part = pickle.load(open(dist_path, "rb"))
 
-            sep_sed_path = "_tmp_segments_sed/{}/{}.pkl".format(panaroma_path.stem, event_path.stem)
+            sep_sed_path = Path(results_dir, "segs_sed", panaroma_path.stem, "{}.pkl".format(event_path.stem))
             sep_sed_part = pickle.load(open(sep_sed_path, "rb"))
 
             if False:
@@ -1455,8 +1341,6 @@ def combine_results(args):
                 axs[1].yaxis.set_ticklabels(LABELS)
                 plt.savefig("_zz.pdf")
 
-            # sep_sed_part = np.zeros_like(sed_part)
-
             for t in range(sed_part.shape[0]):
                 if np.max(sed_part[t]) > 0.8:
                     mask = sed_part[t] > 0.8
@@ -1472,6 +1356,7 @@ def combine_results(args):
 
         # Write
         csv_path = Path(pred_csvs_dir, "{}.csv".format(Path(panaroma_path).stem))
+        Path(csv_path.parent).mkdir(parents=True, exist_ok=True)
         with open(csv_path, 'w') as fw:
             for _tuple in list_tuples[0 :: 2]:
 
@@ -1490,7 +1375,7 @@ def combine_results(args):
 
         print("Write out to {}".format(csv_path))
 
-        from IPython import embed; embed(using=False); os._exit(0)
+    # from IPython import embed; embed(using=False); os._exit(0)
 
 
 if __name__ == "__main__":

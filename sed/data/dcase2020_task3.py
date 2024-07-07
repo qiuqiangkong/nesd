@@ -58,7 +58,8 @@ class DCASE2020Task3:
         # Load audio.
         audio = self.load_audio(audio_path, segment_start_time)
 
-        targets = self.load_targets(meta_path, segment_start_time)
+        max_frames_num = round(duration * self.frames_per_sec) + 1000
+        targets = self.load_targets(meta_path, max_frames_num, segment_start_time)
 
         data = {
             "audio": audio,
@@ -94,13 +95,13 @@ class DCASE2020Task3:
 
         return audio
 
-    def load_targets(self, meta_path, segment_start_time):
+    def load_targets(self, meta_path, max_frames_num, segment_start_time):
 
         start_frame = round(segment_start_time * self.frames_per_sec)
         segment_frames = int(self.segment_seconds * self.frames_per_sec)
         end_frame = start_frame + segment_frames
 
-        targets = read_dcase2020_task3_csv(meta_path, self.lb_to_id)
+        targets = read_dcase2020_task3_csv(meta_path, max_frames_num, self.lb_to_id)
 
         tmp = targets[start_frame : end_frame + 1, :]
 
@@ -110,7 +111,7 @@ class DCASE2020Task3:
         return self.audios_num
 
 
-def read_dcase2020_task3_csv(meta_path, lb_to_id):
+def read_dcase2020_task3_csv(meta_path, max_frames_num, lb_to_id):
 
     df = pd.read_csv(meta_path, sep=',', header=None)
 
@@ -124,12 +125,14 @@ def read_dcase2020_task3_csv(meta_path, lb_to_id):
     elevations = np.deg2rad(np.array(elevations))
 
     classes_num = len(lb_to_id)
-    targets = np.zeros((7000, classes_num))
+    targets = np.zeros((max_frames_num, classes_num))
 
+    # try:
     for i in range(len(frame_indexes)):
         frame_index = frame_indexes[i]
         class_index = class_indexes[i]
         for j in range(10):
             targets[frame_index * 10 + j, class_index] = 1
-
+    # except:
+    #     from IPython import embed; embed(using=False); os._exit(0)
     return targets

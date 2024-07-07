@@ -86,6 +86,12 @@ class SELDMetrics(object):
         :param nb_frames_1s: integer, number of frames in one second
         :return:
         """
+        # import matplotlib.pyplot as plt
+        # fig, axs = plt.subplots(2, 1, sharex=True)
+        # axs[0].matshow(gt.T, origin='lower', aspect='auto', cmap='jet', vmin=0, vmax=1.)
+        # axs[1].matshow(pred.T, origin='lower', aspect='auto', cmap='jet', vmin=0, vmax=1.)
+        # plt.savefig("_zz.pdf")
+        # from IPython import embed; embed(using=False); os._exit(0)
         self.f1_overall_1sec(pred, gt)
         self.er_overall_1sec(pred, gt)
 
