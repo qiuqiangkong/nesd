@@ -92,3 +92,5 @@ old_01b.yaml	old dataloader, Nesd6, add noise
 
 46a.yaml	noise to 40 dB
 46b.yaml	noise to 40 dB, sep
+
+47a.yaml	Add dereverb, others same as 43b

@@ -24,11 +24,11 @@ simulator_configs:
     train_audios: "/home/qiuqiangkong/workspaces/nesd/audios/vctk_2s_segments/train"
     test_audios: "/home/qiuqiangkong/workspaces/nesd/audios/vctk_2s_segments/test"
     sources_num:
-        min: 2
+        min: 0
         max: 2
     source_gain_db:
-        min: 0
-        # min: -20
+        # min: 0
+        min: -20
         max: 0
     source_radius: 0.1
     source_apprent_diameter_deg: 10

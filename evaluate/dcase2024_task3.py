@@ -326,6 +326,9 @@ def plot_panaroma(args):
     workspace = args.workspace
     grid_deg = 2
 
+    # from IPython import embed; embed(using=False); os._exit(0)
+    # panaroma_paths = [Path("/home/qiuqiangkong/workspaces/nesd/results/dcase2024_task3/panaroma/fold4_room16_mix005.pkl")]
+
     for panaroma_path in panaroma_paths:
 
         csv_path = Path(pred_csvs_dir, "{}.csv".format(Path(panaroma_path).stem))
@@ -370,6 +373,8 @@ def plot_panaroma(args):
 
         gt_texts = [""] * frames_num
         for (frame_index, class_index, gt_mat) in results:
+            if frame_index >= frames_num:
+                break
             gt_tensor[frame_index] += gt_mat
             gt_texts[frame_index] += ID_TO_LB[class_index]
 

@@ -318,6 +318,8 @@ def plot_panaroma(args):
 
         gt_texts = [""] * frames_num
         for (frame_index, class_index, gt_mat) in results:
+            if frame_index >= frames_num:
+                break
             gt_tensor[frame_index] += gt_mat
             gt_texts[frame_index] += ID_TO_LB[class_index]
 

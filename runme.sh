@@ -28,9 +28,9 @@ python nesd/mic_prep/rigid_sphere.py \
 	--mic_spatial_irs_path="${WORKSPACE}/mic_spatial_irs/rigid_sphere.pkl"
 	
 
-python nesd/train.py \
+CUDA_VISIBLE_DEVICES=7 python nesd/train.py \
 	--workspace=$WORKSPACE \
-	--config_yaml="./scripts/configs/01a.yaml"
+	--config_yaml="./scripts/configs/47a.yaml"
 
 
 python nesd/inference.py inference \
@@ -154,7 +154,7 @@ python evaluate/dcase2021_task3.py plot_panaroma
 # Write segments and locs to classify
 python evaluate/dcase2021_task3.py panaroma_to_events
 
-CUDA_VISIBLE_DEVICES=3 python sed/inference_d21t3.py inference --model_name=CRnn1b
+CUDA_VISIBLE_DEVICES=0 python sed/inference_d21t3.py inference --model_name=CRnn1b
 
 CUDA_VISIBLE_DEVICES=0 python evaluate/dcase2021_task3.py segs_sep \
 	--workspace=$WORKSPACE \
@@ -166,7 +166,7 @@ CUDA_VISIBLE_DEVICES=0 python evaluate/dcase2021_task3.py segs_distance \
 	--config_yaml="./scripts/configs/43b.yaml" \
 	--checkpoint_path="/home/qiuqiangkong/workspaces/nesd/checkpoints/train/43b/step=900000.pth"
 
-CUDA_VISIBLE_DEVICES=3 python sed/inference_d21t3.py inference_many --model_name=CRnn1b
+CUDA_VISIBLE_DEVICES=0 python sed/inference_d21t3.py inference_many --model_name=CRnn1b
 
 python evaluate/dcase2021_task3.py combine_results
 
@@ -184,7 +184,7 @@ python evaluate/dcase2022_task3.py plot_panaroma
 # Write segments and locs to classify
 python evaluate/dcase2022_task3.py panaroma_to_events
 
-CUDA_VISIBLE_DEVICES=3 python sed/inference_d22t3.py inference --model_name=CRnn1b
+CUDA_VISIBLE_DEVICES=0 python sed/inference_d22t3.py inference --model_name=CRnn1b
 
 CUDA_VISIBLE_DEVICES=0 python evaluate/dcase2022_task3.py segs_sep \
 	--workspace=$WORKSPACE \
@@ -196,7 +196,7 @@ CUDA_VISIBLE_DEVICES=0 python evaluate/dcase2022_task3.py segs_distance \
 	--config_yaml="./scripts/configs/43b.yaml" \
 	--checkpoint_path="/home/qiuqiangkong/workspaces/nesd/checkpoints/train/43b/step=900000.pth"
 
-CUDA_VISIBLE_DEVICES=3 python sed/inference_d22t3.py inference_many --model_name=CRnn1b
+CUDA_VISIBLE_DEVICES=0 python sed/inference_d22t3.py inference_many --model_name=CRnn1b
 
 python evaluate/dcase2022_task3.py combine_results
 
@@ -261,6 +261,29 @@ CUDA_VISIBLE_DEVICES=3 python sed/inference_d24t3.py inference_many --model_name
 python evaluate/dcase2024_task3.py combine_results
 
 python evaluate/d24t3_test.py
+
+###
+CUDA_VISIBLE_DEVICES=0 python nesd/inference.py inference \
+	--workspace=$WORKSPACE \
+	--config_yaml="./scripts/configs/43b.yaml" \
+	--checkpoint_path="/home/qiuqiangkong/workspaces/nesd/checkpoints/train/43b/step=900000.pth"
+
+CUDA_VISIBLE_DEVICES=0 python nesd/inference.py inference_panaroma \
+	--workspace=$WORKSPACE \
+	--config_yaml="./scripts/configs/43b.yaml" \
+	--checkpoint_path="/home/qiuqiangkong/workspaces/nesd/checkpoints/train/43b/step=900000.pth"
+
+CUDA_VISIBLE_DEVICES=0 python nesd/inference.py inference_sep \
+	--workspace=$WORKSPACE \
+	--config_yaml="./scripts/configs/43b.yaml" \
+	--checkpoint_path="/home/qiuqiangkong/workspaces/nesd/checkpoints/train/43b/step=900000.pth"
+
+CUDA_VISIBLE_DEVICES=0 python nesd/inference.py inference_distance \
+	--workspace=$WORKSPACE \
+	--config_yaml="./scripts/configs/43b.yaml" \
+	--checkpoint_path="/home/qiuqiangkong/workspaces/nesd/checkpoints/train/43b/step=900000.pth"
+
+
 
 
 # ###

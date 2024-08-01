@@ -100,4 +100,4 @@ for score_type in score_type_list:
         print('SED metrics: Error rate: {:0.2f}, F-score:{:0.1f}'.format(er, 100*f))
         print('DOA metrics: DOA error: {:0.1f}, F-score:{:0.1f}'.format(de, 100*de_f))
 
-    from IPython import embed; embed(using=False); os._exit(0)
+    # from IPython import embed; embed(using=False); os._exit(0)
