@@ -3,6 +3,8 @@
 This repository provides a PyTorch implementation of Neural Sound Field Decomposition (NeSD).
 The system takes microphone array recordings as input and produces a 360° × 160° panoramic map representing the probability distribution of active sound events in the environment. NeSD is designed to handle arbitrary microphone array configurations, diverse acoustic environments, and an unknown number of simultaneous sound sources. NeSD can be applied to a variety of spatial audio tasks, including sound source localization, distance estimation, and spatial source separation.
 
+<img width="1984" height="1120" alt="screenshot-20251106-103522" src="https://github.com/user-attachments/assets/744a3523-59db-4d8b-a40f-49092af6b5bc" />
+
 
 ## 0. Install dependencies
 
@@ -68,3 +70,10 @@ CUDA_VISIBLE_DEVICES=0 python inference.py \
   --video_path="./test_wavs/fold4_room8_mix003.mp4" \
   --out_path="./out.mp4"
 ```
+
+## Results
+
+After training on one RTX4090 GPU card for 12 hours, the results look like:
+
+https://github.com/user-attachments/assets/66d18f79-0fb1-4d7a-a3c5-154c5497d567
+
