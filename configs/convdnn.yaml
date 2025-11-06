@@ -1,0 +1,75 @@
+---
+audio_channels: &audio_channels 4
+sample_rate: &sample_rate 48000
+segment_duration: &segment_duration 2.
+sound_speed: &sound_speed 343
+fps: &fps 100
+
+environment: &environment
+    min_x: 2.
+    max_x: 10.
+    min_y: 2.
+    max_y: 10.
+    min_z: 2.
+    max_z: 4.
+
+microphones: &microphones
+    meta: "./assets/mics/em32.csv"
+    mic_sir: &mic_sir "./results/mics/eigenmike.h5"
+
+image_source_method: &image_source_method
+    min_order: 5
+    max_order: 5
+
+train_datasets:
+    ShoeboxISMSpeech:
+        environment: *environment
+        sources:
+            audios_dir: "./datasets/vctk_2s_no_silence/train"
+            min_srcs: 0
+            max_srcs: 4
+        microphones: *microphones
+        image_source_method: *image_source_method
+
+test_datasets:
+    ShoeboxISMSpeech:
+        environment: *environment
+        sources:
+            audios_dir: "./datasets/vctk_2s_no_silence/test"
+            min_srcs: 3
+            max_srcs: 3
+        microphones: *microphones
+        image_source_method: *image_source_method
+        
+sampler: RepeatShuffleSampler
+
+data_transform:
+    name: AcousticRenderer
+    sample_rate: *sample_rate
+    sound_speed: *sound_speed
+    segment_duration: *segment_duration
+    mic_sir: *mic_sir
+    filter_len: 48000
+    half_angle_deg: 3
+    fps: *fps
+    rays_num: 500
+
+model:
+    name: ConvDNN
+    audio_channels: *audio_channels
+    n_fft: 2048 
+    hop_length: 480
+
+train:
+    device: cuda
+    num_workers: 16
+    precision: "no"  # "no" (fp32) | "bf16"
+    loss: bce
+    optimizer: AdamW
+    lr: 3e-4
+    warm_up_steps: 1000  # Leave blank if no warm up is used
+    batch_size_per_device: 8
+    test_every_n_steps: 1000
+    save_every_n_steps: 10000
+    training_steps: 500000
+    resume_ckpt_path:  # Leave blank if train from scratch
