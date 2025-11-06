@@ -35,13 +35,13 @@ bash ./scripts/audios/vctk.sh
 
 ## 2. Prepare room environments
 
-(skip this step if use online room rays rendering)
-
 ```python
 python -m rooms.shoebox_ism \
   --mic_csv="./assets/mics/em32.csv" \
   --data_num=100 \
   --out_dir="./results/rooms/ism"
+
+This step can be skipped when using online training.
 
 ```
 
@@ -56,8 +56,7 @@ python -m mics.eigenmike \
 ## 4. Train
 
 ```python
-CUDA_VISIBLE_DEVICES=0 python train.py \
-  --config="./configs/convdnn.yaml"
+CUDA_VISIBLE_DEVICES=0 python train.py --config="./configs/convdnn.yaml"
 ```
 
 ## 5. Inference
