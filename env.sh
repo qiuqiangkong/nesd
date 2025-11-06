@@ -9,4 +9,5 @@ pip install tqdm==4.67.1
 pip install wandb==0.22.2
 pip install pyyaml==6.0.3
 pip install einops==0.8.1
+pip install imageio==2.37.0
 pip install ipython

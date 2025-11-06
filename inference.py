@@ -1,29 +1,26 @@
 from __future__ import annotations
 
 import argparse
-from pathlib import Path
-
-import librosa
-import numpy as np
-import soundfile
-from torch import Tensor
-import cv2
 import io
 import os
+import time
+from concurrent.futures import ProcessPoolExecutor
+from pathlib import Path
+
+import h5py
+import imageio.v2 as imageio
+import librosa
+import matplotlib.pyplot as plt
+import numpy as np
+import soundfile
 import torch
 from einops import rearrange
-import matplotlib.pyplot as plt
-from matplotlib.animation import FuncAnimation
-import imageio.v2 as imageio
-import time
-import h5py
-import torchaudio
-from concurrent.futures import ProcessPoolExecutor
+from torch import Tensor
 from torch.utils.data._utils.collate import default_collate
 
+from nesd.utils.torch import normalize, sph2cart
 from nesd.utils.utils import parse_yaml
-from nesd.utils.torch import sph2cart, normalize
-from train import get_model, get_dataset, get_data_transform
+from train import get_data_transform, get_dataset, get_model
 
 
 def inference(args) -> None:
@@ -182,8 +179,7 @@ def cache_video_to_hdf5(video_path: str, h5_path: str, pred_fps: int, Q: int) ->
 def plot_one_frame(param: tuple) -> np.ndarray:
     frame, time, Q = param
     fig, ax = plt.subplots(figsize=(12, 8))
-    im = ax.matshow(frame, cmap='jet', origin='upper', vmin=0, vmax=1)
-
+    ax.matshow(frame, cmap='jet', origin='upper', vmin=0, vmax=1)
     ax.set_title(f"Time {time:.02f} s")
     ax.grid(color='w', linestyle='--', linewidth=0.2)
     ax.xaxis.set_ticks(np.arange(0, 361*Q, 10*Q))

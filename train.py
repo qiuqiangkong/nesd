@@ -1,24 +1,22 @@
 from __future__ import annotations
 
 import argparse
-import os
 from copy import deepcopy
 from pathlib import Path
 from typing import Iterable
 
-import librosa
 import numpy as np
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 import torch.optim as optim
 from torch.utils.data import DataLoader, Dataset
-from tqdm import tqdm
-import time
-import torch.nn.functional as F
 from torch.utils.data._utils.collate import default_collate
+from tqdm import tqdm
 
 import wandb
-from nesd.utils.utils import parse_yaml, requires_grad, update_ema, LinearWarmUp, to_device
+from nesd.utils.utils import (LinearWarmUp, parse_yaml, requires_grad,
+                              to_device, update_ema)
 
 
 def train(args) -> None:
@@ -171,7 +169,6 @@ def get_data_transform(configs: dict):
     r"""Transform data into latent representations and conditions."""
 
     name = configs["data_transform"]["name"]
-    sr = configs["sample_rate"]
 
     if name == "AcousticRenderer":
         from nesd.data_transforms.render import AcousticRenderer
