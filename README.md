@@ -26,14 +26,24 @@ bash env.sh
 
 ## 1. Prepare audio datasets
 
+Download VCTK speech dataset from https://datashare.ed.ac.uk/handle/10283/3443. The downloaded dataset looks like:
+
+<pre>
+vctk
+├── wav48 (109 speakers)
+│   ├── p225 (231 files)
+│   │   └── ...
+│   ├── p229 (379 files)
+│   │   └── ...
+│   └── ...
+...
+</pre>
+
 Prepare audio 2s audio segments for training.
 
 ```bash
-# Download VCTK
-bash ./scripts/download_datasets/vctk.sh
-
 # Prepare 2s segments
-bash ./scripts/audios/vctk.sh
+bash ./scripts/prepare_audios/vctk.sh
 ```
 
 ## 2. Prepare room environments
@@ -63,12 +73,19 @@ CUDA_VISIBLE_DEVICES=0 python train.py --config="./configs/convdnn.yaml"
 ```
 
 ## 5. Inference
+
+Download test audio:
+
+```bash
+bash ./scripts/download_test_audios/em32.sh
+```
+
 ```python
 CUDA_VISIBLE_DEVICES=0 python inference.py \
   --config="./configs/convdnn.yaml" \
   --ckpt_path="./checkpoints/train/convdnn/step=90000.pth" \
-  --audio_path="./test_wavs/fold4_room8_mix003.wav" \
-  --video_path="./test_wavs/fold4_room8_mix003.mp4" \
+  --audio_path="./test_audios/fold4_room8_mix003.wav" \
+  --video_path="./test_audios/fold4_room8_mix003.mp4" \
   --out_path="./out.mp4"
 ```
 
