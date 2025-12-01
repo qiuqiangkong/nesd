@@ -42,17 +42,13 @@ def inference(args) -> None:
     pred_fps = 10
     device = "cuda"
 
-    if not audio_path:
-        test_dataset = get_dataset(configs, split="test")
-        data_transform = get_data_transform(configs)
-        data = test_dataset[0]
-        data = default_collate([data])
-        data = data_transform(data)
-        audio = data["mic_wav"][0]  # (m, l_audio)
+    
+    audio, _ = librosa.load(path=audio_path, sr=sr, mono=False)  # (m, l_audio)
+    # audio = audio[:, 0 : 10 * sr]
+    audio *= 10
 
-    else:
-        audio, _ = librosa.load(path=audio_path, sr=sr, mono=False)  # (m, l_audio)
-        audio = audio[:, 0 : 10 * sr] 
+    indices = [6, 10, 26, 22]
+    audio = np.stack([audio[i] for i in indices], axis=0)
         
     # Model
     model = get_model(
@@ -61,8 +57,8 @@ def inference(args) -> None:
     ).to(device)
     
     # Collect all directions on the panorama.
-    ele = torch.linspace(0, 179, 180).deg2rad()  # 5 points along x
-    azi = torch.linspace(0, 359, 360).deg2rad()  # 3 points along y
+    ele = torch.linspace(0, 180, 181).deg2rad()  # 5 points along x
+    azi = torch.linspace(0, 360, 360).deg2rad()  # 3 points along y
     ele, azi = torch.meshgrid(ele, azi, indexing='ij')  # (181, 360)
     r = torch.ones_like(ele)
 
@@ -101,7 +97,7 @@ def inference(args) -> None:
             i += R
 
         outs = torch.cat(outs, axis=0)
-        outs = rearrange(outs, '(el az) t -> t el az', el=180)
+        outs = rearrange(outs, '(el az) t -> t el az', el=181)
         outputs.append(outs)
         bgn_sample += seg_samples
 
